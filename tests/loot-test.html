@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="UTF-8" />
+	<title>QUnit Test Suite</title>
+	<link rel="stylesheet" href="qunit/qunit.css" type="text/css" media="screen">
+	<script type="text/javascript" src="qunit/qunit.js"></script>
+	<script type="text/javascript" src="../lib/jquery-1.6.js"></script>
+	<script type="text/javascript" src="jquery.mockjax.js"></script>
+	<script type="text/javascript" src="../src/loot.js"></script>
+	<script type="text/javascript" src="../src/loot.sauce.js"></script>
+	<script type="text/javascript">
+
+		loot(window);
+
+		module("loot");
+
+		test("$new", function() {
+
+			expect(13);
+
+			var person = {
+				firstName: "john",
+				age: 30
+			};
+
+			var jim = $new(person);
+			jim.firstName = "jim";
+
+			ok(person.firstName == "john", "changes to new instance do not affect original object");
+			ok(person.age == "30", "untouched properties on new instance inherit values form original object");
+			ok(jim.firstName == "jim", "changes to new instance took place");
+			delete jim.firstName;
+			ok(jim.firstName == "john", "deleting modification on new instance allows original value to shine through");
+			delete jim.firstName;
+			ok(person.firstName == "john", "deleting inherited value has no effect on origin");
+			ok(jim.firstName == "john", "deleting inherited value has no effect on new instance");
+			person.age = 0;
+			ok(jim.age === 0, "modifications on original get inherited by new instance");
+
+			var initScope,
+				initTest = $new({
+					initialize: function() {
+						initScope = this;
+						var sharedSecret = "shared";
+						this.getSharedSecret = function() {
+							return sharedSecret;
+						};
+						this.setSharedSecret = function(val) {
+							sharedSecret = val;
+						};
+					}
+				});
+
+			equals(initScope, initTest, "initialize function is properly called");
+			equals(initTest.initialize, null, "initialize function is nulled out after being called");
+			equals(initTest.getSharedSecret(), "shared", "initialize function enables providing access to private members");
+
+			var sharingSecrets = $new(initTest);
+			equals(sharingSecrets.getSharedSecret(), "shared", "shared closures via an ancestors initialize function allows shared access to the same private members throughout the inheritance chain");
+			sharingSecrets.setSharedSecret("changed");
+			equals(initTest.getSharedSecret(), "changed", "modifications to shared closures from child to ancestor");
+			initTest.setSharedSecret("changed");
+			equals(sharingSecrets.getSharedSecret(), "changed", "modifications to shared closures from ancestor to child");
+
+		});
+
+
+		test("messaging with $speak", function() {
+			expect(27);
+
+			var myBlankSpeaker = $speak();
+
+			ok($isSpeaker(myBlankSpeaker), "calling $speak without arguments returns a new speaker");
+
+			var mySpeaker = $speak({
+				firstName: "",
+				age: 0
+			});
+
+			var mySpeaker3 = $speak({
+				firstName: "",
+				age: 0
+			});
+
+			ok($isSpeaker(mySpeaker), "calling $speak with arguments returns a new speaker");
+
+			ok($isSpeaker(myBlankSpeaker) && $isSpeaker(myBlankSpeaker), "$isSpeaker works properly");
+
+			myBlankSpeakerTestResponses = 0;
+			myBlankSpeakerTestLastTopic = null;
+			myBlankSpeakerTestLastMessage = null,
+			myBlankSpeakerTestLastSpeaker = null,
+			myBlankSpeakerTestLastScope = null,
+			myBlankSpeaker.listen("test", function(topic, message, speaker) {
+				myBlankSpeakerTestResponses++;
+				myBlankSpeakerTestLastTopic = topic;
+				myBlankSpeakerTestLastMessage = message;
+				myBlankSpeakerTestLastSpeaker = speaker;
+				myBlankSpeakerTestLastScope = this;
+
+			});
+
+			mySpeakerTestResponses = 0;
+			mySpeakerTestLastTopic = null;
+			mySpeakerTestLastMessage = null,
+			mySpeakerTestLastSpeaker = null,
+			mySpeakerTestLastScope = null,
+			mySpeaker.listen("test", function(topic, message, speaker) {
+				mySpeakerTestResponses++;
+				mySpeakerTestLastTopic = topic;
+				mySpeakerTestLastMessage = message;
+				mySpeakerTestLastSpeaker = speaker;
+				mySpeakerTestLastScope = this;
+			});
+
+			myBlankSpeaker.tell("test", "this is a test");
+			ok(myBlankSpeakerTestResponses == 1, "properly responded to simple tell");
+			ok(myBlankSpeakerTestLastTopic == "test", "properly received the topic as first arg");
+			ok(myBlankSpeakerTestLastMessage == "this is a test", "responder received the message as second arg");
+			ok(myBlankSpeakerTestLastSpeaker == undefined, "properly received undefined for speaker in 3rd arg since not a shared message");
+			ok(myBlankSpeakerTestLastScope == myBlankSpeaker, "scope was properly the speaker that was told");
+
+			ok(mySpeakerTestResponses == 0, "message was not shared with others");
+
+			mySpeaker.listensTo(myBlankSpeaker);
+			myBlankSpeaker.tell("test", "this is a test with sharing");
+			ok(myBlankSpeakerTestResponses == 2, "properly responded to simple tell");
+			ok(myBlankSpeakerTestLastMessage == "this is a test with sharing", "responder received the message");
+
+			ok(mySpeakerTestResponses == 1, "properly responded to shared message");
+			equals(mySpeakerTestLastTopic, "test", "properly received the shared topic as first arg");
+			ok(mySpeakerTestLastMessage == "this is a test with sharing", "responder received the message as second arg");
+			ok(mySpeakerTestLastSpeaker == myBlankSpeaker, "properly received the original speaker for speaker in 3rd arg since it was a shared message");
+			ok(mySpeakerTestLastScope == mySpeaker, "scope was properly the speaker that was told");
+
+			mySpeaker3TestResponses = 0;
+			mySpeaker3TestLastTopic = null;
+			mySpeaker3TestLastMessage = null,
+			mySpeaker3TestLastSpeaker = null,
+			mySpeaker3TestLastScope = null,
+			mySpeaker3.listen("test", function(topic, message, speaker) {
+				mySpeaker3TestResponses++;
+				mySpeaker3TestLastTopic = topic;
+				mySpeaker3TestLastMessage = message;
+				mySpeaker3TestLastSpeaker = speaker;
+				mySpeaker3TestLastScope = this;
+			});
+
+			mySpeaker.talksTo(mySpeaker3);
+			myBlankSpeaker.tell("test", "this is a test with a sharing chain");
+			ok(mySpeaker3TestResponses == 1, "third party (2nd share) properly responded to");
+			ok(mySpeaker3TestLastTopic == "test", "properly received the topic as first arg");
+			ok(mySpeaker3TestLastMessage == "this is a test with a sharing chain", "responder received the message as second arg");
+			ok(mySpeaker3TestLastSpeaker == myBlankSpeaker, "properly received undefined for speaker in 3rd arg since not a shared message");
+			ok(mySpeaker3TestLastScope == mySpeaker3, "scope was properly the speaker that was told");
+
+			mySpeaker3.selectiveHearing = function(topic, message, speaker) {
+				ok(this === mySpeaker3, "selective hearing function properly scoped");
+				ok(speaker === undefined, "selective hearing speaker undefined for non shared messages");
+				return !(topic == "test"); // ignore test messages
+			};
+			mySpeaker3.tell("test", "testing selectiveHearing");
+			ok(mySpeaker3TestResponses == 1, "selective hearing ignores items when truth test returns false");
+
+
+			mySpeaker3.selectiveHearing = function(topic, message, speaker) {
+				ok(this === mySpeaker3, "selective hearing function properly scoped");
+				ok(speaker === mySpeaker, "selective hearing speaker properly ser for shared messages");
+				return (topic == "test"); // ignore all but test messages
+			};
+
+			mySpeaker.tell("test", "testing selectiveHearing again");
+			ok(mySpeaker3TestResponses == 2, "selective hearing listens to items when truth test returns true");
+
+		});
+
+
+		test("$make", function() {
+			expect(15);
+
+			var aPerson = {
+				firstName: "",
+				age: 0,
+				language: "en"
+			};
+
+			var aParent = $new(aPerson);
+			aParent.firstName = "john";
+			aParent.lastName = "doe";
+			aParent.age = 40;
+			aParent.city = "nevis";
+			aParent.state = "MN";
+			aParent.language = "cz";
+
+
+			var aKid = $new(aPerson);
+			aKid.firstName = "jim";
+			aKid.age = 12;
+
+
+			var aStudent = $new(aPerson);
+			aStudent.school = "ISD 128";
+			aStudent.grade = 5;
+
+			// basic make behavior: prototype, extension, mixin
+			var jim = $make(aParent, aKid, aStudent);
+
+			equals(jim.language, "en", "inherited property on extender overwrites the prototype inherited value, while mixin inherited property is ignored");
+			equals(jim.age, 12, "extension property overwrites inherited property from prototype");
+			equals(aStudent.age, 0, "mixin inherits age == 0");
+			equals(jim.age, 12, "property inherited on mixin is not applied");
+			equals(jim.grade, 5, "property local to mixin is applied");
+			equals(jim.lastName, "doe", "prototype property exists when not set by extension or mixin");
+
+			aKid.age = 15;
+			equals(jim.age, 12, "there is NO prototypal inheritance between new object and extension object");
+			aStudent.grade = 8;
+			equals(jim.grade, 5, "there is NO prototypal inheritance between new object and mixin object");
+			aParent.lastName = "johnson";
+			equals(jim.lastName, "johnson", "there IS prototypal inheritance between new object and prototype object");
+			aPerson.country = "us";
+			equals(aParent.country, "us", "prototype inherits new properties when they are added to its prototype object");
+			equals(jim.country, "us", "inheritance chaining: new object also inherits new properties when they are added to its prototype's prototype object");
+
+			// afterMake callback support
+			var afterProtoMake = 0,
+				afterextensionMake = 0,
+				afterMixinMake = 0;
+
+			var afterMakeTester = $make({
+					afterMake: function() {
+						afterProtoMake = this;
+					}
+				},{
+					afterMake: function() {
+						afterextensionMake = this;
+					}
+				},{
+					afterMake: function() {
+						afterMixinMake = this;
+					}
+				});
+
+			equals(afterMakeTester, afterProtoMake, "afterMake on prototype called properly");
+			equals(afterMakeTester, afterextensionMake, "afterMake on extender called properly");
+			equals(afterMakeTester, afterMixinMake, "afterMake on mixin called properly");
+			equals(afterMakeTester.afterMake, null, "afterMake is nulled out on new object");
+
+
+		});
+
+
+
+
+		test("$make + $speak integration", function() {
+
+			expect(8);
+
+			aTestResponsesMA = 0;
+			var myAudience = $speak({name:"myAudience"}).listen("aTest", function(subject, message, source) {
+				aTestResponsesMA++;
+			});
+
+			aTestResponsesMM = 0;
+			var myMessenger = $speak({name: "myMessenger"}).listen("aTest", function(subject, message, source) {
+				aTestResponsesMM++;
+			}).talksTo(myAudience);
+
+			var newMessenger = $make(myMessenger, {name: "newMessenger"});
+
+			same(newMessenger._listeners, [], "_listeners array is cleared out so we don't inherit/share them");
+			same(newMessenger._audience, [], "_audience array is cleared out so we don't inherit/share audiences");
+
+
+
+			aTestResponsesNM = 0;
+			newMessenger.listen("aTest", function(subject, message, source) {
+				aTestResponsesNM++;
+			});
+
+			myMessenger.tell("aTest", "this is a test");
+
+			equals(aTestResponsesMM, 1, "preexisting handlers work as expected");
+			equals(aTestResponsesMA, 1, "preexisting message sharing works as expected");
+			equals(aTestResponsesNM, 0, "events do not bubble by default");
+
+			var forceBubble = $make(myMessenger, {name: "forceBubble", shareMessages: true});
+			aTestResponsesFB = 0;
+			forceBubble.listen("aTest", function(subject, message, source) {
+				aTestResponsesFB++;
+			});
+
+			myMessenger.tell("aTest", "this is a test");
+			equals(aTestResponsesFB, 1, "shareMessages attribute makes new object listen to prototype messages");
+
+			var inheritBubble = $make(forceBubble, {name: "inheritBubble"});
+			aTestResponsesIB = 0;
+			inheritBubble.listen("aTest", function(subject, message, source) {
+				aTestResponsesIB++;
+			});
+
+			myMessenger.tell("aTest", "this is a test");
+			equals(aTestResponsesIB, 1, "shareMessages attribute persists as you make new objects creating a chain of message sharing (bubbling)");
+
+			var preventBubble = $make(inheritBubble, {name: "preventBubble", dontShareMessages: true});
+			aTestResponsesPB = 0;
+			preventBubble.listen("aTest", function(subject, message, source) {
+				aTestResponsesPB++;
+			});
+
+			myMessenger.tell("aTest", "this is a test");
+			equals(aTestResponsesPB, 0, "dontShareMessages=true property can be used to break the message chain");
+
+
+		});
+
+
+
+		test("loot.sauce.io", function() {
+
+			// setup mock data source
+			$.mockjax({
+				url: '/test',
+				responseTime: 500,
+				status: 200, // 500 error
+				response: function() {
+					this.responseText = JSON.stringify({msg: "Hello world!"});
+				}
+			});
+
+			$.mockjax({
+				url: '/err',
+				responseTime: 500,
+				status: 500, // 500 error
+				response: function() {
+					this.responseText = "error";
+				}
+			});
+
+
+			// build a dataConnector for our mock data source
+//			var tokens = $sauce.newDataConnector("test", {
+//				dataUrl: "/test"
+//			});
+			stop();
+
+			$sauce.io.listen("io:start", function(type, msg) {
+				console.log(type);
+				console.log(msg);
+				ok(type == "io:start", "io:start event fires");
+				ok(this == $sauce.io, "'this' is sauce.io");
+			});
+
+			$sauce.io.listen("io:success", function(type, msg) {
+				console.log(type);
+				console.log(msg);
+				ok(type == "io:success", "io:success event fires");
+				ok(msg.val.msg == "Hello world!", "received the message");
+				ok(msg.req.b == 4, "received the original req");
+				ok(msg.xhr, "received the xhr");
+				ok(msg.url == "/test", "received the url");
+				ok(this == $sauce.io, "'this' is sauce.io");
+
+				var cachedVal = $sauce.cache.get()
+
+			});
+
+
+			$sauce.io.listen("io:error", function(type, msg) {
+				console.log(type);
+				console.log(msg);
+				ok(type == "io:error", "io:error event fires");
+				ok(this == $sauce.io, "'this' is sauce.io");
+				start();
+			});
+
+			$sauce.io("/test", {b:4, a:1});
+			$sauce.io("/test", {b:4, a:1});
+
+			$sauce.io("/err", {b:4, a:1});
+		});
+
+	</script>
+</head>
+
+<body>
+	<h1 id="qunit-header">QUnit Test Suite</h1>
+	<h2 id="qunit-banner"></h2>
+	<div id="qunit-testrunner-toolbar"></div>
+	<h2 id="qunit-userAgent"></h2>
+	<ol id="qunit-tests"></ol>
+	<div id="qunit-fixture">test markup</div>
+</body>
+</html>
