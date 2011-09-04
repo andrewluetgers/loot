@@ -85,6 +85,10 @@
 	};
 
 
+	var $argsToArray = function(argumentsObject) {
+		return Array.prototype.slice.call(argumentsObject, 0);
+	};
+
 	// array -------------------------------------------------------
 
 	// the underscore each function
@@ -130,6 +134,15 @@
 			if (!iterator.call(context, value, index, list)) results[results.length] = value;
 		});
 		return results;
+	};
+
+	var $length = function(item) {
+		var len = item.length;
+		if (typeof len !== "number") {
+			len = 0;
+			$each(item, function(){len++});
+		}
+		return len;
 	};
 
 
@@ -292,6 +305,10 @@
 
 	// date/time -------------------------------------------------------
 
+	var $now = function() {
+		return new Date().getTime();
+	};
+
 	/* $timeAgo
 	/*
 	 * Javascript Humane Dates
@@ -430,8 +447,10 @@
 
 					// fire the listeners
 					$each(this._listeners, function(listener) {
-						var lTopic = listener.topic;
-						if (lTopic === topic) {
+						var lTopic = listener.topic,
+							lTopicRe = listener.topicRe;
+
+						if (lTopic === topic || topic.match(lTopicRe) ) {
 							listener.responses++;
 
 							// stopListening if we hit our maxResponses
@@ -454,16 +473,39 @@
 			},
 
 			listen: function(topic, responder, maxResponses) {
-				if ($isString(topic) && $isFunction(responder)) {
+
+				var topicIsRegExp = $isRegExp(topic),
+					responderIsFunction = $isFunction(responder),
+					topicIsString = $isString(topic),
+					that = this;
+
+				// call self for each function if given a map of callbacks instead of a single function
+				// the way this works is the callback names are appended to the topic string
+				// then a regex is created from the new topic string for a starts-with match
+				if (responder && !responderIsFunction && topicIsString) {
+					$each(responder, function(val, key) {
+						if ($isFunction(val)) {
+							console.log(key);
+							console.log(that);
+							var re = new RegExp("^" + topic + key);
+							that.listen(re, val, maxResponses);
+						}
+					});
+					return false;
+				}
+
+				if ((topicIsRegExp || topicIsString) && responderIsFunction) {
 
 					// dont add something twice
 					var alreadySet;
+
 					$each(this._listeners, function(listener) {
-						if(listener.topic === topic && listener.responder === responder) {alreadySet = true;}
+						if(listener.topic === topic  && listener.responder === responder) {alreadySet = true;}
 					});
 
 					if (!alreadySet) {
 						this._listeners.push({
+							topicRe: topicIsRegExp ? topic : new RegExp("^" + topic),
 							topic: topic,
 							responder: responder,
 							responses: 0,
@@ -652,13 +694,16 @@
 		$isNaN: $isNaN,
 		$isBoolean: $isBoolean,
 		$isRegExp: $isRegExp,
+		$argsToArray: $argsToArray,
 		$each: $each,
+		$length: $length,
 		$reject: $reject,
 		$new: $new,
 		$make: $make,
 		$extend: $extend,
 		$mixin: $mixin,
 		$buffer: $buffer,
+		$now: $now,
 		$timeAgo: $timeAgo,
 		$speak: $speak,
 		$isSpeaker: $isSpeaker,

@@ -54,99 +54,214 @@ loot.extend("$sequence", function(seq, exp, success, error) {
 });
 
 
+loot.extend("$cache", $speak({
+
+	types: {
+		// add our default cache type for io requests without a typeId
+		io: {
+			bins: {}
+		}
+	},
+
+	// for 1 args the cacheKey is just the url, eg. "/contents"
+	// for 2 args a key is generated with the url and the req ,
+	// 		if the url was "/user" and post or get values were "{name:jim}"
+	// 		then the key would be /user[name:jim]
+	getKey: function(url, req) {
+		if (!req) {
+			return url;
+		}
+
+		var cacheKey = [];
+			keys = [],
+			keyStrings = {};
+
+		$each(req, function(val, key) {
+			keys.push(key);
+			var str = ($isString(val) || $isNumber(val)) ? val : val.toString();
+			keyStrings[key] = key + ":" + str;
+		});
+
+		$each(keys.sort(), function(val, idx) {
+			cacheKey.push(keyStrings[val]);
+		});
+
+		return url + "[" + cacheKey.join(",") + "]";
+	},
+
+	get: function(typeId, url, req) {
+		var len = arguments.length;
+
+		if (!len) {
+			return this.types;
+
+		} else if (typeId) {
+			var type = this.types[typeId];
+
+			if (len === 1) {
+				return type;
+
+			} else if (url){
+				var cacheKey = this.getKey(url, req),
+					bins = type.bins;
+
+				if(!(cacheKey in bins)) {
+					bins[cacheKey] = {
+						typeId: typeId,
+						key: cacheKey,
+						url: url,
+						req: req,
+						val: null,
+						set: new Date().getTime()
+					};
+				}
+				return bins[cacheKey];
+			}
+		}
+
+		throw new Error("$cache.get: invalid arguments");
+	},
+
+	// provide a typeId and a function with the signature
+	// function(bin, cacheKey) return true if the bin should be evicted
+	// an eviction notice will be told to the cache so others can listen in and respond as needed
+	// @return object - stats on how how many were evicted from how many and what remains
+	evict: function(typeId, evictionTest) {
+		var evicted = 0;
+			total = 0,
+			that = this;
+
+		$each(this.types[typeId].bins, function(bin, cacheKey) {
+			total++;
+			if (evictionTest === true || ($isFunction(evictionTest) && evictionTest(bin, cacheKey)) ) {
+				// yup evict that mofo
+				evicted++;
+				that.tell(typeId + ":evict:" + cacheKey, bin);
+				delete that.types[typeId].bins[cacheKey];
+			}
+		});
+
+		return {
+			evicted: evicted,
+			total: total,
+			remain: total - evicted
+		};
+	},
+
+	set: function(typeId, url, req, val, metaData) {
+		var cacheKey = this.getKey(url, req),
+			bin = this.get(typeId, cacheKey);
+
+		$mixin(bin, {
+			typeId: typeId,
+			key: cacheKey,
+			url: url,
+			req: req,
+			val: val,
+			set: new Date().getTime()
+		}, metaData);
+
+		this.tell(typeId + ":set:" + cacheKey, bin);
+
+		return bin;
+	},
+
+	newType: function(typeId, customType) {
+		if(!this.types[typeId]) {
+			customType = customType || {};
+			customType.bins = {};
+			this.types[typeId] = customType;
+		}
+	},
+
+	newRemoteType: function(typeId, spec) {
+		var baseUrl = spec.baseUrl,
+			dataType = spec.dataType,
+			reqType = spec.reqType;
+
+		spec.ttl = 0, // ms to live, 0 = forever
+
+		spec.sync = function(req, handlers, forceRefresh) {
+			var bin = $cache.get(spec.typeId, this.baseUrl, req);
+
+			if (forceRefresh || bin.val === null || (bin.ttl && ($now()-bin.set > bin.ttl)) ) {
+				$sauce.io.call(this, baseUrl, req, dataType, reqType, handlers);
+			}
+
+			// always return the bin??
+			return bin;
+		};
+
+		spec.typeId = typeId;
+
+		var remoteType = $speak(spec);
+
+		this.newType(typeId, remoteType);
+
+		return remoteType;
+	}
+
+}));
 
 loot.extend("$sauce", {
 
-	cache: $speak({
+	io: $speak(function(url, req, dataType, reqType) {
 
-		bins: {},
+		var key = $cache.getKey(url, req),
+			parent = $isSpeaker(this) ? this : $sauce.io,
+			typeId = parent.typeId || "io",
+			lastArg = arguments[arguments.length-1],
+			handlers = (!lastArg || $isString(lastArg) || $isBoolean(lastArg)) ? {} : lastArg,
+			startH = handlers.start,
+			successH = handlers.success,
+			errorH = handlers.error,
+			bin = $cache.get(typeId, url, req);
 
-		getKey: function(url, req) {
-			var cacheKey = url + "[";
-				keys = [],
-				keyStrings = {};
-
-			$each(req, function(val, key) {
-				keys.push(key);
-				var str = ($isString(val) || $isNumber(val)) ? val : JSON.stringify(val).substr(0, 100);
-				keyStrings[key] = key + ":" + str + ",";
-			});
-
-			$each(keys.sort(), function(val, idx) {
-				cacheKey += keyStrings[val];
-			});
-
-			return cacheKey + "]";
-		},
-
-		get: function(url, req) {
-			var cacheKey = (arguments.length > 1) ? this.getKey(url, req) : url;
-
-			if(!(cacheKey in this.bins)) {
-				this.bins[cacheKey] = {
-					key: cacheKey,
-					url: url,
-					req: req,
-					val: null,
-					upd: 0
-				};
-			}
-			return this.bins[cacheKey];
-		},
-
-		set: function(url, req, val, metaData) {
-			var cacheKey = this.getKey(url, req),
-				bin = this.get(cacheKey);
-
-			$mixin(bin, {
-				key: cacheKey,
-				url: url,
-				req: req,
-				val: val,
-				upd: new Date().getTime()
-			}, metaData);
-
-			this.tell("cache:set:"+cacheKey, bin);
-
-			return bin;
-		}
-	}),
-
-
-	io: $speak(function(url, req, reqType, dataType) {
-
-		var key = $sauce.cache.getKey(url, req),
-			parent = $isSpeaker(this) ? this : $sauce.io;
-
-		parent.tell("io:start", key);
-
-		$.ajax({
-			type: 		reqType || "post",
-			dataType: 	dataType || "json",
+		bin.xhr = $.ajax({
+			dataType: 	$isString(dataType) ? dataType : "json",
+			type: 		$isString(reqType) ? reqType : "post",
 			url: 		url,
 			data: 		req,
 
 			success: function(val, textStatus, xhr) {
-				var bin = $sauce.cache.set(url, req, val, {xhr: xhr});
-				parent.tell("io:success", bin);
+				var bin = $cache.set(typeId, url, req, val, {xhr: xhr});
+
+				if ($isFunction(successH)) {
+					successH.call(parent, typeId + ":success:" + url, bin);
+				}
+
+				parent.tell(typeId + ":success:" + url, bin);
 			},
 
 			error: function(xhr, textStatus, error) {
-				parent.tell("io:error", {
+				var err = {
+					bin: bin,
+					status: textStatus,
 					key: key,
 					error: error,
 					req: req,
 					xhr: xhr
-				});
+				};
+
+				if ($isFunction(errorH)) {
+					errorH.call(parent, typeId + ":error:" + url, err);
+				}
+
+				parent.tell(typeId + ":error:" + url, err);
 			}
 		});
+
+		if ($isFunction(startH)) {
+			startH.call(parent, typeId + ":start:" + url, bin);
+		}
+
+		parent.tell(typeId + ":start:" + url, bin);
+
+		return bin;
 	}),
 
-
-
-
+	// junk below here
 	newDataConnector: function(id, url, base, extension) {
-
 		// the base dataConnector
 		var aDataConnector = $speak({
 			id: id,
@@ -160,7 +275,6 @@ loot.extend("$sauce", {
 	},
 
 	dataView: {
-
 		dataViewId: null,
 		template: null,
 	
@@ -169,18 +283,14 @@ loot.extend("$sauce", {
 
 			});
 		}
-
 	},
 
 
 	scrollView: {
-
 		scrollViewId: null,
 		template: null,
-
 		domNode: null,
 		disableScrollHandlers: false,
-
 
 		init: function(jScrollPaneSettings) {
 			$(this.domNode).jScrollPane(jScrollPaneSettings);
@@ -207,8 +317,6 @@ loot.extend("$sauce", {
 		destroy: function() {
 
 		}
-
-
 	}
 
 }, loot);

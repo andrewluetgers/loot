@@ -68,7 +68,7 @@
 
 
 		test("messaging with $speak", function() {
-			expect(27);
+			expect(29);
 
 			var myBlankSpeaker = $speak();
 
@@ -173,6 +173,46 @@
 
 			mySpeaker.tell("test", "testing selectiveHearing again");
 			ok(mySpeaker3TestResponses == 2, "selective hearing listens to items when truth test returns true");
+
+			// regex listeners
+			var regexListener = $speak(),
+				regexListenerMatched = 0;
+
+			regexListener.listen(/^test/, function() {
+				regexListenerMatched++;
+			});
+
+			regexListener.tell("test:", "this is a tes");
+			regexListener.tell("test:value", "this is a tes");
+			regexListener.tell("test:value:blah", "this is a tes");
+			ok(regexListenerMatched === 3, "regex listeners work!");
+
+
+			// compound event type with implicit callback mapping
+			var implicitCallbacks = $speak(),
+				implicitCalls = 0,
+				commonHandler = function(type, msg) {
+					console.log(arguments);
+					implicitCalls++;
+				};
+
+			implicitCallbacks.listen("test:", {
+				"\\d{3}": commonHandler,
+				start: commonHandler,
+				error: commonHandler,
+				yo: commonHandler,
+				dawg: commonHandler
+			});
+
+			// these should not work
+			implicitCallbacks.tell("test:", "this is a tes");
+			implicitCallbacks.tell("test:1", "this is a tes");
+
+			// these should work
+			implicitCallbacks.tell("test:start", "this is a tes");
+			implicitCallbacks.tell("test:error", "this is a tes");
+			implicitCallbacks.tell("test:123", "this is a tes");
+			ok(implicitCalls === 3, "imlicitly typed listeners work!");
 
 		});
 
@@ -320,10 +360,12 @@
 
 		test("loot.sauce.io", function() {
 
+			expect(20);
+
 			// setup mock data source
 			$.mockjax({
 				url: '/test',
-				responseTime: 500,
+				responseTime: 200,
 				status: 200, // 500 error
 				response: function() {
 					this.responseText = JSON.stringify({msg: "Hello world!"});
@@ -332,54 +374,212 @@
 
 			$.mockjax({
 				url: '/err',
-				responseTime: 500,
+				responseTime: 200,
 				status: 500, // 500 error
 				response: function() {
 					this.responseText = "error";
 				}
 			});
 
-
-			// build a dataConnector for our mock data source
-//			var tokens = $sauce.newDataConnector("test", {
-//				dataUrl: "/test"
-//			});
 			stop();
 
-			$sauce.io.listen("io:start", function(type, msg) {
+			$sauce.io.listen("io:start:", function(type, msg) {
 				console.log(type);
 				console.log(msg);
-				ok(type == "io:start", "io:start event fires");
+				ok(type.match(/^io:start/), "io:start event fires");
 				ok(this == $sauce.io, "'this' is sauce.io");
 			});
 
 			$sauce.io.listen("io:success", function(type, msg) {
 				console.log(type);
 				console.log(msg);
-				ok(type == "io:success", "io:success event fires");
+				ok(type.match(/^io:success/), "io:success event fires");
 				ok(msg.val.msg == "Hello world!", "received the message");
 				ok(msg.req.b == 4, "received the original req");
 				ok(msg.xhr, "received the xhr");
 				ok(msg.url == "/test", "received the url");
 				ok(this == $sauce.io, "'this' is sauce.io");
-
-				var cachedVal = $sauce.cache.get()
-
 			});
 
 
 			$sauce.io.listen("io:error", function(type, msg) {
 				console.log(type);
 				console.log(msg);
-				ok(type == "io:error", "io:error event fires");
+				ok(type.match(/^io:error/), "io:error event fires");
 				ok(this == $sauce.io, "'this' is sauce.io");
 				start();
 			});
 
 			$sauce.io("/test", {b:4, a:1});
 			$sauce.io("/test", {b:4, a:1});
-
 			$sauce.io("/err", {b:4, a:1});
+
+		});
+
+		test("loot.sauce.io more io", function() {
+
+			expect(5);
+
+			$.mockjax({
+				url: '/test2',
+				responseTime: 200,
+				status: 200, // 500 error
+				response: function() {
+					this.responseText = JSON.stringify({msg: "Hello world!"});
+				}
+			});
+
+			// alternate one-off non-pub-sub syntax for io with start, success and error handlers
+			var startFired = 0,
+				successFired = 0,
+				errorFired = 0;
+
+			stop();
+
+			console.log("non evented callbacks");
+			$sauce.io.stopListening();
+
+			setTimeout(function() {
+				$sauce.io("/test2", {b:5, a:3}, {
+					start: function(type, msg) {
+						console.log(type);
+						console.log(msg);
+						startFired++;
+						ok(type.match("io:start"), "io:start event fires");
+						ok(this == $sauce.io, "'this' is sauce.io");
+					},
+					success: function(type, msg) {
+						console.log(type);
+						console.log(msg);
+						successFired++;
+						ok(type.match("io:success"), "io:success event fires");
+						ok(this == $sauce.io, "'this' is sauce.io");
+						ok(errorFired === 0, "error handler didn't fire");
+					},
+					error: function(type, msg) {
+						console.log(type);
+						console.log(msg);
+						errorFired++;
+					}
+				});
+			}, 500);
+
+			setTimeout(function() {
+				start();
+			},1000);
+
+		});
+
+
+		test("loot.sauce.cache", function() {
+
+			expect(16);
+
+			var url = "/test",
+				testReq1 = {a:3, b:6, blah:"text"},
+				testReq2 = {a:3, b:6, blah:{h:5}},
+				testVal = {my:"val"},
+				testMetaData = {more:"metadata"};
+
+			ok($cache.getKey(url) == "/test", "cacheKeys use just the url if no req provided");
+			ok($cache.getKey(url, testReq1) == '/test[a:3,b:6,blah:text]', "cacheKeys stringify req objects, strings do not show outer quotes");
+			ok($cache.getKey(url, testReq2) == "/test[a:3,b:6,blah:[object Object]]", "cacheKeys toString nested objects");
+
+			$cache.newType("aNewType");
+			$cache.listen(/^aNewType:set/, function(type, val) {
+				ok(type === "aNewType:set:/aTest", "custom event is fired for typeId:set:cacheKey");
+				ok(val === $cache.get("aNewType", "/aTest"), "bin is passed to callback");
+			});
+
+			var bin = $cache.set("aNewType", "/aTest", null, testVal, testMetaData);
+
+			ok(bin.typeId == "aNewType", "bins store the typeId");
+			ok(bin.key == "/aTest", "bins store the cacheKey");
+			ok(bin.url == "/aTest", "bins store the url");
+			ok(bin.req == null, "bins store the req");
+			ok(bin.val == testVal, "bins store the val");
+			ok(typeof bin.set == "number", "bins store a timestamp for last update");
+
+			// remove all listeners on the cache to reduce test noises
+			$cache.stopListening();
+
+			$cache.set("aNewType", "/aTest", {param:1}, 1, testMetaData);
+			$cache.set("aNewType", "/aTest", {param:2}, 2, testMetaData);
+			$cache.set("aNewType", "/aTest", {param:3}, 3, testMetaData);
+			$cache.set("aNewType", "/aTest", {param:4}, 4, testMetaData);
+
+			var origLen = $length($cache.get("aNewType").bins),
+				evicted = 0;
+
+			$cache.listen(/^aNewType:evict/, function(type, val) {
+				ok(type === "aNewType:evict:"+val.key, "custom event is fired for typeId:evict:cacheKey");
+				evicted++;
+			});
+
+			var ev = $cache.evict("aNewType", function(bin, key) {
+				// should evict 2 items with even values
+				return (bin.val%2);
+			});
+
+			var newLen = $length($cache.get("aNewType").bins);
+
+			ok(ev.evicted === evicted, "evicted two items");
+			ok(ev.total === origLen, "processed "+origLen+" items");
+			ok(ev.remain === newLen, newLen+" items remain");
+		});
+
+
+		test("loot.sauce.newRemoteType", function() {
+
+			$.mockjax({
+				url: '/test3',
+				responseTime: 200,
+				status: 200, // 500 error
+				response: function() {
+					this.responseText = JSON.stringify({msg: "Hello world!"});
+				}
+			});
+			$.mockjax({
+				url: '/err3',
+				responseTime: 200,
+				status: 500, // 500 error
+				response: function() {
+					this.responseText = "error";
+				}
+			});
+
+			var myRemoteType = $cache.newRemoteType("remote1", {
+				baseUrl: "/test3"
+			});
+
+			stop();
+
+			var successCalled = 0,
+				startCalled = 0,
+				xhr = myRemoteType.sync({param:5}, {
+				start: function(type, msg) {
+					console.log(type);
+					console.log(msg);
+					console.log(this);
+					startCalled++;
+				},
+				success: function(type, msg) {
+					console.log(type);
+					console.log(msg);
+					console.log(this);
+					successCalled++;
+					ok(startCalled == 1, "start method was called");
+					ok(successCalled == 1, "success method was called");
+					start()
+				},
+				error: function(type, msg) {
+					console.log(type);
+					console.log(msg);
+					console.log(this);
+				}
+			});
+
+
 		});
 
 	</script>
