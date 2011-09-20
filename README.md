@@ -56,5 +56,9 @@ This is how I like to construct objects and do inheritance.
 
 ### Pub/Sub
   * **$speak(obj)** Creates a new speaker (pub/sub). Optionally provide an object to turn into a speaker.
-    * __tell(topic, message, speaker)__
+    * __tell(topic, message, speaker)__ tell (publish) a message to listeners (and self)
+    * __listen(topic, responder, maxResponses)__ listnen (subscribe) to specific messages told to the one doing the listening
+    * __stopListening(ignoreable)__ stop listening to (unsubscribe) the ignorable listener. If ignorable is expressed as a type string all listeners of that type will be removed. If a funciton is passed all listeners using that funciton will be removed.
+    * __talksTo(speaker)__ messages told to this speaker will then be relayed to the provided speaker as well
+    * __listensTo(speaker)__ messages told to the provided speaker will be relayed to this speaker as well
   * **$isSpeaker(obj)** returns true if the provided object is a pub/sub speaker
