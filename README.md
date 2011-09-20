@@ -14,44 +14,44 @@ will be attached to this.
 ## Methods
 
 ### DOM
-* **$id** shortcut to document.getElementById
-* **$ce** shortcut to document.createElement
-* **$tpl** see underscore.js
+  * **$id** shortcut to document.getElementById
+  * **$ce** shortcut to document.createElement
+  * **$tpl** see underscore.js
 
 ### Type Checking
-see underscore.js
-* **$isNumber**
-* **$isEmpty**
-* **$isElement**
-* **$isArray**
-* **$isFunction**
-* **$isString**
-* **$isNaN**
-* **$isBoolean**
-* **$isRegExp**
+  see underscore.js
+  * **$isNumber**
+  * **$isEmpty**
+  * **$isElement**
+  * **$isArray**
+  * **$isFunction**
+  * **$isString**
+  * **$isNaN**
+  * **$isBoolean**
+  * **$isRegExp**
 
 ### Collections
-**$each** see underscore.js
-**$reject** see underscore.js
-**$sliceIt(obj, start, end)** apply slice to any object with optional start and end indexes
-**$length** see underscore.js
+  * **$each** see underscore.js
+  * **$reject** see underscore.js
+  * **$sliceIt(obj, start, end)** apply slice to any object with optional start and end indexes
+  * **$length** see underscore.js
 
 ### Objects
-This is how I like to construct objects and do inheritance.
-**_$new(prototype)_** optionally provide a prototype object for a new object instance. If an initialize function attribute exists it will be called then set to null.
-**$extend(obj)** obj will gain *all* properties of all other arguments (this is *not* a deep copy). This is handy for building objects that share properties through composition vs prototype.
-**$mixin** same as extend but for owned properties only
-**$make(prototype, extender, mixin)** All args are optional. $make essentially calls $new with each of the arguments then extends prototype with extender and mixes in the mixin.
-Also adds support for "afterMake" functions. These functions can exist as properties on either or each of the arguments and will be called with the new object as the "this" or scope.
-If any of the arguments is a speaker the new object will also be a speaker. In that case care is taken to prevent copying over listeners and audiences from any of the arguments. Also see tests and source for advanced message sharing capabilities.
+  This is how I like to construct objects and do inheritance.
+  * **_$new(prototype)_** optionally provide a prototype object for a new object instance. If an initialize function attribute exists it will be called then set to null.
+  * **$extend(obj)** obj will gain *all* properties of all other arguments (this is *not* a deep copy). This is handy for building objects that share properties through composition vs prototype.
+  * **$mixin** same as extend but for owned properties only
+  * **$make(prototype, extender, mixin)** All args are optional. $make essentially calls $new with each of the arguments then extends prototype with extender and mixes in the mixin.
+  Also adds support for "afterMake" functions. These functions can exist as properties on either or each of the arguments and will be called with the new object as the "this" or scope.
+  If any of the arguments is a speaker the new object will also be a speaker. In that case care is taken to prevent copying over listeners and audiences from any of the arguments. Also see tests and source for advanced message sharing capabilities.
 
 ### Functions
-**$buffer**
+  * **$buffer**
 
 ### Date
-**$now** shortcut for new Date().getTime()
-**$timeAgo(date, compareTo)** Human friendly time delta. Supports strings and numbers that can be passed to new Date() including some that can't (see source)
- * __tell(topic, message, speaker)__
+  * **$now** shortcut for new Date().getTime()
+  * **$timeAgo(date, compareTo)** Human friendly time delta. Supports strings and numbers that can be passed to new Date() including some that can't (see source)
 ### Pub/Sub
-**$speak(obj)** Creates a new speaker (pub/sub). Optionally provide an object to turn into a speaker.
-**$isSpeaker(obj)** returns true if the provided object is a pub/sub speaker
+  * **$speak(obj)** Creates a new speaker (pub/sub). Optionally provide an object to turn into a speaker.
+    * __tell(topic, message, speaker)__
+  * **$isSpeaker(obj)** returns true if the provided object is a pub/sub speaker
