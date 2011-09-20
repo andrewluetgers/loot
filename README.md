@@ -14,21 +14,21 @@ will be attached to this.
 ## Methods
 
 ### DOM
-**$id** shortcut to document.getElementById
-*$ce* shortcut to document.createElement
-*$tpl* see underscore.js
+* **$id** shortcut to document.getElementById
+* **$ce** shortcut to document.createElement
+* **$tpl** see underscore.js
 
 ### Type Checking
 see underscore.js
-**$isNumber**
-**$isEmpty**
-**$isElement**
-**$isArray**
-**$isFunction**
-**$isString**
-**$isNaN**
-**$isBoolean**
-**$isRegExp**
+* **$isNumber**
+* **$isEmpty**
+* **$isElement**
+* **$isArray**
+* **$isFunction**
+* **$isString**
+* **$isNaN**
+* **$isBoolean**
+* **$isRegExp**
 
 ### Collections
 **$each** see underscore.js
