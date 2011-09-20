@@ -11,10 +11,6 @@ suggestions etc. welcome.
 first call the loot method with the object you want to attach the methods to, if you don't pass anything they
 will be attached to this.
 
-"```javascript
-
-```"
-
 ## Methods
 
 ### DOM
