@@ -8,7 +8,7 @@ suggestions etc. welcome.
 
 ## Use it
 
-first call the loot method with the object you want to attach the methods to, if you don't pass anything they
+First call the loot method with the object you want to attach the methods to, if you don't pass anything they
 will be attached to this.
 
 ## Methods
@@ -56,9 +56,9 @@ This is how I like to construct objects and do inheritance.
 
 ### Pub/Sub
   * **$speak(obj)** Creates a new speaker (pub/sub). Optionally provide an object to turn into a speaker.
-    * __tell(topic, message, speaker)__ tell (publish) a message to listeners (and self)
-    * __listen(topic, responder, maxResponses)__ listnen (subscribe) to specific messages told to the one doing the listening
-    * __stopListening(ignoreable)__ stop listening to (unsubscribe) the ignorable listener. If ignorable is expressed as a type string all listeners of that type will be removed. If a funciton is passed all listeners using that funciton will be removed.
+    * __tell(topic, message, speaker)__ tell (publish) a message to listeners (and self). Topic can be an exact string, a begins with matching string or a regex used for matching.
+    * __listen(topic, responder, maxResponses)__ listnen (subscribe) to a specific message type (expressed as a stirng) told to this speaker and fire the responder function for it. If max responses is provided responder will remove itselfe after that number of executions.
+    * __stopListening(ignoreable)__ stop listening with (unsubscribe) the ignorable listener. If ignorable is expressed as a type string all listeners of that type will be removed. If a funciton is passed all listeners using that funciton will be removed.
     * __talksTo(speaker)__ messages told to this speaker will then be relayed to the provided speaker as well
     * __listensTo(speaker)__ messages told to the provided speaker will be relayed to this speaker as well
   * **$isSpeaker(obj)** returns true if the provided object is a pub/sub speaker

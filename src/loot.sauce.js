@@ -10,21 +10,21 @@ loot.extend("$sequence", function(seq, exp, success, error) {
 
 	var _sequence = {
 		steps: $isArray(seq) ? seq : [],
-		exports: exp
+		exprts: exp
 	};
 
 	var runSequence = function() {
 		next();
 	};
 
-	var export = function(exp) {
+	var expOrt = function(exp) {
 		$mixin(_sequence.exports, exp);
 	};
 
 	var then = function(cb, exp) {
-		if (  $isFunction(cb)) {
+		if ($isFunction(cb)) {
 			_sequence.push(cb);
-			export(exp);
+			expOrt(exp);
 		}
 		return runSequence;
 	};
