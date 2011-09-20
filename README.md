@@ -19,7 +19,8 @@ will be attached to this.
   * **$tpl** see underscore.js
 
 ### Type Checking
-  see underscore.js
+see underscore.js
+
   * **$isNumber**
   * **$isEmpty**
   * **$isElement**
@@ -37,8 +38,9 @@ will be attached to this.
   * **$length** see underscore.js
 
 ### Objects
-  This is how I like to construct objects and do inheritance.
-  * **_$new(prototype)_** optionally provide a prototype object for a new object instance. If an initialize function attribute exists it will be called then set to null.
+This is how I like to construct objects and do inheritance.
+
+  * **$new(prototype)** optionally provide a prototype object for a new object instance. If an initialize function attribute exists it will be called then set to null.
   * **$extend(obj)** obj will gain *all* properties of all other arguments (this is *not* a deep copy). This is handy for building objects that share properties through composition vs prototype.
   * **$mixin** same as extend but for owned properties only
   * **$make(prototype, extender, mixin)** All args are optional. $make essentially calls $new with each of the arguments then extends prototype with extender and mixes in the mixin.
@@ -51,6 +53,7 @@ will be attached to this.
 ### Date
   * **$now** shortcut for new Date().getTime()
   * **$timeAgo(date, compareTo)** Human friendly time delta. Supports strings and numbers that can be passed to new Date() including some that can't (see source)
+
 ### Pub/Sub
   * **$speak(obj)** Creates a new speaker (pub/sub). Optionally provide an object to turn into a speaker.
     * __tell(topic, message, speaker)__
