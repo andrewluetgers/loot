@@ -22,10 +22,12 @@
 
 	// dom -------------------------------------------------------
 	var $id = function(id) {
-		var el = document.getElementById(id);
-		return $isElement(el) ? el : undefined;
+		return document.getElementById(id);
 	};
 
+	var $ce = function(type) {
+		return document.createElement(type);
+	};
 
 	// basic types -------------------------------------------------------
 	// stolen wholesale from underscore
@@ -85,8 +87,8 @@
 	};
 
 
-	var $argsToArray = function(argumentsObject) {
-		return Array.prototype.slice.call(argumentsObject, 0);
+	var $sliceIt = function(obj, start, end) {
+		return Array.prototype.slice.call(obj, start || 0, end);
 	};
 
 	// array -------------------------------------------------------
@@ -149,13 +151,13 @@
 
 	// object -------------------------------------------------------
 
-	var $new = function(o) {
+	var $new = function(prototype) {
 
-		function f() {}
+		function F() {}
 
-		if(o) {f.prototype = o;}
+		if(prototype) {F.prototype = prototype;}
 
-		var newInstance = new f();
+		var newInstance = new F();
 
 		if($isFunction(newInstance.initialize)) {
 			newInstance.initialize();
@@ -228,7 +230,7 @@
 
 	// Extend first object with all the properties of the other passed-in object(s).
 	var $extend = function(obj) {
-		$each(Array.prototype.slice.call(arguments, 1), function(source) {
+		$each($sliceIt(arguments, 1), function(source) {
 			for (var prop in source) {
 				obj[prop] = source[prop];
 			}
@@ -239,7 +241,7 @@
 	// add all the 'owned' properties of passed in object(s) to the first object
 	var $mixin = function(obj) {
 		if(obj) {
-			$each(Array.prototype.slice.call(arguments, 1), function(source) {
+			$each($sliceIt(arguments, 1), function(source) {
 				var prop, val;
 				for (prop in source) {
 					if(source.hasOwnProperty(prop)) {
@@ -685,6 +687,7 @@
 
 	loot.exports = {
 		$id: $id,
+		$ce: $ce,
 		$isNumber: $isNumber,
 		$isEmpty: $isEmpty,
 		$isElement: $isElement,
@@ -694,7 +697,7 @@
 		$isNaN: $isNaN,
 		$isBoolean: $isBoolean,
 		$isRegExp: $isRegExp,
-		$argsToArray: $argsToArray,
+		$sliceIt: $sliceIt,
 		$each: $each,
 		$length: $length,
 		$reject: $reject,

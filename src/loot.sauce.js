@@ -17,14 +17,14 @@ loot.extend("$sequence", function(seq, exp, success, error) {
 		next();
 	};
 
-	var exp0rt = function(exp) {
+	var export = function(exp) {
 		$mixin(_sequence.exports, exp);
 	};
 
 	var then = function(cb, exp) {
-		if ($isFunction(cb)) {
+		if (  $isFunction(cb)) {
 			_sequence.push(cb);
-			exp0rt(exp);
+			export(exp);
 		}
 		return runSequence;
 	};
@@ -65,8 +65,8 @@ loot.extend("$cache", $speak({
 
 	// for 1 args the cacheKey is just the url, eg. "/contents"
 	// for 2 args a key is generated with the url and the req ,
-	// 		if the url was "/user" and post or get values were "{name:jim}"
-	// 		then the key would be /user[name:jim]
+	// 		if the url was /user and post or get values were {name:"jim",age:25}
+	// 		then the key would be /user[name:jim,age:25]
 	getKey: function(url, req) {
 		if (!req) {
 			return url;
@@ -179,12 +179,12 @@ loot.extend("$cache", $speak({
 			dataType = spec.dataType,
 			reqType = spec.reqType;
 
-		spec.ttl = 0, // ms to live, 0 = forever
+		spec.ttl = spec.ttl || 0;// ms to live, 0 = forever
 
 		spec.sync = function(req, handlers, forceRefresh) {
 			var bin = $cache.get(spec.typeId, this.baseUrl, req);
 
-			if (forceRefresh || bin.val === null || (bin.ttl && ($now()-bin.set > bin.ttl)) ) {
+			if (forceRefresh || bin.val === null || (bin.ttl && ($now()-bin.set > spec.ttl)) ) {
 				$sauce.io.call(this, baseUrl, req, dataType, reqType, handlers);
 			}
 
@@ -215,41 +215,53 @@ loot.extend("$sauce", {
 			startH = handlers.start,
 			successH = handlers.success,
 			errorH = handlers.error,
-			bin = $cache.get(typeId, url, req);
+			useCache = (typeId === "io") ? false : true,
+			bin = useCache ? $cache.get(typeId, url, req) : null;
 
-		bin.xhr = $.ajax({
-			dataType: 	$isString(dataType) ? dataType : "json",
-			type: 		$isString(reqType) ? reqType : "post",
-			url: 		url,
-			data: 		req,
+		var xhr = $.ajax({
+				dataType: 	$isString(dataType) ? dataType : "json",
+				type: 		$isString(reqType) ? reqType : "post",
+				url: 		url,
+				data: 		req,
 
-			success: function(val, textStatus, xhr) {
-				var bin = $cache.set(typeId, url, req, val, {xhr: xhr});
+				success: function(val, textStatus, xhr) {
+					var msg = useCache ?
+								$cache.set(typeId, url, req, val, {xhr: xhr}) :
+								{val: val, xhr: xhr, url: url, req: req};
 
-				if ($isFunction(successH)) {
-					successH.call(parent, typeId + ":success:" + url, bin);
+					if ($isFunction(successH)) {
+						successH.call(parent, typeId + ":success:" + url, msg);
+					}
+
+					parent.tell(typeId + ":success:" + url, msg);
+				},
+
+				error: function(xhr, textStatus, error) {
+					var err = {
+						status: textStatus,
+						key: key,
+						error: error,
+						req: req,
+						xhr: xhr
+					};
+
+					if (useCache) {
+						err.bin = bin;
+						err.key = key;
+					}
+
+
+					if ($isFunction(errorH)) {
+						errorH.call(parent, typeId + ":error:" + url, err);
+					}
+
+					parent.tell(typeId + ":error:" + url, err);
 				}
+			});
 
-				parent.tell(typeId + ":success:" + url, bin);
-			},
-
-			error: function(xhr, textStatus, error) {
-				var err = {
-					bin: bin,
-					status: textStatus,
-					key: key,
-					error: error,
-					req: req,
-					xhr: xhr
-				};
-
-				if ($isFunction(errorH)) {
-					errorH.call(parent, typeId + ":error:" + url, err);
-				}
-
-				parent.tell(typeId + ":error:" + url, err);
-			}
-		});
+		if (useCache) {
+			bin.xhr = xhr;
+		}
 
 		if ($isFunction(startH)) {
 			startH.call(parent, typeId + ":start:" + url, bin);
@@ -258,65 +270,65 @@ loot.extend("$sauce", {
 		parent.tell(typeId + ":start:" + url, bin);
 
 		return bin;
-	}),
+	})
 
 	// junk below here
-	newDataConnector: function(id, url, base, extension) {
-		// the base dataConnector
-		var aDataConnector = $speak({
-			id: id,
-			url: "",
-			initialRequest: null,
-			lastRequest: null
-		});
+//	newDataConnector: function(id, url, base, extension) {
+//		// the base dataConnector
+//		var aDataConnector = $speak({
+//			id: id,
+//			url: "",
+//			initialRequest: null,
+//			lastRequest: null
+//		});
+//
+//		// the newDataConnector constructor
+//		return $make(aDataConnector, extension, mixin);
+//	},
 
-		// the newDataConnector constructor
-		return $make(aDataConnector, extension, mixin);
-	},
-
-	dataView: {
-		dataViewId: null,
-		template: null,
-	
-		afterMake: function() {
-			this.listen("dataConnector:io:success", function() {
-
-			});
-		}
-	},
+//	dataView: {
+//		dataViewId: null,
+//		template: null,
+//
+//		afterMake: function() {
+//			this.listen("dataConnector:io:success", function() {
+//
+//			});
+//		}
+//	},
 
 
-	scrollView: {
-		scrollViewId: null,
-		template: null,
-		domNode: null,
-		disableScrollHandlers: false,
-
-		init: function(jScrollPaneSettings) {
-			$(this.domNode).jScrollPane(jScrollPaneSettings);
-
-			// apply a buffer to the tokens handler
-			var loadNextPageBuffered = $buffer(this.loadNextPageOfData, 100, this),
-				that = this;
-
-			$(this.domNode).live("jsp-scroll-y", function(e, offset, atTop, atBottom) {
-
-				if(that.disableScrollHandlers || $isNaN(that.finalPage)) {
-					console.log("skip scroll handler !!!MMMMM");
-					return false;
-				}
-
-				if (atBottom) {
-					console.log("scroll handler "+$isNaN(that.finalPage)+" !!!!MMMM");
-					loadNextPageBuffered();
-				}
-			});
-
-		},
-
-		destroy: function() {
-
-		}
-	}
+//	scrollView: {
+//		scrollViewId: null,
+//		template: null,
+//		domNode: null,
+//		disableScrollHandlers: false,
+//
+//		init: function(jScrollPaneSettings) {
+//			$(this.domNode).jScrollPane(jScrollPaneSettings);
+//
+//			// apply a buffer to the tokens handler
+//			var loadNextPageBuffered = $buffer(this.loadNextPageOfData, 100, this),
+//				that = this;
+//
+//			$(this.domNode).live("jsp-scroll-y", function(e, offset, atTop, atBottom) {
+//
+//				if(that.disableScrollHandlers || $isNaN(that.finalPage)) {
+//					console.log("skip scroll handler !!!MMMMM");
+//					return false;
+//				}
+//
+//				if (atBottom) {
+//					console.log("scroll handler "+$isNaN(that.finalPage)+" !!!!MMMM");
+//					loadNextPageBuffered();
+//				}
+//			});
+//
+//		},
+//
+//		destroy: function() {
+//
+//		}
+//	}
 
 }, loot);
