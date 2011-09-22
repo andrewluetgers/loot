@@ -150,22 +150,83 @@
 
 
 	// object -------------------------------------------------------
+	
+	// use the same constructor every time to save on memory usage per
+	// http://oranlooney.com/functional-javascript/
+	function F() {}
 
 	var $new = function(prototype) {
 
-		function F() {}
-
-		if(prototype) {F.prototype = prototype;}
+		F.prototype = prototype || {};
 
 		var newInstance = new F();
 
 		if($isFunction(newInstance.initialize)) {
 			newInstance.initialize();
+			newInstance.initialize = null;
 		}
 
-		newInstance.initialize = null;
-
 		return newInstance;
+	};
+
+	/**
+	 *
+	 * @param source (object) the object to copy properties from
+	 * @param target (object) optional object to merge source's properties into
+	 * @param filter (function) optional function(key, source, target) { return boolean; }
+	 *  the filter function returns true if a property should be copied and false if it should be ignored
+	 *  filter can also be provided as the last of two arguments when omitting a target
+	 *  filter example: to deep copy only owned properties from objA to objB
+	 *  	$deepCopy(objA, objB, function(key, source) {
+	 *  		return source.hasOwnProperty(key);
+	 *  	});
+	 */
+	function deepCopy(source, target, filter) {
+		var key, sourceProp, targetProp,
+			targetType = typeof target;
+
+		if (typeof source != 'object') {
+			throw new Error("deepCopy: source must be an object");
+		}
+
+		// support (source, filter) signature
+		if (arguments.length === 2 && targetType === "function") {
+			filter = target;
+			target = {};
+		} else {
+			filter = (typeof filter === "function") ? filter : false;
+			target = (targetType === "object") ? target : {};
+		}
+
+		for (key in source) {
+
+			// skip this property if filter returns false
+			if (filter && !filter(key, source, target)) {
+				continue;
+			}
+
+			sourceProp = source[key];
+
+			// Prevent infinite loop
+			if (sourceProp === target) {
+				continue;
+			}
+
+			if (typeof sourceProp === 'object') {
+				targetProp = $isArray(sourceProp) ? [] : {};
+				target[key] = deepCopy(sourceProp, targetProp, filter);
+
+			// dont copy undefined values
+			} else if (sourceProp !== undefined) {
+				target[key] = sourceProp;
+			}
+		}
+
+		return target;
+	}
+
+	var $deepCopy = function(parent, child) {
+		return deepCopy(parent, child);
 	};
 
 
@@ -238,14 +299,19 @@
 		return obj;
 	};
 
-	// add all the 'owned' properties of passed in object(s) to the first object
+	// will deep copy all the 'owned' properties of passed in object(s) to the first object
 	var $mixin = function(obj) {
 		if(obj) {
 			$each($sliceIt(arguments, 1), function(source) {
-				var prop, val;
-				for (prop in source) {
+				var val;
+				for (var prop in source) {
 					if(source.hasOwnProperty(prop)) {
-						obj[prop] = source[prop];
+						val = source[prop];
+						if (typeof val === 'object') {
+							obj[prop] = $deepCopy(val);
+						} else {
+							obj[prop] = val;
+						}
 					}
 				}
 			});
@@ -702,6 +768,7 @@
 		$length: $length,
 		$reject: $reject,
 		$new: $new,
+		$deepCopy: $deepCopy,
 		$make: $make,
 		$extend: $extend,
 		$mixin: $mixin,

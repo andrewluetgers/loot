@@ -357,6 +357,45 @@
 		});
 
 
+		test("$deepCopy", function() {
+
+			expect(6);
+
+			var objA = {name: "objA"};
+			var objB = {name: "objB", testObj: {array:[1, "string", {object:{name:"hey", age: 23} }, [0,2, 3, 5, [0, 0, 0]] ], func: function(){return this;}}};
+
+			var aCopy = $deepCopy(objA);
+			same(aCopy, objA, "deep copy of a simple object works");
+
+			objA.name = "objectA";
+			ok(aCopy.name === "objA", "changes on simple object do not transfer to copy");
+
+			var bCopy = $deepCopy(objB);
+			same(bCopy, objB, "deep copy of a complex object works");
+
+			objB.testObj.array[2].object.name = "yo";
+			ok(bCopy.testObj.array[2].object.name === "hey", "changes on complex object do not transfer to copy");
+
+			// now lets test the merge form
+			$deepCopy(objB, objA);
+			same(objB, objA, "properly augments the provided target object");
+
+			// test filter method that only allows owned properties
+			var b2Copy = $new(bCopy);
+			var base = {
+				name: "b2",
+				custom: "owned"
+			};
+
+			$deepCopy(base, b2Copy);
+
+			var newB = $deepCopy(b2Copy, function(key, source) {
+				return source.hasOwnProperty(key);
+			});
+
+			same(newB, base, "filter function works properly");
+		});
+
 
 		test("loot.sauce.io", function() {
 

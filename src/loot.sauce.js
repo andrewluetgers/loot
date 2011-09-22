@@ -152,7 +152,7 @@ loot.extend("$cache", $speak({
 		var cacheKey = this.getKey(url, req),
 			bin = this.get(typeId, cacheKey);
 
-		$mixin(bin, {
+		$extend(bin, {
 			typeId: typeId,
 			key: cacheKey,
 			url: url,
