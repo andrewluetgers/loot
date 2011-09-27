@@ -810,6 +810,9 @@
 
 
 	// ------------------------------- exports -------------------------------
+	var _scope;
+
+	var lootedUp = false;
 
 	var loot = function(scope) {
 		loot.fn(scope);
@@ -821,24 +824,28 @@
 
 		if (!scope) {
 			returnScopedMethods = true;
-			scope = {};
+			_scope = {};
+		} else {
+			_scope = scope;
 		}
 
 		var oldValues = {};
 
 		$each(this.exports, function(value, key) {
 			// protect old values
-			var oldValue = scope[key];
+			var oldValue = _scope[key];
 			if (oldValue) {
 				oldValues[key] = oldValue;
 			}
-			scope[key] = value;
+			_scope[key] = value;
 		});
 
 		this.oldValues = oldValues;
 
+		lootedUp = true;
+
 		if (returnScopedMethods) {
-			return scope;
+			return _scope;
 		}
 	};
 
@@ -874,33 +881,40 @@
 		$tpl: $tpl
 	};
 
-	loot.extend = function(name, obj, scope) {
+	loot.addExport = function(name, obj) {
+		if(this.exports[name]) {
+			throw new Error("dude... really? " + name + "is already taken, weak.");
+		}
 
-		scope = scope || this.exports;
+		this.exports[name] = obj;
+
+		if (_scope && _scope[name]) {
+			this.oldValues[name] = _scope[name];
+		}
+
+		if (lootedUp) {
+			_scope[name] = obj;
+		}
+	};
+
+	loot.extend = function(name, obj) {
 
 		if (typeof name == "string") {
-
-			if(this.exports[name]) {
-				throw new Error("dude... really? " + name + "is already taken, weak.");
-			}
-
-			this.exports[name] = obj;
+			this.addExport(name, obj);
 
 		// handle multiple plugins if first arg is object
 		} else if (arguments.length == 1 && typeof arguments[0] == "object") {
-			obj =  arguments[0];
+			obj = arguments[0];
 			for (name in  obj) {
-				this.exports[name] = obj[name];
+				this.addExport(name, obj);
 			}
 		}
 	};
 
 	// Establish the root object, `window` in the browser, or `global` on the server.
-	var root = this;
 	if (this.loot) {
 		loot.oldLoot = this.loot;
 	}
 	this.loot = loot;
-
 	loot(this);
 }());

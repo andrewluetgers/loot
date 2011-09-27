@@ -54,7 +54,7 @@ loot.extend("$sequence", function(seq, exp, success, error) {
 });
 
 
-loot.extend("$cache", $speak({
+loot.extend("$cache", loot.exports.$speak({
 
 	types: {
 		// add our default cache type for io requests without a typeId
@@ -205,7 +205,7 @@ loot.extend("$cache", $speak({
 
 loot.extend("$sauce", {
 
-	io: $speak(function(url, req, dataType, reqType) {
+	io: loot.exports.$speak(function(url, req, dataType, reqType) {
 
 		var key = $cache.getKey(url, req),
 			parent = $isSpeaker(this) ? this : $sauce.io,
@@ -331,4 +331,4 @@ loot.extend("$sauce", {
 //		}
 //	}
 
-}, loot);
+});

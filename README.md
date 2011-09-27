@@ -6,8 +6,7 @@ parts of the sauce extension are still under construction but the io module shou
 suggestions etc. welcome.
 
 ## Use it
-First call the loot method with the object you want to attach the methods to, if you don't pass anything they
-will be attached to this.
+Just load up the js file/s and call the global methods. Init process will protect existing globals by making bakcups under loot.oldValues. See loot.sauce.js for extending with custom methods.
 
 ## Methods
 
