@@ -63,18 +63,18 @@
 			equals(initTest.getSharedSecret(), "changed", "modifications to shared closures from child to ancestor");
 			initTest.setSharedSecret("changed");
 			equals(sharingSecrets.getSharedSecret(), "changed", "modifications to shared closures from ancestor to child");
-
 		});
 
 
 		test("messaging with $speak", function() {
 			expect(29);
 
-			var myBlankSpeaker = $speak();
+			var myBlankSpeaker = $speak({name:"myBlankSpeaker"});
 
 			ok($isSpeaker(myBlankSpeaker), "calling $speak without arguments returns a new speaker");
 
 			var mySpeaker = $speak({
+				name: "mySpeaker",
 				firstName: "",
 				age: 0
 			});
@@ -108,6 +108,9 @@
 			mySpeakerTestLastSpeaker = null,
 			mySpeakerTestLastScope = null,
 			mySpeaker.listen("test", function(topic, message, speaker) {
+				if(mySpeakerTestResponses > 20){return;}
+				console.log(arguments);
+				console.log((speaker && speaker === myBlankSpeaker));
 				mySpeakerTestResponses++;
 				mySpeakerTestLastTopic = topic;
 				mySpeakerTestLastMessage = message;
@@ -124,7 +127,10 @@
 
 			ok(mySpeakerTestResponses == 0, "message was not shared with others");
 
+
+
 			mySpeaker.listensTo(myBlankSpeaker);
+
 			myBlankSpeaker.tell("test", "this is a test with sharing");
 			ok(myBlankSpeakerTestResponses == 2, "properly responded to simple tell");
 			ok(myBlankSpeakerTestLastMessage == "this is a test with sharing", "responder received the message");
@@ -150,6 +156,7 @@
 
 			mySpeaker.talksTo(mySpeaker3);
 			myBlankSpeaker.tell("test", "this is a test with a sharing chain");
+			
 			ok(mySpeaker3TestResponses == 1, "third party (2nd share) properly responded to");
 			ok(mySpeaker3TestLastTopic == "test", "properly received the topic as first arg");
 			ok(mySpeaker3TestLastMessage == "this is a test with a sharing chain", "responder received the message as second arg");
@@ -213,6 +220,7 @@
 			implicitCallbacks.tell("test:error", "this is a tes");
 			implicitCallbacks.tell("test:123", "this is a tes");
 			ok(implicitCalls === 3, "imlicitly typed listeners work!");
+
 
 		});
 
@@ -288,7 +296,6 @@
 			equals(afterMakeTester, afterMixinMake, "afterMake on mixin called properly");
 			equals(afterMakeTester.afterMake, null, "afterMake is nulled out on new object");
 
-
 		});
 
 
@@ -359,7 +366,7 @@
 
 		test("$deepCopy", function() {
 
-			expect(6);
+			expect(5);
 
 			var objA = {name: "objA"};
 			var objB = {name: "objB", testObj: {array:[1, "string", {object:{name:"hey", age: 23} }, [0,2, 3, 5, [0, 0, 0]] ], func: function(){return this;}}};
@@ -376,24 +383,58 @@
 			objB.testObj.array[2].object.name = "yo";
 			ok(bCopy.testObj.array[2].object.name === "hey", "changes on complex object do not transfer to copy");
 
-			// now lets test the merge form
-			$deepCopy(objB, objA);
-			same(objB, objA, "properly augments the provided target object");
+			var b2Copy = $new(objB);
+			b2Copy.name = "b2";
+			b2Copy.custom = "owned";
 
-			// test filter method that only allows owned properties
-			var b2Copy = $new(bCopy);
 			var base = {
 				name: "b2",
 				custom: "owned"
 			};
-
-			$deepCopy(base, b2Copy);
 
 			var newB = $deepCopy(b2Copy, function(key, source) {
 				return source.hasOwnProperty(key);
 			});
 
 			same(newB, base, "filter function works properly");
+
+		});
+
+
+		test("$deepMerge", function() {
+
+			expect(3);
+
+			var objA = {name: "objA"};
+			var objB = {name: "objB", custom: "owned", testObj: {array:[1, "string", {object:{name:"hey", age: 23} }, [0,2, 3, 5, [0, 0, 0]] ], func: function(){return this;}}};
+
+			$deepMerge(objA, objB);
+			same(objB, objA, "properly augments the provided target object");
+
+			// test filter method that only allows owned properties
+			var b2Copy = $new(objB);
+
+			var base = {
+				name: "b2",
+				custom: "owned"
+			};
+
+			var augment = {
+				name: "b2",
+				custom: "owned"
+			};
+
+			$deepMerge(augment, b2Copy, function(key, source) {
+				return source.hasOwnProperty(key);
+			});
+
+			same(augment, base, "filter function works properly");
+
+
+			$deepMerge(augment, b2Copy);
+
+			same(augment, b2Copy, "will copy over inherited properties by default");
+
 		});
 
 

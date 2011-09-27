@@ -10,10 +10,7 @@
 
 			var characterArray = this.split( "" );
 
-			Array.prototype.splice.apply(
-				characterArray,
-				arguments
-			);
+			Array.prototype.splice.apply(characterArray, arguments);
 
 			return characterArray.join("");
 		};
@@ -28,6 +25,83 @@
 	var $ce = function(type) {
 		return document.createElement(type);
 	};
+	
+
+	// template -------------------------------------------------------
+	// a sligtly modded version of underscore template
+	// see http://documentcloud.github.com/underscore/#template
+	// JavaScript micro-templating, similar to John Resig's implementation.
+	// Underscore templating handles arbitrary delimiters, preserves whitespace,
+	// and correctly escapes quotes within interpolated code.
+	var $tpl = (function() {
+
+		// create the regexes only once
+		var evaluate = 		/<\$([\s\S]+?)\$>/g,
+			interpolate = 	/<\$=([\s\S]+?)\$>/g,
+			bslash =		/\\/g,
+			squote = 		/'/g,
+			esquote =		/\\'/g,
+			toSpace =		/[\r\n\t]/g,
+			retrn =			/\r/g,
+			newln =			/\n/g,
+			tab =			/\t/g,
+			space = 		/\s/g;
+
+		// the template function
+		var template = function(str, data) {
+			var tmpl = 'var __p=[],print=function(){__p.push.apply(__p,arguments);};' +
+					'with(obj||{}){__p.push(\''
+					+ str.replace(bslash, '\\\\')
+					.replace(squote, "\\'")
+					.replace(interpolate, function(match, code) {
+						return "'," + code.replace(esquote, "'") + ",'";
+					})
+					.replace(evaluate || null, function(match, code) {
+						return "');" + code.replace(esquote, "'").replace(toSpace, ' ') + "__p.push('";
+					})
+					.replace(retrn, '\\r')
+					.replace(newln, '\\n')
+					.replace(tab, '\\t')
+					+ "');}return __p.join('');";
+
+			// the compiled template
+			var func = new Function('obj', tmpl);
+
+			// return a processed template if provided data
+			// else return a complied reusable template render function
+			return data ? func(data) : func;
+		};
+
+
+		// will compile a template for innerHTML of elem with id=t
+		// if given a string like "myTemplate, myOtherTemplate, someTemplate"
+		// will return a hash of compiled templates using the ids for keys
+		template.compile = function(t) {
+
+			if (typeof t === "string") {
+
+				var ts = t.replace(space, "").split(","),
+					len = ts.length,
+					compiled = {},
+					id;
+
+				for (var i=0; i<len; i++) {
+					id = ts[i];
+					compiled[id] = template($id(id).innerHTML);
+				}
+
+				return (len == 1) ? compiled[id] : compiled;
+
+			} else {
+				throw new Error("Expected a string, saw "+ typeof t);
+			}
+		};
+
+		return template;
+
+	}());
+	
+
 
 	// basic types -------------------------------------------------------
 	// stolen wholesale from underscore
@@ -86,18 +160,13 @@
 		return !!(obj && obj.test && obj.exec && (obj.ignoreCase || obj.ignoreCase === false));
 	};
 
-
-	var $sliceIt = function(obj, start, end) {
-		return Array.prototype.slice.call(obj, start || 0, end);
-	};
-
 	// array -------------------------------------------------------
 
 	// the underscore each function
 	var $each = (function() {
 
-		// switched breaker to bool instead of empty object bc returning {} to break just seemed odd
-		var breaker = false,
+		// switched breaker to string "break" for better self documentation when used
+		var breaker = "break",
 			nativeForEach = Array.prototype.forEach,
 			hasOwnProperty = Object.prototype.hasOwnProperty;
 
@@ -128,6 +197,27 @@
 
 	}());
 
+	var nativeSome = Array.prototype.some;
+
+	// Determine if at least one element in the object matches a truth test.
+	// Delegates to **ECMAScript 5**'s native "some" if available
+	var $any = function(obj, iterator, context) {
+		var result = false;
+
+		if (nativeSome && obj.some === nativeSome) {
+			return obj.some(iterator, context);
+		}
+
+		each(obj, function(value, index, list) {
+			// note: intentional assignment in the if
+			if (result = iterator.call(context, value, index, list)) {
+				return "break";
+			}
+		});
+
+		return !!result;
+	};
+
 	// Return all the elements for which a truth test fails.
 	var $reject = function(obj, iterator, context) {
 		var results = [];
@@ -147,7 +237,18 @@
 		return len;
 	};
 
+	var $sliceIt = function(obj, start, end) {
+		return Array.prototype.slice.call(obj, start || 0, end);
+	};
 
+
+	var arrayProto = Array.prototype;
+
+	// flatten arrays recursively
+	function $flat() {
+		var flatArray = arrayProto.concat.apply(arrayProto, arguments);
+		return $any(flatArray, $isArray) ? $flat.apply(this, flatArray) : flatArray;
+	}
 
 	// object -------------------------------------------------------
 	
@@ -170,7 +271,7 @@
 	};
 
 	/**
-	 *
+	 * serves as a utility method for deepCopy and deepMerge
 	 * @param source (object) the object to copy properties from
 	 * @param target (object) optional object to merge source's properties into
 	 * @param filter (function) optional function(key, source, target) { return boolean; }
@@ -181,12 +282,12 @@
 	 *  		return source.hasOwnProperty(key);
 	 *  	});
 	 */
-	function deepCopy(source, target, filter) {
+	function copy(source, target, filter) {
 		var key, sourceProp, targetProp,
 			targetType = typeof target;
 
 		if (typeof source != 'object') {
-			throw new Error("deepCopy: source must be an object");
+			throw new Error("copy source must be an object");
 		}
 
 		// support (source, filter) signature
@@ -214,9 +315,9 @@
 
 			if (typeof sourceProp === 'object') {
 				targetProp = $isArray(sourceProp) ? [] : {};
-				target[key] = deepCopy(sourceProp, targetProp, filter);
+				target[key] = copy(sourceProp, targetProp, filter);
 
-			// dont copy undefined values
+			// don't copy undefined values
 			} else if (sourceProp !== undefined) {
 				target[key] = sourceProp;
 			}
@@ -225,47 +326,129 @@
 		return target;
 	}
 
-	var $deepCopy = function(parent, child) {
-		return deepCopy(parent, child);
+	var $deepCopy = function(source, filter) {
+		if (filter && !$isFunction(filter)) {
+			throw new Error("$deepCopy: Optional second argument (filter) must be a function. Instead saw " + typeof filter);
+		}
+		return copy(source, filter);
 	};
 
+	var $deepMerge = function(target, source, filter) {
+		if (!target || !source) {
+			throw new Error("$deepMerge: First two arguments (target, source) are required and must be enumerable. Instead saw (" + typeof target +", "+ typeof source +")");
+		}
+
+		if (filter && !$isFunction(filter)) {
+			throw new Error("$deepMerge: Optional third argument (filter) must be a function. Instead saw " + typeof filter);
+		}
+		return copy(source, target, filter);
+	};
+
+	/**
+	 * $extend augments the first object with shallow copies of
+	 * all other objects including their inherited properties
+	 * @param target (object) an object to augment
+	 * Remaining parameters may be object/s or array/s of objects
+	 * all of the following are valid
+	 * $extend(object, object)
+	 * $extend(object, object, object, object)
+	 * $extend(object, [object])
+	 * $extend(object, [object, object, object])
+	 * $extend(object, object, [object, object], object)
+	 */
+	var $extend = function(target) {
+		if (target) {
+			// accept objects or arrays of objects
+			var sources = [].concat($sliceIt(arguments, 1));
+
+			$each(sources, function(source) {
+				for (var prop in source) {
+					target[prop] = source[prop];
+				}
+			});
+		}
+
+		return target;
+	};
+
+	/**
+	 * $extend augments the first object with deep copies of
+	 * all other objects excluding their inherited properties
+	 * @param target (object) an object to augment
+	 * Remaining parameters may be object/s or array/s of objects
+	 * all of the following are valid
+	 * $mixin(object, object)
+	 * $mixin(object, object, object, object)
+	 * $mixin(object, [object])
+	 * $mixin(object, [object, object, object])
+	 * $mixin(object, object, [object, object], object)
+	 */
+	var $mixin = function(target) {
+		if(target) {
+			// accept objects or arrays of objects
+			var sources = [].concat($sliceIt(arguments, 1));
+
+			$each(sources, function(source) {
+				var prop;
+				for (prop in source) {
+					// do a deep copy that excludes any inherited properties at any level
+					$deepMerge(target, source, function(key, source) {
+						return source.hasOwnProperty(key);
+					});
+				}
+			});
+		}
+
+		return target;
+	};
 
 	/**
 	 * make new objects like a pro
 	 * @param prototype
-	 * @param extender
-	 * @param mixin
+	 * @param extender/s
+	 * @param mixin/s
 	 * @author ATL
 	 */
 	var $make = function(prototype, extender, mixin) {
 
+		mixin = mixin || {};
+
 		var myProto = $new(prototype),
-			myExt = $new(extender),
-			mixin = mixin || {},
-			parts = [myProto, myExt, mixin],
-			afterMake = [];
+			// we allow extender and mixin to be arrays of objects so lets flatten them out for easy traversal
+			parts = [].concat(myProto, extender, mixin),
+			afterMake = [],
+			forceOverwrite = true, // for self documentation
+			makeSpeaker;
 
 		$each(parts, function(part) {
-			var fn = part.afterMake;
-			if($isFunction(fn)) {
+			var fn = part ? part.afterMake : null;
+
+			// compile an array of afterMake functions
+			if ($isFunction(fn)) {
 				afterMake.push(fn);
 			}
+
+			// is any of our parts a speaker?
+			makeSpeaker |= $isSpeaker(part);
 		});
 
-		$extend(myProto, myExt);
+		// $extend does a shallow copy including inherited properties
+		if (extender) {
+			$extend(myProto, extender);
+		}
 
-		$mixin(myProto, mixin);
+		// $mixin does a deep copy excluding inherited properties
+		if (mixin) {
+			$mixin(myProto, mixin);
+		}
 
+		// prevent rerunning afterMake
 		myProto.afterMake = null;
 
-		// call the afterMake methods
-		$each(afterMake, function(fn) {
-			fn.call(myProto);
-		});
-
-		// make sure we don't copy or inherit _listeners and _audience by overwriting them
-		if ($isSpeaker(prototype) || $isSpeaker(extender) || $isSpeaker(mixin)) {
-			$speak(myProto, true); // force overwrite
+		// if any objects were speakers then make the new object speak as well and
+		// forceOverwrite so we don't copy or inherit _listeners and _audience
+		if (makeSpeaker) {
+			$speak(myProto, forceOverwrite);
 		}
 
 		// message sharing
@@ -285,39 +468,14 @@
 			myProto.shareMessages = false;
 		}
 
+		// call the afterMake methods using the new object for "this"
+		$each(afterMake, function(fn) {
+			fn.call(myProto);
+		});
+
 		return myProto;
 	};
 
-
-	// Extend first object with all the properties of the other passed-in object(s).
-	var $extend = function(obj) {
-		$each($sliceIt(arguments, 1), function(source) {
-			for (var prop in source) {
-				obj[prop] = source[prop];
-			}
-		});
-		return obj;
-	};
-
-	// will deep copy all the 'owned' properties of passed in object(s) to the first object
-	var $mixin = function(obj) {
-		if(obj) {
-			$each($sliceIt(arguments, 1), function(source) {
-				var val;
-				for (var prop in source) {
-					if(source.hasOwnProperty(prop)) {
-						val = source[prop];
-						if (typeof val === 'object') {
-							obj[prop] = $deepCopy(val);
-						} else {
-							obj[prop] = val;
-						}
-					}
-				}
-			});
-		}
-		return obj;
-	};
 
 
 
@@ -501,16 +659,17 @@
 
 	// API note
 	// the optional selectiveHearing property added to a speaker is a
-	// function with the same signature as any responder the selectiveHearing
+	// function with the same signature as any responder. the selectiveHearing
 	// function serves as a truth-test, if it returns truthy the message
 	// will be listened to otherwise it's ignored
 
 	var $speak = (function() {
 
-		var aSpeaker = $new({
+		var aSpeaker = {
 
 			tell: function(topic, message, speaker) {
-				if ($isString(topic) && (!this.selectiveHearing || this.selectiveHearing(topic, message, speaker))) {
+
+				if ($isString(topic) && (!$isFunction(this.selectiveHearing) || this.selectiveHearing(topic, message, speaker))) {
 					var that = this;
 
 					// fire the listeners
@@ -532,9 +691,8 @@
 					});
 
 					// tell the audience
-					var self = this;
 					$each(this._audience, function(member) {
-						member.tell(topic, message, speaker || self);
+						member.tell(topic, message, speaker || that);
 					});
 				}
 				return this;
@@ -604,35 +762,43 @@
 			},
 
 			talksTo: function(speaker) {
-				if ($isSpeaker(speaker) && this._audience.indexOf(speaker) === -1) {
+				if ($isSpeaker(speaker) && this !== speaker && this._audience.indexOf(speaker) === -1 && speaker !== this) {
 					this._audience.push(speaker);
 				}
 				return this;
 			},
 
 			listensTo: function(speaker) {
-				if ($isSpeaker(speaker) && speaker._audience.indexOf(this) === -1) {
+				if ($isSpeaker(speaker) && speaker._audience.indexOf(this) === -1 && speaker !== this) {
 					speaker._audience.push(this);
 				}
 				return this;
 			}
-		});
+
+			// the following properties are added when the speaker is created
+			// this prevents the risk of them being shared across speakers
+			// _listeners: [],
+			// _audience: []
+		};
 
 		// return just the newSpeaker function;
-		return function(o, overwrite) {
-			o = o || {};
-
-			if (!overwrite && o.hasOwnProperty("_listeners") && o.hasOwnProperty("_audience")) {
+		return function(obj, overwrite) {
+			if (obj && !overwrite && obj.hasOwnProperty("_listeners") && obj.hasOwnProperty("_audience")) {
 				// already a publisher, do noting
-				return o;
+				return obj;
 			}
 
-			// augment and return o
-			return $extend(o, aSpeaker, {
-				// we need local copies of these arrays not the inherited ones
-				_listeners: [],
-				_audience: []
-			});
+			if (!obj) {
+				// looks like we are starting a new speaker from scratch so
+				// we can create a more memory-friendly prototypal clone of aSpeaker
+				obj = $make(aSpeaker, {_listeners: [], _audience: []});
+
+			} else {
+				// can't use a prototypal clone so we augment obj via shallow copy instead
+				obj = $extend(obj, aSpeaker, {_listeners: [], _audience: []});
+			}
+
+			return obj;
 		};
 
 	})();
@@ -641,81 +807,6 @@
 		return (obj && $isFunction(obj.tell) && $isArray(obj._listeners));
 	};
 
-
-
-	// template -------------------------------------------------------
-	// a sligtly modded version of underscore template
-	// see http://documentcloud.github.com/underscore/#template
-	// JavaScript micro-templating, similar to John Resig's implementation.
-	// Underscore templating handles arbitrary delimiters, preserves whitespace,
-	// and correctly escapes quotes within interpolated code.
-	var $tpl = (function() {
-
-		// create the regexes only once
-		var evaluate = 		/<\$([\s\S]+?)\$>/g,
-			interpolate = 	/<\$=([\s\S]+?)\$>/g,
-			bslash =		/\\/g,
-			squote = 		/'/g,
-			esquote =		/\\'/g,
-			toSpace =		/[\r\n\t]/g,
-			retrn =			/\r/g,
-			newln =			/\n/g,
-			tab =			/\t/g,
-			space = 		/\s/g;
-
-		// the template function
-		var template = function(str, data) {
-			var tmpl = 'var __p=[],print=function(){__p.push.apply(__p,arguments);};' +
-					'with(obj||{}){__p.push(\''
-					+ str.replace(bslash, '\\\\')
-					.replace(squote, "\\'")
-					.replace(interpolate, function(match, code) {
-						return "'," + code.replace(esquote, "'") + ",'";
-					})
-					.replace(evaluate || null, function(match, code) {
-						return "');" + code.replace(esquote, "'").replace(toSpace, ' ') + "__p.push('";
-					})
-					.replace(retrn, '\\r')
-					.replace(newln, '\\n')
-					.replace(tab, '\\t')
-					+ "');}return __p.join('');";
-
-			// the compiled template
-			var func = new Function('obj', tmpl);
-
-			// return a processed template if provided data
-			// else return a complied reusable template render function
-			return data ? func(data) : func;
-		};
-
-
-		// will compile a template for innerHTML of elem with id=t
-		// if given a string like "myTemplate, myOtherTemplate, someTemplate"
-		// will return a hash of compiled templates using the ids for keys
-		template.compile = function(t) {
-
-			if (typeof t === "string") {
-
-				var ts = t.replace(space, "").split(","),
-					len = ts.length,
-					compiled = {},
-					id;
-
-				for (var i=0; i<len; i++) {
-					id = ts[i];
-					compiled[id] = template($id(id).innerHTML);
-				}
-
-				return (len == 1) ? compiled[id] : compiled;
-
-			} else {
-				throw new Error("Expected a string, saw "+ typeof t);
-			}
-		};
-
-		return template;
-
-	}());
 
 
 	// ------------------------------- exports -------------------------------
@@ -763,12 +854,15 @@
 		$isNaN: $isNaN,
 		$isBoolean: $isBoolean,
 		$isRegExp: $isRegExp,
-		$sliceIt: $sliceIt,
 		$each: $each,
 		$length: $length,
+		$sliceIt: $sliceIt,
+		$flat: $flat,
+		$any: $any,
 		$reject: $reject,
 		$new: $new,
 		$deepCopy: $deepCopy,
+		$deepMerge: $deepMerge,
 		$make: $make,
 		$extend: $extend,
 		$mixin: $mixin,
