@@ -3,56 +3,6 @@ loot.extend("$isCache", function(obj) {
 	return (obj && obj.bins && obj.get && obj.set);
 });
 
-loot.extend("$sequence", function(seq, exp, success, error) {
-
-	error = error || success;
-
-
-	var _sequence = {
-		steps: $isArray(seq) ? seq : [],
-		exprts: exp
-	};
-
-	var runSequence = function() {
-		next();
-	};
-
-	var expOrt = function(exp) {
-		$mixin(_sequence.exports, exp);
-	};
-
-	var then = function(cb, exp) {
-		if ($isFunction(cb)) {
-			_sequence.push(cb);
-			expOrt(exp);
-		}
-		return runSequence;
-	};
-
-	var next = function(err, exp) {
-
-		try {
-			if (steps.length > 0) {
-				var cb = _sequence.steps.shift();
-				cb(sequence);
-			} else {
-				success(null, sequence);
-			}
-		} catch (err) {
-			error(err, sequence);
-		}
-	};
-
-	runSequence.next = next;
-	_sequence.next = next;
-
-	runSequence.then = then;
-	_sequence.then = then;
-
-	return runSequence;
-
-});
-
 
 loot.extend("$cache", loot.exports.$speak({
 
@@ -133,7 +83,7 @@ loot.extend("$cache", loot.exports.$speak({
 
 		$each(this.types[typeId].bins, function(bin, cacheKey) {
 			total++;
-			if (evictionTest === true || ($isFunction(evictionTest) && evictionTest(bin, cacheKey)) ) {
+			if (!evictionTest || evictionTest === true || ($isFunction(evictionTest) && evictionTest(bin, cacheKey)) ) {
 				// yup evict that mofo
 				evicted++;
 				that.tell(typeId + ":evict:" + cacheKey, bin);

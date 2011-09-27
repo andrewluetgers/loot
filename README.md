@@ -69,3 +69,17 @@ This is how I like to construct objects and do inheritance.
 a very short list
 ### String
   * **splice(index, howManyToDelete, stringToInsert)** adds splice functionality for strings
+
+## $cache
+ as-yet untested :-(
+  * **types** the in-memory storage location for typed/cached data
+  * **getKey(url, req)** returns a cache key. for 1 args the cacheKey is just the url, eg. "/contents" for 2 args a key is generated with the url and the req , if the url was /user and post or get values were {name:"jim",age:25} then the key would be /user\[name:jim,age:25]
+  * **get(typeId, url, req)** if given just a typeId returns that type object. Otherwise returns an existing item from the cache or creates a new bin corresponding to the provided typeId, url and optional request params.
+  * **evict(typeId, evictionTest)** remove items from the cache. evictionTest(bin, cacheKey) is an optional function to filter the items to evict. an eviction notice will be told to the cache so others can listen in and respond as needed. Returns stats on how how many items were evicted out of how many and what remains.
+  * **set(typeId, url, req, val, metaData)** sets/updates a response value in the cache corresponding to the provided typeId, url and request params. MetaData is optional. Returns the cache bin that was set.
+  * **newType(typeId, customType)** provide a typeId string and optional typeObject to create a new type group in the cache.
+  * **newRemoteType(typeId, spec)** an advanced cache type that abstracts away async io thorugh a sync mehod.
+
+## $sauce
+ as-yet untested :-(
+  * **io(url, req, dataType, reqType)** abstracting away async io, currently depends on jquery
