@@ -72,6 +72,7 @@ a very short list
 
 ## $cache
  as-yet untested :-(
+ 
   * **types** the in-memory storage location for typed/cached data
   * **getKey(url, req)** returns a cache key. for 1 args the cacheKey is just the url, eg. "/contents" for 2 args a key is generated with the url and the req , if the url was /user and post or get values were {name:"jim",age:25} then the key would be /user\[name:jim,age:25]
   * **get(typeId, url, req)** if given just a typeId returns that type object. Otherwise returns an existing item from the cache or creates a new bin corresponding to the provided typeId, url and optional request params.
@@ -82,4 +83,5 @@ a very short list
 
 ## $sauce
  as-yet untested :-(
+ 
   * **io(url, req, dataType, reqType)** abstracting away async io, currently depends on jquery
