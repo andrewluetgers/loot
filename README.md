@@ -6,7 +6,7 @@ parts of the sauce extension are still under construction but the io module shou
 suggestions etc. welcome.
 
 ## Use it
-Just load up the js file/s and call the global methods. Init process will protect existing globals by making bakcups under loot.oldValues. See loot.sauce.js for extending with custom methods.
+Just load up the js file/s and call the global methods. Init process will protect existing globals by making backups under loot.oldValues. See loot.sauce.js for extending with custom methods.
 
 ## Methods
 
