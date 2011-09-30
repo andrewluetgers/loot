@@ -41,11 +41,11 @@ see underscore.js
 This is how I like to construct objects and do inheritance.
 
   * **$new(prototype)** optionally provide a prototype object for a new object instance. If an initialize function attribute exists it will be called then set to null.
-  * **$deepCopy(source, filter)** returns a deep copy of source. Filter is called for every property with (key, source, target) if it returns true the property is copied over if it returns false the property is ignored.
-  * **$deepMerge(target, source, filter)** returns a deep copy of source applied to target. Filter is called for every property with (key, source, target) if it returns true the property is copied over if it returns false the property is ignored.
+  * **$deepCopy(source, filter)** returns a deep copy of source. Optional filter(key, source, target) is called for every property traversed, if it returns true the property is copied over, if it returns false the property is ignored.
+  * **$deepMerge(target, source, filter)** returns a deep copy of source applied to target. Optional filter(key, source, target) is called for every property, if it returns true the property is copied over, if it returns false the property is ignored.
   * **$extend(obj)** obj will gain shallow copies of *all* properties of all other provided objects. This allows for building objects that share properties through composition vs prototype. This can save on memory and provide information sharing.
   * **$mixin(obj)** obj will gain deep copies of 'owned' properties of all other provided objects. The 'hasOwnProperty' test is applied to all properties during the deep copy.
-  * **$make(prototype, extender, mixin)** All args are optional. Extender and Mixin may each be single objects or arrays of objects. $make calls $new with each of the arguments then extends prototype with extender and mixes in the mixin. Also adds support for "afterMake" functions. These functions can exist as properties on either or each of the arguments and will be called with the new object as the "this". If any of the arguments is a speaker the new object will also be a speaker. Also see tests and source for advanced message sharing capabilities.
+  * **$make(prototype, extender, mixin)** All args are optional, extender and eixin may each be single objects or arrays of objects. $make calls $new with each of the arguments then extends prototype with extender and mixes in the mixin. Also adds support for "afterMake" functions. These functions can exist as properties on either or each of the arguments and will be called with the new object as the "this". If any of the arguments is a speaker the new object will also be a speaker. Also see tests and source for advanced message sharing capabilities.
 
 ### Functions
   * **$buffer(fn, rateMs, scope, ignoreLastCall)** buffer the provided function so that it can not be called any faster than the specified rate of execution. This is esp. handy for drag handlers. No matter how quickly the calls are placed the last call is guaranteed to fire however it may be deferred such that the rate is not exceeded.
@@ -70,6 +70,7 @@ a very short list
 ### String
   * **splice(index, howManyToDelete, stringToInsert)** adds splice functionality for strings
 
+# loot.sauce.js
 ## $cache
  as-yet untested :-(
  
