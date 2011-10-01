@@ -40,7 +40,7 @@ see underscore.js
 ### Objects
 This is how I like to construct objects and do inheritance.
 
-  * **$new(prototype)** optionally provide a prototype object for a new object instance. If an initialize function attribute exists it will be called then set to null.
+  * **$new(prototype)** provide a prototype object for a new object instance. If an initialize function attribute exists it will be called then set to null.
   * **$deepCopy(source, filter)** returns a deep copy of source. Optional filter(key, source, target) is called for every property traversed, if it returns true the property is copied over, if it returns false the property is ignored.
   * **$deepMerge(target, source, filter)** returns a deep copy of source applied to target. Optional filter(key, source, target) is called for every property, if it returns true the property is copied over, if it returns false the property is ignored.
   * **$extend(obj)** obj will gain shallow copies of *all* properties of all other provided objects. This allows for building objects that share properties through composition vs prototype. This can save on memory and provide information sharing.
