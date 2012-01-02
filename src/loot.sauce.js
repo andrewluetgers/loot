@@ -62,7 +62,7 @@ loot.extend("$cache", loot.exports.$speak({
 						url: url,
 						req: req,
 						val: null,
-						set: new Date().getTime()
+						setAt: new Date().getTime()
 					};
 				}
 				return bins[cacheKey];
@@ -108,7 +108,7 @@ loot.extend("$cache", loot.exports.$speak({
 			url: url,
 			req: req,
 			val: val,
-			set: new Date().getTime()
+			setAt: new Date().getTime()
 		}, metaData);
 
 		this.tell(typeId + ":set:" + cacheKey, bin);
@@ -129,7 +129,7 @@ loot.extend("$cache", loot.exports.$speak({
 			dataType = spec.dataType,
 			reqType = spec.reqType;
 
-		spec.ttl = spec.ttl || 0;// ms to live, 0 == forever
+		spec.ttl = spec.ttl || 0;// ms to live, falsey == forever
 
 		spec.sync = function(req, handlers, forceRefresh) {
 			var bin = $cache.get(spec.typeId, this.baseUrl, req);
