@@ -489,7 +489,7 @@ if ( typeof exports === "undefined" || typeof require === "undefined" ) {
 extend(QUnit, {
 	config: config,
 
-	// Initialize the configuration options
+	// Init the configuration options
 	init: function() {
 		extend(config, {
 			stats: { all: 0, bad: 0 },
@@ -673,7 +673,7 @@ if ( typeof document === "undefined" || document.readyState === "complete" ) {
 addEvent(window, "load", function() {
 	QUnit.begin({});
 
-	// Initialize the config, saving the execution queue
+	// Init the config, saving the execution queue
 	var oldconfig = extend({}, config);
 	QUnit.init();
 	extend(config, oldconfig);
