@@ -16,91 +16,23 @@
 		};
 	}
 
+	if (!Object.keys) {
+		Object.keys = function(o) {
+			var keys=[], p;
 
-	// dom -------------------------------------------------------
-	var $id = function(id) {
-		return document.getElementById(id);
-	};
-
-	var $ce = function(type) {
-		return document.createElement(type);
-	};
-	
-
-	// template -------------------------------------------------------
-	// a sligtly modded version of underscore template
-	// see http://documentcloud.github.com/underscore/#template
-	// JavaScript micro-templating, similar to John Resig's implementation.
-	// Underscore templating handles arbitrary delimiters, preserves whitespace,
-	// and correctly escapes quotes within interpolated code.
-	var $tpl = (function() {
-
-		// create the regexes only once
-		var evaluate = 		/<\$([\s\S]+?)\$>/g,
-			interpolate = 	/<\$=([\s\S]+?)\$>/g,
-			bslash =		/\\/g,
-			squote = 		/'/g,
-			esquote =		/\\'/g,
-			toSpace =		/[\r\n\t]/g,
-			retrn =			/\r/g,
-			newln =			/\n/g,
-			tab =			/\t/g,
-			space = 		/\s/g;
-
-		// the template function
-		var template = function(str, data) {
-			var tmpl = 'var __p=[],print=function(){__p.push.apply(__p,arguments);};' +
-					'with(obj||{}){__p.push(\''
-					+ str.replace(bslash, '\\\\')
-					.replace(squote, "\\'")
-					.replace(interpolate, function(match, code) {
-						return "'," + code.replace(esquote, "'") + ",'";
-					})
-					.replace(evaluate || null, function(match, code) {
-						return "');" + code.replace(esquote, "'").replace(toSpace, ' ') + "__p.push('";
-					})
-					.replace(retrn, '\\r')
-					.replace(newln, '\\n')
-					.replace(tab, '\\t')
-					+ "');}return __p.join('');";
-
-			// the compiled template
-			var func = new Function('obj', tmpl);
-
-			// return a processed template if provided data
-			// else return a complied reusable template render function
-			return data ? func(data) : func;
-		};
-
-
-		// will compile a template for innerHTML of elem with id=t
-		// if given a string like "myTemplate, myOtherTemplate, someTemplate"
-		// will return a hash of compiled templates using the ids for keys
-		template.compile = function(t) {
-
-			if (typeof t === "string") {
-
-				var ts = t.replace(space, "").split(","),
-					len = ts.length,
-					compiled = {},
-					id;
-
-				for (var i=0; i<len; i++) {
-					id = ts[i];
-					compiled[id] = template($id(id).innerHTML);
-				}
-
-				return (len == 1) ? compiled[id] : compiled;
-
-			} else {
-				throw new Error("Expected a string, saw "+ typeof t);
+			if (o !== Object(o)) {
+				throw new TypeError('Object.keys called on non-object');
 			}
+
+			for(p in o) {
+				if(Object.prototype.hasOwnProperty.call(o,p)) {
+					keys.push(p);
+				}
+			}
+
+			return keys;
 		};
-
-		return template;
-
-	}());
-	
+	}
 
 
 	// basic types -------------------------------------------------------
@@ -218,6 +150,16 @@
 		return !!result;
 	};
 
+	// Return all the elements for which a truth test passes.
+	var $find = function(obj, iterator, context) {
+		var results = [];
+		if (obj == null) return results;
+		$each(obj, function(value, index, list) {
+			if (iterator.call(context, value, index, list)) results.push(value);
+		});
+		return results;
+	};
+
 	// Return all the elements for which a truth test fails.
 	var $reject = function(obj, iterator, context) {
 		var results = [];
@@ -262,9 +204,9 @@
 
 		var newInstance = new F();
 
-		if($isFunction(newInstance.initialize)) {
-			newInstance.initialize();
-			newInstance.initialize = null;
+		if($isFunction(newInstance.init)) {
+			newInstance.init();
+			newInstance.init = null;
 		}
 
 		return newInstance;
@@ -372,7 +314,7 @@
 	};
 
 	/**
-	 * $extend augments the first object with deep copies of
+	 * $mixin augments the first object with deep copies of
 	 * all other objects excluding their inherited properties
 	 * @param target (object) an object to augment
 	 * Remaining parameters may be object/s or array/s of objects
@@ -474,58 +416,6 @@
 		});
 
 		return myProto;
-	};
-
-
-
-
-	// function -------------------------------------------------------
-
-	/* $buffer
-	 * buffer the provided function so that it can not be called any faster
-	 * than the specified rate of execution. This is esp. handy for drag handlers.
-	 * No matter how quickly the calls are placed the last call is guaranteed to
-	 * fire however it may be deferred such that the rate is not exceeded.
-	 *
-	 * @param fn (function) the function to buffer
-	 * @param rate (number) max frequency for the execution of fn
-	 * @param scope (object) the "this" context for fn to be executed with
-	 * @author ATL
-	 */
-	var $buffer = function(fn, rate, scope, ignoreLastCall) {
-
-		var updateTimer = null,
-			lastUpdate = 0,
-			getTime = function() {
-				return new Date().getTime();
-			};
-
-		rate = rate || 50;
-
-		return function() {
-			// buffer this function so if it gets spammed we don't call it too often
-			clearTimeout(updateTimer);
-			var now = getTime(),
-				delta = now - lastUpdate,
-				theArguments = arguments,
-				callFn = function() {
-					lastUpdate = now;
-					fn.apply(scope, theArguments);
-				};
-
-			if (delta < rate) {
-				if(!ignoreLastCall) {
-					//console.log("DEFER: "+ delta);
-					updateTimer = setTimeout(function() {
-						callFn();
-					}, delta);
-				}
-				return false;
-			}
-
-			//console.log("CALL: "+ delta);
-			callFn();
-		};
 	};
 
 
@@ -808,6 +698,109 @@
 	};
 
 
+	// dom -------------------------------------------------------
+	var $id = function(id) {
+		return document.getElementById(id);
+	};
+
+	var $el = function(type) {
+		return document.createElement(type);
+	};
+
+
+	// escapeHTML -------------------------------------------------------
+	// from backbone.js
+	var $escapeHTML = (function() {
+
+		// create the regexes only once
+		var amp = /&(?!\w+;|#\d+;|#x[\da-f]+;)/gi,
+			lt = /</g,
+			gt = />/g,
+			quot = /"/g,
+			squot = /'/g,
+			fslash = /\//g;
+
+		// the escape function
+		return function(string) {
+			return string.replace(amp, '&amp;').replace(lt, '&lt;').replace(gt, '&gt;').replace(quot, '&quot;').replace(squot, '&#x27;').replace(fslash,'&#x2F;');
+		};
+	}());
+
+	// template -------------------------------------------------------
+	// a slightly modded version of underscore template
+	// see init
+	// JavaScript micro-templating, similar to John Resig's implementation.
+	// Underscore templating handles arbitrary delimiters, preserves whitespace,
+	// and correctly escapes quotes within interpolated code.
+	var $tmpl = (function() {
+
+		// create the regexes only once
+		var evaluate = 		/<%([\s\S]+?)%>/g,
+			interpolate = 	/\$\{([\s\S]+?)\}/g,
+			bslash =		/\\/g,
+			squote = 		/'/g,
+			esquote =		/\\'/g,
+			toSpace =		/[\r\n\t]/g,
+			retrn =			/\r/g,
+			newln =			/\n/g,
+			tab =			/\t/g,
+			space = 		/\s/g;
+
+		// the template function
+		var template = function(str, data) {
+			var tmpl = 'var __p=[],print=function(){__p.push.apply(__p,arguments);};' +
+					'with(obj||{}){__p.push(\''
+					+ str.replace(bslash, '\\\\')
+					.replace(squote, "\\'")
+					.replace(interpolate, function(match, code) {
+						return "'," + code.replace(esquote, "'") + ",'";
+					})
+					.replace(evaluate || null, function(match, code) {
+						return "');" + code.replace(esquote, "'").replace(toSpace, ' ') + "__p.push('";
+					})
+					.replace(retrn, '\\r')
+					.replace(newln, '\\n')
+					.replace(tab, '\\t')
+					+ "');}return __p.join('');";
+
+			// the compiled template
+			var func = new Function('obj', tmpl);
+
+			// return a processed template if provided data
+			// else return a complied reusable template render function
+			return data ? func(data) : func;
+		};
+
+
+		// will compile a template for innerHTML of elem with id=t
+		// if given a string like "myTemplate, myOtherTemplate, someTemplate"
+		// will return a hash of compiled templates using the ids for keys
+		template.compile = function(t) {
+
+			if (typeof t === "string") {
+
+				var ts = t.replace(space, "").split(","),
+					len = ts.length,
+					compiled = {},
+					id;
+
+				for (var i=0; i<len; i++) {
+					id = ts[i];
+					compiled[id] = template($id(id).innerHTML);
+				}
+
+				return (len == 1) ? compiled[id] : compiled;
+
+			} else {
+				throw new Error("Expected a string, saw "+ typeof t);
+			}
+		};
+
+		return template;
+
+	}());
+
+
 
 	// ------------------------------- exports -------------------------------
 	var _scope;
@@ -850,8 +843,6 @@
 	};
 
 	loot.exports = {
-		$id: $id,
-		$ce: $ce,
 		$isNumber: $isNumber,
 		$isEmpty: $isEmpty,
 		$isElement: $isElement,
@@ -866,6 +857,7 @@
 		$sliceIt: $sliceIt,
 		$flat: $flat,
 		$any: $any,
+		$find: $find,
 		$reject: $reject,
 		$new: $new,
 		$deepCopy: $deepCopy,
@@ -873,12 +865,14 @@
 		$make: $make,
 		$extend: $extend,
 		$mixin: $mixin,
-		$buffer: $buffer,
 		$now: $now,
 		$timeAgo: $timeAgo,
 		$speak: $speak,
 		$isSpeaker: $isSpeaker,
-		$tpl: $tpl
+		$id: $id,
+		$el: $el,
+		$escapeHTML: $escapeHTML,
+		$tmpl: $tmpl
 	};
 
 	loot.addExport = function(name, obj) {
