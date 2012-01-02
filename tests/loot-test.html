@@ -39,7 +39,7 @@
 
 			var initScope,
 				initTest = $new({
-					initialize: function() {
+					init: function() {
 						initScope = this;
 						var sharedSecret = "shared";
 						this.getSharedSecret = function() {
@@ -51,12 +51,12 @@
 					}
 				});
 
-			equals(initScope, initTest, "initialize function is properly called");
-			equals(initTest.initialize, null, "initialize function is nulled out after being called");
-			equals(initTest.getSharedSecret(), "shared", "initialize function enables providing access to private members");
+			equals(initScope, initTest, "init function is properly called");
+			equals(initTest.init, null, "init function is nulled out after being called");
+			equals(initTest.getSharedSecret(), "shared", "init function enables providing access to private members");
 
 			var sharingSecrets = $new(initTest);
-			equals(sharingSecrets.getSharedSecret(), "shared", "shared closures via an ancestors initialize function allows shared access to the same private members throughout the inheritance chain");
+			equals(sharingSecrets.getSharedSecret(), "shared", "shared closures via an ancestors init function allows shared access to the same private members throughout the inheritance chain");
 			sharingSecrets.setSharedSecret("changed");
 			equals(initTest.getSharedSecret(), "changed", "modifications to shared closures from child to ancestor");
 			initTest.setSharedSecret("changed");
@@ -576,7 +576,7 @@
 			ok(bin.url == "/aTest", "bins store the url");
 			ok(bin.req == null, "bins store the req");
 			ok(bin.val == testVal, "bins store the val");
-			ok(typeof bin.set == "number", "bins store a timestamp for last update");
+			ok(typeof bin.setAt == "number", "bins store a timestamp for last update");
 
 			// remove all listeners on the cache to reduce test noises
 			$cache.stopListening();
