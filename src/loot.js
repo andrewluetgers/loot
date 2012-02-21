@@ -16,6 +16,12 @@
 		};
 	}
 
+	if(!String.prototype.trim) {
+		String.prototype.trim = function () {
+			return this.replace(/^\s+|\s+$/g,'');
+		};
+	}
+
 	if (!Object.keys) {
 		Object.keys = function(o) {
 			var keys=[], p;
@@ -93,6 +99,8 @@
 	};
 
 	// array -------------------------------------------------------
+	var arrayProto = Array.prototype;
+
 
 	// the underscore each function
 	var $each = (function() {
@@ -128,6 +136,34 @@
 		return each;
 
 	}());
+	
+
+	var nativeMap = arrayProto.map;
+
+	// Return the results of applying the iterator to each element.
+	// Delegates to **ECMAScript 5**'s native "map" if available.
+	var $map = function(obj, iterator, context) {
+
+		var results = [];
+
+		if (obj == null) {
+			return results;
+		}
+
+		if (nativeMap && obj.map === nativeMap) {
+			return obj.map(iterator, context);
+		}
+
+		$each(obj, function(value, index, list) {
+			results[results.length] = iterator.call(context, value, index, list);
+		});
+
+		if (obj.length === +obj.length) {
+			results.length = obj.length;
+		}
+		return results;
+	};
+
 
 	var nativeSome = Array.prototype.some;
 
@@ -172,7 +208,7 @@
 
 	var $length = function(item) {
 		var len = item.length;
-		if (typeof len !== "number") {
+		if (!$isNumber(len)) {
 			len = 0;
 			$each(item, function(){len++});
 		}
@@ -182,9 +218,6 @@
 	var $sliceIt = function(obj, start, end) {
 		return Array.prototype.slice.call(obj, start || 0, end);
 	};
-
-
-	var arrayProto = Array.prototype;
 
 	// flatten arrays recursively
 	function $flat() {
@@ -206,7 +239,7 @@
 
 		if($isFunction(newInstance.init)) {
 			newInstance.init();
-			newInstance.init = null;
+			newInstance.init = null; // we don't delete bc could then just inherit another init function
 		}
 
 		return newInstance;
@@ -237,7 +270,7 @@
 			filter = target;
 			target = {};
 		} else {
-			filter = (typeof filter === "function") ? filter : false;
+			filter = ($isFunction(filter)) ? filter : false;
 			target = (targetType === "object") ? target : {};
 		}
 
@@ -698,33 +731,22 @@
 	};
 
 
+
+	// trim string -------------------------------------------------------
+	// type agnostic string trim, just returns the original val if its not a string
+	var $trim = function(str) {
+		if ($isString(str)) {
+			return str.trim();
+		} else {
+			return str;
+		}
+	};
+
+
 	// dom -------------------------------------------------------
 	var $id = function(id) {
 		return document.getElementById(id);
 	};
-
-	var $el = function(type) {
-		return document.createElement(type);
-	};
-
-
-	// escapeHTML -------------------------------------------------------
-	// from backbone.js
-	var $escapeHTML = (function() {
-
-		// create the regexes only once
-		var amp = /&(?!\w+;|#\d+;|#x[\da-f]+;)/gi,
-			lt = /</g,
-			gt = />/g,
-			quot = /"/g,
-			squot = /'/g,
-			fslash = /\//g;
-
-		// the escape function
-		return function(string) {
-			return string.replace(amp, '&amp;').replace(lt, '&lt;').replace(gt, '&gt;').replace(quot, '&quot;').replace(squot, '&#x27;').replace(fslash,'&#x2F;');
-		};
-	}());
 
 	// template -------------------------------------------------------
 	// a slightly modded version of underscore template
@@ -735,8 +757,8 @@
 	var $tmpl = (function() {
 
 		// create the regexes only once
-		var evaluate = 		/<%([\s\S]+?)%>/g,
-			interpolate = 	/\$\{([\s\S]+?)\}/g,
+		var evaluate = 		/<\$([\s\S]+?)\$>/g,
+			interpolate = 	/\<\$=\{([\s\S]+?)\$>/g,
 			bslash =		/\\/g,
 			squote = 		/'/g,
 			esquote =		/\\'/g,
@@ -777,7 +799,7 @@
 		// will return a hash of compiled templates using the ids for keys
 		template.compile = function(t) {
 
-			if (typeof t === "string") {
+			if ($isString("string")) {
 
 				var ts = t.replace(space, "").split(","),
 					len = ts.length,
@@ -798,6 +820,232 @@
 
 		return template;
 
+	}());
+
+
+
+	// hyper-simplistic dom node api for html string building
+	var $node = (function() {
+
+		var directProperties = {className:'class', htmlFor:'for'};
+		var selfClosing = {area:1, base:1, basefont:1, br:1, col:1, frame:1, hr:1, img:1, input:1, link:1, meta:1, param:1};
+
+		// children toString should not include commas
+		var childrenToString = function() {
+			var str = "";
+			$each(this, function(val) {
+				str += $isString(val) ? $escapeHTML(val) : val;
+			});
+			return str;
+		};
+
+		var node = {
+			init: function() {
+				this.type = "div";
+				this.attr = {};
+				this.children = [];
+				this.children.toString = childrenToString;
+
+				// for compatability with $el dom builder in outputStrings mode
+				this.appendChild = this.append;
+				this.removeAttribute = this.setAttribute = this.set;
+			},
+			append: function(nodes) {
+				// no we don't do validation here, so sue me
+				// this will handle a single node or an array of nodes or a mixed array of nodes and arrays of nodes
+				var argsArray = $flat(this.children.length, 0, nodes);
+				this.children.splice.apply(this.children, argsArray);
+				return this;
+			},
+			set: function(key, value) {
+				if (key) {
+					if (!$isString(key)) {
+						// assume key is a hash of key value pairs to be added in to existing attr hash
+						var spec = key, that = this;
+						$each(spec, function(val, theKey) {
+							that.set(theKey, val);
+						});
+					} else {
+						// simple key value assignment
+						if (value !== null && value !== undefined && value !== "") {
+							// add/edit attribute
+							// support alternate attribute names
+							key = directProperties[key] || key;
+							this.attr[key] = value;
+							console.log(key);
+						} else {
+							// remove the attribute
+							delete this.attr[key];
+						}
+					}
+				}
+				return this;
+			},
+			toString: function() {
+				var str = "<" + this.type;
+				$each(this.attr, function(val, key) {
+					str += ' ' + key + '="' + val + '"';
+				});
+
+				if (selfClosing[this.type]) {
+					return str + "/>";
+				} else {
+					return str + ">" + this.children + "</" + this.type + ">";
+				}
+			}
+		};
+
+		return function(type) {
+			// use new to reduce memory footprint for many nodes
+			var n = $new(node);
+			n.type = type || "div";
+			return n;
+		};
+
+	}());
+
+	// for compatibility with $el dom builder in outputStrings mode
+	var $doc = {
+		createTextNode: function(str) {
+			return str;
+		},
+		createElement: $node
+	};
+
+
+	// dom builder see: http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
+	// modified to support dom node ouput or string output, for server land
+	var $el = (function () {
+		var doc = document;
+
+		var directProperties = {
+			'class': 'className',
+			className: 'className',
+			defaultValue: 'defaultValue',
+			'for': 'htmlFor',
+			html: 'innerHTML',
+			text: 'textContent',
+			value: 'value'
+		};
+
+		var booleanProperties = {
+			checked: 1,
+			defaultChecked: 1,
+			disabled: 1,
+			multiple: 1,
+			selected: 1
+		};
+
+		var setProperty = function (el, key, value) {
+			var prop = directProperties[key];
+			console.log(arguments);
+			if (prop) {
+				el[prop] = (value == null ? '' : '' + value);
+			} else if (booleanProperties[key]) {
+				el[key] = !!value;
+			} else if ( value == null ) {
+				el.removeAttribute( key );
+			} else {
+				el.setAttribute(key, '' + value);
+			}
+		};
+
+		var appendChildren = function (el, children) {
+			var i, l, node;
+			for (i = 0, l = children.length; i < l; i += 1) {
+				node = children[i];
+				if (node) {
+					if ($isArray(node)) {
+						appendChildren(el, node);
+					} else {
+						if ($isString(node)) {
+							node = doc.createTextNode(node);
+						}
+						el.appendChild(node);
+					}
+				}
+			}
+		};
+
+		var splitter = /(#|\.)/;
+
+		var create = function(tag, props, children) {
+
+			var parts, name, tag, len, el, i, j, l, prop,
+				outputstrings = !!(doc == $doc);
+
+			// support (tag, children) signature
+			if ($isArray(props)) {
+				children = props;
+				props = null;
+			}
+
+			parts = tag.split(splitter);
+			tag = parts[0];
+			len = parts.length;
+
+			if (len > 2) {
+				if (!props) {
+					props = {};
+				}
+
+				for (i=1, j=2, l=len; j<l; i+=2, j+=2) {
+					name = parts[j];
+					if (parts[i] === '#') {
+						props.id = name;
+					} else {
+						props.className = props.className ? props.className + ' ' + name : name;
+					}
+				}
+			}
+
+			el = doc.createElement(tag);
+			
+			if (!outputstrings && props) {
+				for (prop in props) {
+					setProperty(el, prop, props[prop]);
+				}
+			} else if (outputstrings) {
+				el.set(props);
+			}
+
+			if (!outputstrings && children) {
+				appendChildren(el, children);
+			} else if (outputstrings) {
+				el.append(children);
+			}
+			return el;
+		};
+
+		create.outputStrings = function(outputStrings) {
+			if (!outputStrings) {
+				doc = document;
+			} else {
+				doc = $doc;
+			}
+		};
+
+		return create;
+
+	}());
+
+
+	// escapeHTML -------------------------------------------------------
+	// from backbone.js
+	var $escapeHTML = (function() {
+
+		// create the regexes only once
+		var amp = 		/&(?!\w+;|#\d+;|#x[\da-f]+;)/gi,
+			lt = 		/</g,
+			gt = 		/>/g,
+			quot = 		/"/g,
+			squot = 	/'/g,
+			fslash = 	/\//g;
+
+		// the escape function
+		return function(string) {
+			return string.replace(amp, '&amp;').replace(lt, '&lt;').replace(gt, '&gt;').replace(quot, '&quot;').replace(squot, '&#x27;').replace(fslash,'&#x2F;');
+		};
 	}());
 
 
@@ -843,6 +1091,8 @@
 	};
 
 	loot.exports = {
+
+		// types
 		$isNumber: $isNumber,
 		$isEmpty: $isEmpty,
 		$isElement: $isElement,
@@ -852,27 +1102,42 @@
 		$isNaN: $isNaN,
 		$isBoolean: $isBoolean,
 		$isRegExp: $isRegExp,
+
+		// collections
 		$each: $each,
-		$length: $length,
-		$sliceIt: $sliceIt,
-		$flat: $flat,
+		$map: $map,
 		$any: $any,
 		$find: $find,
 		$reject: $reject,
+		$length: $length,
+		$sliceIt: $sliceIt,
+		$flat: $flat,
+
+		// objects
 		$new: $new,
 		$deepCopy: $deepCopy,
 		$deepMerge: $deepMerge,
-		$make: $make,
 		$extend: $extend,
 		$mixin: $mixin,
+		$make: $make,
+
+		// time
 		$now: $now,
 		$timeAgo: $timeAgo,
+
+		// messaging
 		$speak: $speak,
 		$isSpeaker: $isSpeaker,
+
+		// string
+		$trim: $trim,
+
+		// html
 		$id: $id,
+		$tmpl: $tmpl,
+		$node: $node,
 		$el: $el,
-		$escapeHTML: $escapeHTML,
-		$tmpl: $tmpl
+		$escapeHTML: $escapeHTML
 	};
 
 	loot.addExport = function(name, obj) {

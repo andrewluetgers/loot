@@ -436,6 +436,101 @@
 		});
 
 
+		test("$node", function() {
+
+			expect(7);
+
+			var node = $node();
+			same(node.toString(), "<div></div>", "empty div by default");
+
+			node.set("id", "test");
+			same(node.toString(), '<div id="test"></div>', "simple set attr works fine");
+			console.log(node.toString());
+
+			node.set({
+				"class": "someClass sidebar",
+				title: "this is a good title",
+				id: null
+			});
+
+			var expectedNodeStr = '<div class="someClass sidebar" title="this is a good title"></div>';
+
+			same(node.toString(), expectedNodeStr, "complex set attr, with spec object and attr removal works fine");
+			console.log(node.toString());
+
+			var nextNode = $node("div");
+			nextNode.set("id", "next");
+			nextNode.append(node);
+			console.log(nextNode.toString());
+			same(nextNode.toString(), '<div id="next">'+expectedNodeStr+'</div>', "simple append works fine");
+
+			console.log(nextNode.children.toString());
+			same(expectedNodeStr, nextNode.children.toString(), "children.toString works fine");
+
+			nextNode.append([node, $node(), $node()]);
+
+			same(nextNode.toString(), '<div id="next">'+expectedNodeStr+expectedNodeStr+'<div></div><div></div></div>', "array append works fine");
+
+			var p = $node("p");
+			var textNode = 'this is some text with some <html><p>in it</p></html>';
+			p.append(textNode);
+			console.log(p.toString());
+			nextNode.append(p);
+			same(p.toString(), "<p>"+$escapeHTML(textNode)+"</p>", "text append works fine");
+
+		});
+
+
+
+		test("$el", function() {
+
+			expect(1);
+
+			var div = $el("div");
+			div.id = "testdiv";
+
+			console.log(typeof div, div, div.toString());
+			console.log(document.body);
+			document.body.appendChild(div);
+
+			var str ="This is just plain text.";
+
+			var items = [ 1, 2, 3, 4 ];
+			var div2 = $el('div#message', [
+							$el('a.biglink', {href: 'http://www.google.com'}, [
+								'A link to Google'
+							]),
+							$el('ul', [
+								$map(items, function(item) {
+									return $el('li.item', [item + '. Item']);
+								})
+							]),
+							str
+						]);
+
+			div.appendChild(div2);
+			console.log(typeof div2, div2, div.innerHTML);
+
+			$el.outputStrings(true);
+
+			var div3 = $el('div#message', [
+							$el('a.biglink', {href: 'http://www.google.com'}, [
+								'A link to Google'
+							]),
+							$el('ul', [
+								$map(items, function(item) {
+									return $el('li.item', [item + '. Item']);
+								})
+							]),
+							str
+						]);
+
+			console.log(typeof div3, div3, div3.toString());
+
+			same(div.innerHTML, div3.toString(), "string mode and dom mode html output is the same");
+		});
+
+
 		test("loot.sauce.io", function() {
 
 			expect(20);

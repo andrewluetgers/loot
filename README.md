@@ -26,6 +26,7 @@ see underscore.js
 
 ### Collections
   * **$each** see underscore.js
+  * **$map** see underscore.js
   * **$any** see underscore.js (a modifid implemntation but basically the same thing)
   * **$find** see underscore.js
   * **$reject** see underscore.js
@@ -56,10 +57,14 @@ This is how I like to construct objects and do inheritance.
     * __listensTo(speaker)__ messages told to the provided speaker will be relayed to this speaker as well
   * **$isSpeaker(obj)** returns true if the provided object is a pub/sub speaker
 
+### String
+  * **$trim** // type agnostic string trim, just returns the original val if its not a string
+
 ### DOM
   * **$id** shortcut to document.getElementById
-  * **$el** shortcut to document.createElement
   * **$tpl** see underscore.js template
+  * **$el(selector, attributes, children) or (selector, children) or (selector)** super cool node builder / html string builder eg. $el("button#buy.bigButton", {type:"submit"}, ["Buy It Now"]), will return a dom structure unless you call $el.outputStrings(true), then it will output an html string instead.
+  * **$escapeHTML(html)** see backbone
 
 ### Language Shims
 a very short list
