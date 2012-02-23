@@ -270,29 +270,32 @@
 			equals(aParent.country, "us", "prototype inherits new properties when they are added to its prototype object");
 			equals(jim.country, "us", "inheritance chaining: new object also inherits new properties when they are added to its prototype's prototype object");
 
-			// afterMake callback support
+
+
+			
+			// init callback support
 			var afterProtoMake = 0,
 				afterextensionMake = 0,
 				afterMixinMake = 0;
 
-			var afterMakeTester = $make({
-					afterMake: function() {
+			var initTester = $make({
+					init: function() {
 						afterProtoMake = this;
 					}
 				},{
-					afterMake: function() {
+					init: function() {
 						afterextensionMake = this;
 					}
 				},{
-					afterMake: function() {
+					init: function() {
 						afterMixinMake = this;
 					}
 				});
 
-			equals(afterMakeTester, afterProtoMake, "afterMake on prototype called properly");
-			equals(afterMakeTester, afterextensionMake, "afterMake on extender called properly");
-			equals(afterMakeTester, afterMixinMake, "afterMake on mixin called properly");
-			equals(afterMakeTester.afterMake, null, "afterMake is nulled out on new object");
+			equals(initTester, afterProtoMake, "init on prototype called properly");
+			equals(initTester, afterextensionMake, "init on extender called properly");
+			equals(initTester, afterMixinMake, "init on mixin called properly");
+			equals(initTester.init, null, "init is nulled out on new object");
 
 		});
 

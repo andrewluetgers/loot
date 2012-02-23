@@ -8,7 +8,7 @@
 	if (!("splice" in String.prototype)) {
 		String.prototype.splice = function(index, howManyToDelete, stringToInsert) {
 
-			var characterArray = this.split( "" );
+			var characterArray = this.split("");
 
 			Array.prototype.splice.apply(characterArray, arguments);
 
@@ -231,13 +231,13 @@
 	// http://oranlooney.com/functional-javascript/
 	function F() {}
 
-	var $new = function(prototype) {
+	var $new = function(prototype, ignoreInit) {
 
 		F.prototype = prototype || {};
 
 		var newInstance = new F();
 
-		if($isFunction(newInstance.init)) {
+		if(!ignoreInit && $isFunction(newInstance.init)) {
 			newInstance.init();
 			newInstance.init = null; // we don't delete bc could then just inherit another init function
 		}
@@ -388,19 +388,19 @@
 
 		mixin = mixin || {};
 
-		var myProto = $new(prototype),
+		var myProto = $new(prototype, true),
 			// we allow extender and mixin to be arrays of objects so lets flatten them out for easy traversal
 			parts = [].concat(myProto, extender, mixin),
-			afterMake = [],
+			inits = [],
 			forceOverwrite = true, // for self documentation
 			makeSpeaker;
 
 		$each(parts, function(part) {
-			var fn = part ? part.afterMake : null;
+			var fn = part ? part.init : null;
 
 			// compile an array of afterMake functions
 			if ($isFunction(fn)) {
-				afterMake.push(fn);
+				inits.push(fn);
 			}
 
 			// is any of our parts a speaker?
@@ -417,8 +417,10 @@
 			$mixin(myProto, mixin);
 		}
 
-		// prevent rerunning afterMake
-		myProto.afterMake = null;
+		// prevent rerunning init
+		if (myProto.init) {
+			myProto.init = null;
+		}
 
 		// if any objects were speakers then make the new object speak as well and
 		// forceOverwrite so we don't copy or inherit _listeners and _audience
@@ -443,8 +445,8 @@
 			myProto.shareMessages = false;
 		}
 
-		// call the afterMake methods using the new object for "this"
-		$each(afterMake, function(fn) {
+		// call the init methods using the new object for "this"
+		$each(inits, function(fn) {
 			fn.call(myProto);
 		});
 
@@ -703,6 +705,8 @@
 			// _listeners: [],
 			// _audience: []
 		};
+
+		aSpeaker.on = aSpeaker.listen;
 
 		// return just the newSpeaker function;
 		return function(obj, overwrite) {
