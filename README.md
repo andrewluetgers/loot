@@ -63,7 +63,7 @@ This is how I like to construct objects and do inheritance.
 ### DOM
   * **$id** shortcut to document.getElementById
   * **$tpl** see underscore.js template
-  * **$el(selector, attributes, children) or (selector, children) or (selector)** super cool node builder / html string builder eg. $el("button#buy.bigButton", {type:"submit"}, ["Buy It Now"]), will return a dom structure unless you call $el.outputStrings(true), then it will output an html string instead.
+  * **$el(selector, attributes, children) or (selector, children) or (selector)** super cool node builder / html string builder eg. $el("button#buy.bigButton", {type:"submit"}, ["Buy It Now"]), will return a dom structure unless you call $el.outputStrings(true), then it will output an html string instead.  Makes uses of http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
   * **$escapeHTML(html)** see backbone
 
 ### Language Shims
