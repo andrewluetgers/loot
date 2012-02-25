@@ -217,7 +217,7 @@
 			implicitCallbacks.tell("test:start", "this is a tes");
 			implicitCallbacks.tell("test:error", "this is a tes");
 			implicitCallbacks.tell("test:123", "this is a tes");
-			ok(implicitCalls === 3, "imlicitly typed listeners work!");
+			ok(implicitCalls === 3, "implicitly typed listeners work!");
 
 
 		});
@@ -516,21 +516,90 @@
 
 			$el.outputStrings(true);
 
+			var nodes = $map(items, function(item) {
+					return $el('li.item', [item + '. Item']);
+				});
+
+			console.log("nodes", nodes);
+
 			var div3 = $el('div#message', [
-							$el('a.biglink', {href: 'http://www.google.com'}, [
-								'A link to Google'
-							]),
-							$el('ul', [
-								$map(items, function(item) {
-									return $el('li.item', [item + '. Item']);
-								})
-							]),
+							$el('a.biglink', {href: 'http://www.google.com'}, ['A link to Google']),
+							$el('ul', $map(items, function(item) {
+								return $el('li.item', [item + '. Item']);
+							})),
 							str
 						]);
 
 			console.log(typeof div3, div3, div3.toString());
 
 			same(div.innerHTML, div3.toString(), "string mode and dom mode html output is the same");
+		});
+
+		
+
+		test("$model", function() {
+
+			var data = {
+				test: 1,
+				foo: "bar",
+				allYourBase: "are belong to us"
+			};
+
+			// start with blank model
+			var m = $model();
+
+			m.listen("change", function(type, msg) {
+				if (msg.test) {
+					same(msg, {test:1}, "change event is fired providing the changeset");
+				} else {
+					same(msg, {
+						foo: "bar",
+						allYourBase: "are belong to us"
+					}, "change event is fired providing the changeset");
+				}
+			});
+
+			m.set("test", 1);
+			m.set({
+				foo: "bar",
+				allYourBase: "are belong to us"
+			});
+
+			var t = m.get("test");
+			ok(t === 1, "single key get");
+
+			t = m.get("test", "foo");
+			same(t, {test: 1, foo: "bar"}, "multi-key get using arguments");
+
+			t = m.get(["test", "foo"]);
+			same(t, {test: 1, foo: "bar"}, "multi-key get using an array");
+
+			t = m.get();
+			same(t, {test: 1, foo: "bar", allYourBase: "are belong to us"}, "get model (no arguments)");
+
+			// initial set on model call
+			m = $model({
+				test: 1,
+				foo: "bar",
+				allYourBase: "are belong to us"
+			});
+
+			t = m.get("test");
+			ok(t === 1, "single key get");
+
+			t = m.get("test", "foo");
+			same(t, {test: 1, foo: "bar"}, "multi-key get using arguments");
+
+			t = m.get(["test", "foo"]);
+			same(t, {test: 1, foo: "bar"}, "multi-key get using an array");
+
+			t = m.get();
+			same(t, {test: 1, foo: "bar", allYourBase: "are belong to us"}, "get model (no arguments)");
+
+			m.set("test");
+			t = m.get("test");
+			ok(t === undefined, "set without a second argument deletes");
+
 		});
 
 

@@ -59,10 +59,19 @@ var N = 100;
 		});
 	};
 
+
+	var frame = 0;
+	var start;
+
+
+
 	var backboneAnimate = function() {
-		for (var i = 0, l = boxes.length; i < l; i++) {
-		  boxes[i].tick();
-		}
+		!start && (start = $now());
+		frame++;
+		$each(boxes, function(box) {
+			box.tick();
+		});
+		$id("frameRate").innerHTML = frame / (($now() - start)/1000);
 		window.timeout = _.defer(backboneAnimate);
 	};
 
@@ -101,7 +110,7 @@ var N = 100;
 
 	var BoxView = Ember.View.extend({
 		classNames: ['box-view'],
-		templateName: 'box'
+		templateName: 'box' 
 	});
 
 	var boxes;
@@ -116,10 +125,17 @@ var N = 100;
 		});
 	};
 
+
+	var frame = 0;
+	var start;
+
 	var emberAnimate = function() {
-		for (var i = 0, l = boxes.length; i < l; i++) {
-		  boxes[i].tick();
-		}
+		!start && (start = $now());
+		frame++;
+		$each(boxes, function(box) {
+			box.tick();
+		});
+		$id("frameRate").innerHTML = frame / (($now() - start)/1000);
 		window.timeout = _.defer(emberAnimate);
 	};
 
@@ -135,31 +151,35 @@ var N = 100;
 (function() {
 
 	var box = $speak({
-		count: 0,
-		top: 0,
-		left: 0,
-		color: 0,
-		content: 0,
-		number: 0,
 
-		tick: function() {
-			var count = this.count += 1;
-			this.top = Math.sin(count / 10) * 10;
-			this.left = Math.cos(count / 10) * 10;
-			this.color = (count) % 255;
-			this.content = count % 100;
-			this.tell("change", count);
-		}
-	});
+			init: function() {
+				this.set({
+					count: 0,
+					top: 0,
+					left: 0,
+					color: 0,
+					content: 0,
+					number: 0
+				});
+			},
 
-	console.log("speak start");
+			tick: function() {
+				var count = this.count += 1;
+				this.set({
+					count:		(count = this.count + 1),
+					top: 		Math.sin(count / 10) * 10,
+					left: 		Math.cos(count / 10) * 10,
+					color: 		count % 255,
+					content: 	count % 100
+				});
+			}
+		});
+
 	var boxView = $speak({
 		init: function() {
 			this.el = $el("div.box");
 			var that = this;
-			console.log("init", this, this.model, this.test);
 			this.listensTo(this.model).listen("change", function(type, msg) {
-				//console.log(msg);
 				that.render();
 			});
 		},
@@ -175,29 +195,37 @@ var N = 100;
 			el.id = "box-"+box.number;
 			el.style.cssText = 'top: ' + box.top + 'px; left: ' +  box.left +'px; background: rgb(0,0,' + box.color + ');';
 			el.innerHTML = box.content;
-			return $el("div.box-view",[el]);
-		}
-	});
-	console.log("speak done");
 
-	var boxes = [];
+			if (!this.rendered) {
+				this.rendered = true;
+				return $el("div.box-view",[el]);
+			}
+		}
+	}); 
+
+	var boxes;
 
 	var lootInit = function() {
 		var x = N;
+		boxes = [];
 		while (x--) {
 			var bx = $make(box, {number:x});
-			console.log("make start");
-			var bxView = $make(boxView, {model: bx, test:"blah"});
-			console.log("make end");
-			$id("grid").appendChild(bxView.render());
 			boxes.push(bx);
+			var bxView = $make(boxView, {model: bx, number:x});
+			$id("grid").appendChild(bxView.render());
 		}
 	};
 
+	var frame = 0;
+	var start;
+
 	var lootAnimate = function() {
+		!start && (start = $now());
+		frame++;
 		$each(boxes, function(box) {
 			box.tick();
 		});
+		$id("frameRate").innerHTML = frame / (($now() - start)/1000);
 		window.timeout = _.defer(lootAnimate);
 	};
 
@@ -212,6 +240,7 @@ var N = 100;
 window.timeout = null;
 
 window.reset = function() {
+	console.log("reset");
 	$('#grid').empty();
 	clearTimeout(timeout);
 };

@@ -57,6 +57,30 @@ This is how I like to construct objects and do inheritance.
     * __listensTo(speaker)__ messages told to the provided speaker will be relayed to this speaker as well
   * **$isSpeaker(obj)** returns true if the provided object is a pub/sub speaker
 
+### Models
+  * **$model(obj)** Creates a model instance with set and get methods that emits a change event.
+    * __set(key, value)__ adds key:value pair to model and emits a change event containting the changes
+    * __set(object)__ adds the given keys:value pairs to the model and emits a change event containting the changes
+    ''
+    myModel.listen("change", function(changes) {
+    	if ("name" in changes) {
+    		alert("name set to " + changes.name);
+    	}
+    })
+
+    myModel.set({
+    	name: "Jim",
+    	age: 25
+    })
+
+   	// will alert "name set to Jim"
+    ''
+    * __set(key)__ sets key to undefined
+    * __get()__ returns the entire model
+    * __get(key)__ returns the value of the given key on the model
+    * __get(array)__ given an array of key strings returns an obect of matching key value pairs from the model
+
+
 ### String
   * **$trim** // type agnostic string trim, just returns the original val if its not a string
 

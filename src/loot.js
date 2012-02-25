@@ -735,6 +735,63 @@
 	};
 
 
+	// models -------------------------------------------------------
+
+	$model = function(spec, useHistory) {
+
+		var model = {};
+		var api = $new($speak({
+
+			init: function() {
+				if (spec) {
+					this.set(spec);
+				}
+			},
+
+			get: function(key) {
+				var len = arguments.length;
+				if (len == 1 && $isString(key)) {
+					return model[key];
+
+				} else if (len > 1 || $isArray(key)) {
+					var set = {}, keys = $flat($sliceIt(arguments));
+					$each(keys, function(k) {
+						if (k in model) {
+							set[k] = model[k];
+						}
+					});
+					return set;
+
+				} else {
+					return model;
+				}
+			},
+
+			set: function(key, val) {
+				var change = {};
+
+				if ($isString(key)) {
+					model[key] = val;
+					change[key] = val;
+
+				} else if (arguments.length == 1) {
+					// normal update
+					change = key;
+					$each(change, function(v, k) {
+						model[k] = v;
+					});
+				}
+
+				this.tell("change", change);
+			}
+		}));
+
+		delete api.init;
+
+		return api;
+	};
+
+
 
 	// trim string -------------------------------------------------------
 	// type agnostic string trim, just returns the original val if its not a string
@@ -942,7 +999,6 @@
 
 		var setProperty = function (el, key, value) {
 			var prop = directProperties[key];
-			console.log(arguments);
 			if (prop) {
 				el[prop] = (value == null ? '' : '' + value);
 			} else if (booleanProperties[key]) {
@@ -955,19 +1011,23 @@
 		};
 
 		var appendChildren = function (el, children) {
-			var i, l, node;
-			for (i = 0, l = children.length; i < l; i += 1) {
-				node = children[i];
-				if (node) {
-					if ($isArray(node)) {
-						appendChildren(el, node);
-					} else {
-						if ($isString(node)) {
-							node = doc.createTextNode(node);
+			var fragment = document.createDocumentFragment();
+			if($isArray(children)) {
+				$each(children, function(node) {
+					if (node) {
+						if ($isArray(node)) {
+							appendChildren(el, node);
+						} else {
+							if ($isString(node)) {
+								node = doc.createTextNode(node);
+							}
+							fragment.appendChild(node);
 						}
-						el.appendChild(node);
 					}
-				}
+				});
+				el.appendChild(fragment);
+			} else {
+				throw new Error("Error: appendChildren ws expecting an array but saw "+ typeof el);
 			}
 		};
 
@@ -1015,7 +1075,7 @@
 
 			if (!outputstrings && children) {
 				appendChildren(el, children);
-			} else if (outputstrings) {
+			} else if (outputstrings && children) {
 				el.append(children);
 			}
 			return el;
