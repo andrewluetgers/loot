@@ -816,15 +816,15 @@
 			mVals[key] = val;
 			change[key] = val;
 
-		} else if (arguments.length == 2) {
+		} else if (!val) {
 			// normal update
-			change = key;
-			$each(change, function(v, k) {
+			$each(key, function(v, k) {
 				mVals[k] = v;
 			});
 		}
 
 		this.tell("change", change);
+
 		return this;
 	};
 
@@ -865,7 +865,7 @@
 							return modelApiGet.apply(this, $flat(modelVals, $sliceIt(arguments)));
 						},
 						set: function(key, val) {
-							return modelApiSet.apply(this, $flat(modelVals, $sliceIt(arguments)));
+							return modelApiSet.call(this, modelVals, key, val);
 						}
 					});
 
