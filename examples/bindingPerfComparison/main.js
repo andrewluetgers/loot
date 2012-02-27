@@ -150,7 +150,7 @@ var N = 100;
 
 (function() {
 
-	var box = $speak({
+	var box = $model({
 
 			init: function() {
 				this.set({

@@ -16,7 +16,7 @@
 
 		test("$new", function() {
 
-			expect(13);
+			expect(12);
 
 			var person = {
 				firstName: "john",
@@ -38,29 +38,30 @@
 			ok(jim.age === 0, "modifications on original get inherited by new instance");
 
 			var initScope,
+				initruns = 0,
 				initTest = $new({
 					init: function() {
+						var myRunCount = ++initruns;
 						initScope = this;
-						var sharedSecret = "shared";
+						var sharedSecret = "shared"+myRunCount;
 						this.getSharedSecret = function() {
 							return sharedSecret;
 						};
 						this.setSharedSecret = function(val) {
-							sharedSecret = val;
+							sharedSecret = val + "" + myRunCount;
 						};
 					}
 				});
 
 			equals(initScope, initTest, "init function is properly called");
-			equals(initTest.init, null, "init function is nulled out after being called");
-			equals(initTest.getSharedSecret(), "shared", "init function enables providing access to private members");
+			equals(initTest.getSharedSecret(), "shared1", "init function enables providing access to private members");
 
 			var sharingSecrets = $new(initTest);
-			equals(sharingSecrets.getSharedSecret(), "shared", "shared closures via an ancestors init function allows shared access to the same private members throughout the inheritance chain");
+			equals(sharingSecrets.getSharedSecret(), "shared2", "closures from init functions are unique to instances");
 			sharingSecrets.setSharedSecret("changed");
-			equals(initTest.getSharedSecret(), "changed", "modifications to shared closures from child to ancestor");
+			equals(initTest.getSharedSecret(), "shared1", "modifications to closures from child do not affect ancestor");
 			initTest.setSharedSecret("changed");
-			equals(sharingSecrets.getSharedSecret(), "changed", "modifications to shared closures from ancestor to child");
+			equals(sharingSecrets.getSharedSecret(), "changed2", "modifications to shared closures from ancestor do not affect child");
 		});
 
 
@@ -91,7 +92,7 @@
 			myBlankSpeakerTestLastMessage = null,
 			myBlankSpeakerTestLastSpeaker = null,
 			myBlankSpeakerTestLastScope = null,
-			myBlankSpeaker.listen("test", function(topic, message, speaker) {
+			myBlankSpeaker.listen("test", function(message, topic, speaker) {
 				myBlankSpeakerTestResponses++;
 				myBlankSpeakerTestLastTopic = topic;
 				myBlankSpeakerTestLastMessage = message;
@@ -105,7 +106,7 @@
 			mySpeakerTestLastMessage = null,
 			mySpeakerTestLastSpeaker = null,
 			mySpeakerTestLastScope = null,
-			mySpeaker.listen("test", function(topic, message, speaker) {
+			mySpeaker.listen("test", function(message, topic, speaker) {
 				if(mySpeakerTestResponses > 20){return;}
 				console.log(arguments);
 				console.log((speaker && speaker === myBlankSpeaker));
@@ -118,8 +119,8 @@
 
 			myBlankSpeaker.tell("test", "this is a test");
 			ok(myBlankSpeakerTestResponses == 1, "properly responded to simple tell");
-			ok(myBlankSpeakerTestLastTopic == "test", "properly received the topic as first arg");
-			ok(myBlankSpeakerTestLastMessage == "this is a test", "responder received the message as second arg");
+			ok(myBlankSpeakerTestLastMessage == "this is a test", "responder received the message as first arg");
+			ok(myBlankSpeakerTestLastTopic == "test", "received the topic as second arg");
 			ok(myBlankSpeakerTestLastSpeaker == undefined, "properly received undefined for speaker in 3rd arg since not a shared message");
 			ok(myBlankSpeakerTestLastScope == myBlankSpeaker, "scope was properly the speaker that was told");
 
@@ -144,7 +145,7 @@
 			mySpeaker3TestLastMessage = null,
 			mySpeaker3TestLastSpeaker = null,
 			mySpeaker3TestLastScope = null,
-			mySpeaker3.listen("test", function(topic, message, speaker) {
+			mySpeaker3.listen("test", function(message, topic, speaker) {
 				mySpeaker3TestResponses++;
 				mySpeaker3TestLastTopic = topic;
 				mySpeaker3TestLastMessage = message;
@@ -161,16 +162,17 @@
 			ok(mySpeaker3TestLastSpeaker == myBlankSpeaker, "properly received undefined for speaker in 3rd arg since not a shared message");
 			ok(mySpeaker3TestLastScope == mySpeaker3, "scope was properly the speaker that was told");
 
-			mySpeaker3.selectiveHearing = function(topic, message, speaker) {
+			mySpeaker3.selectiveHearing = function(message, topic, speaker) {
 				ok(this === mySpeaker3, "selective hearing function properly scoped");
 				ok(speaker === undefined, "selective hearing speaker undefined for non shared messages");
 				return !(topic == "test"); // ignore test messages
 			};
 			mySpeaker3.tell("test", "testing selectiveHearing");
+			console.log("for: selective hearing ignores items when truth test returns false", mySpeaker3TestResponses);
 			ok(mySpeaker3TestResponses == 1, "selective hearing ignores items when truth test returns false");
 
 
-			mySpeaker3.selectiveHearing = function(topic, message, speaker) {
+			mySpeaker3.selectiveHearing = function(message, topic, speaker) {
 				ok(this === mySpeaker3, "selective hearing function properly scoped");
 				ok(speaker === mySpeaker, "selective hearing speaker properly ser for shared messages");
 				return (topic == "test"); // ignore all but test messages
@@ -196,7 +198,7 @@
 			// compound event type with implicit callback mapping
 			var implicitCallbacks = $speak(),
 				implicitCalls = 0,
-				commonHandler = function(type, msg) {
+				commonHandler = function(msg, type) {
 					console.log(arguments);
 					implicitCalls++;
 				};
@@ -295,7 +297,7 @@
 			equals(initTester, afterProtoMake, "init on prototype called properly");
 			equals(initTester, afterextensionMake, "init on extender called properly");
 			equals(initTester, afterMixinMake, "init on mixin called properly");
-			equals(initTester.init, null, "init is nulled out on new object");
+			equals(initTester.init.length, 3, "init is an array of all init methods after make");
 
 		});
 
@@ -545,10 +547,14 @@
 				allYourBase: "are belong to us"
 			};
 
-			// start with blank model
-			var m = $model();
+			$define("TestModel");
 
-			m.listen("change", function(type, msg) {
+			// start with blank model
+			var m = $model("TestModel", true);
+
+			console.log(m, $isSpeaker(m));
+
+			m.listen("change", function(msg) {
 				if (msg.test) {
 					same(msg, {test:1}, "change event is fired providing the changeset");
 				} else {
@@ -578,7 +584,7 @@
 			same(t, {test: 1, foo: "bar", allYourBase: "are belong to us"}, "get model (no arguments)");
 
 			// initial set on model call
-			m = $model({
+			m = $model("TestModel", {
 				test: 1,
 				foo: "bar",
 				allYourBase: "are belong to us"
@@ -628,14 +634,14 @@
 
 			stop();
 
-			$sauce.io.listen("io:start:", function(type, msg) {
+			$sauce.io.listen("io:start:", function(msg, type) {
 				console.log(type);
 				console.log(msg);
 				ok(type.match(/^io:start/), "io:start event fires");
 				ok(this == $sauce.io, "'this' is sauce.io");
 			});
 
-			$sauce.io.listen("io:success", function(type, msg) {
+			$sauce.io.listen("io:success", function(msg, type) {
 				console.log(type);
 				console.log(msg);
 				ok(type.match(/^io:success/), "io:success event fires");
@@ -647,7 +653,7 @@
 			});
 
 
-			$sauce.io.listen("io:error", function(type, msg) {
+			$sauce.io.listen("io:error", function(msg, type) {
 				console.log(type);
 				console.log(msg);
 				ok(type.match(/^io:error/), "io:error event fires");
@@ -686,14 +692,14 @@
 
 			setTimeout(function() {
 				$sauce.io("/test2", {b:5, a:3}, {
-					start: function(type, msg) {
+					start: function(msg, type) {
 						console.log(type);
 						console.log(msg);
 						startFired++;
 						ok(type.match("io:start"), "io:start event fires");
 						ok(this == $sauce.io, "'this' is sauce.io");
 					},
-					success: function(type, msg) {
+					success: function(msg, type) {
 						console.log(type);
 						console.log(msg);
 						successFired++;
@@ -701,7 +707,7 @@
 						ok(this == $sauce.io, "'this' is sauce.io");
 						ok(errorFired === 0, "error handler didn't fire");
 					},
-					error: function(type, msg) {
+					error: function(msg, type) {
 						console.log(type);
 						console.log(msg);
 						errorFired++;
@@ -731,7 +737,7 @@
 			ok($cache.getKey(url, testReq2) == "/test[a:3,b:6,blah:[object Object]]", "cacheKeys toString nested objects");
 
 			$cache.newType("aNewType");
-			$cache.listen(/^aNewType:set/, function(type, val) {
+			$cache.listen(/^aNewType:set/, function(val, type) {
 				ok(type === "aNewType:set:/aTest", "custom event is fired for typeId:set:cacheKey");
 				ok(val === $cache.get("aNewType", "/aTest"), "bin is passed to callback");
 			});
@@ -756,7 +762,7 @@
 			var origLen = $length($cache.get("aNewType").bins),
 				evicted = 0;
 
-			$cache.listen(/^aNewType:evict/, function(type, val) {
+			$cache.listen(/^aNewType:evict/, function(val, type) {
 				ok(type === "aNewType:evict:"+val.key, "custom event is fired for typeId:evict:cacheKey");
 				evicted++;
 			});
@@ -802,13 +808,13 @@
 			var successCalled = 0,
 				startCalled = 0,
 				xhr = myRemoteType.sync({param:5}, {
-				start: function(type, msg) {
+				start: function(msg, type) {
 					console.log(type);
 					console.log(msg);
 					console.log(this);
 					startCalled++;
 				},
-				success: function(type, msg) {
+				success: function(msg, type) {
 					console.log(type);
 					console.log(msg);
 					console.log(this);
@@ -817,7 +823,7 @@
 					ok(successCalled == 1, "success method was called");
 					start()
 				},
-				error: function(type, msg) {
+				error: function(msg, type) {
 					console.log(type);
 					console.log(msg);
 					console.log(this);

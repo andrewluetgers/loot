@@ -237,9 +237,18 @@
 
 		var newInstance = new F();
 
-		if(!ignoreInit && $isFunction(newInstance.init)) {
-			newInstance.init();
-			newInstance.init = null; // we don't delete bc could then just inherit another init function
+		if(!ignoreInit && newInstance.init) {
+
+			// support single init functions or arrays of them
+			var inits = $find($flat(newInstance.init), $isFunction);
+
+			// fix any uglyness that may have come through in the inits array
+			newInstance.init = (inits.length > 1) ? inits : inits[0];
+
+			// call the init methods using the new object for "this"
+			$each(inits, function(fn) {
+				fn.call(newInstance);
+			});
 		}
 
 		return newInstance;
@@ -396,15 +405,21 @@
 			makeSpeaker;
 
 		$each(parts, function(part) {
-			var fn = part ? part.init : null;
+			var init = part ? part.init : null;
 
-			// compile an array of afterMake functions
-			if ($isFunction(fn)) {
-				inits.push(fn);
+			// compile an array of init functions
+			if (init) {
+				inits.push(init);
 			}
 
-			// is any of our parts a speaker?
-			makeSpeaker |= $isSpeaker(part);
+			// flatten so that init can be a function or an array of functions
+			// we
+			inits = $find($flat(inits), $isFunction);
+
+			// makeSpeaker is any of our parts a speaker?
+			if ($isSpeaker(part)) {
+				makeSpeaker = true;
+			}
 		});
 
 		// $extend does a shallow copy including inherited properties
@@ -415,11 +430,6 @@
 		// $mixin does a deep copy excluding inherited properties
 		if (mixin) {
 			$mixin(myProto, mixin);
-		}
-
-		// prevent rerunning init
-		if (myProto.init) {
-			myProto.init = null;
 		}
 
 		// if any objects were speakers then make the new object speak as well and
@@ -449,6 +459,9 @@
 		$each(inits, function(fn) {
 			fn.call(myProto);
 		});
+
+		// init is either a single function or an array of functions
+		myProto.init = (inits.length > 1) ? inits : inits[0];
 
 		return myProto;
 	};
@@ -592,9 +605,15 @@
 
 		var aSpeaker = {
 
+			/** tell
+			 * @param topic (string) the topic of the message, listeners can filter messages base on their topic
+			 * @param message (anything) optional - a value passed to the listeners
+			 * @param speaker (speaker) optional - listeners will be told the origin of the messages they receive
+			 * here oyu can override that value, you should not need to use this
+			 */
 			tell: function(topic, message, speaker) {
 
-				if ($isString(topic) && (!$isFunction(this.selectiveHearing) || this.selectiveHearing(topic, message, speaker))) {
+				if ($isString(topic) && (!$isFunction(this.selectiveHearing) || this.selectiveHearing(message, topic, speaker))) {
 					var that = this;
 
 					// fire the listeners
@@ -611,7 +630,7 @@
 							}
 
 							// fire the responder within the currently bound scope
-							listener.responder.call(that, topic, message, speaker);
+							listener.responder.call(that, message, topic, speaker);
 						}
 					});
 
@@ -623,12 +642,20 @@
 				return this;
 			},
 
+			/** listen
+			 * @param topic (string|regex) will call the given responder if received topic === topic parm
+			 * or in the case of a regex topic param if the receivedTopic.match(topicParam)
+			 * @param responder (function) having the signature function(message, topic, originalSpeaker)
+			 * @param maxResponses (number) optional - number of times the responder will be called before being removed
+			 */
 			listen: function(topic, responder, maxResponses) {
 
-				var topicIsRegExp = $isRegExp(topic),
+				var topicIsRegExp, topicIsString,
 					responderIsFunction = $isFunction(responder),
-					topicIsString = $isString(topic),
 					that = this;
+
+				// dont test for regex topic if we don't need to
+				(topicIsString = $isString(topic)) || (topicIsRegExp = $isRegExp(topic));
 
 				// call self for each function if given a map of callbacks instead of a single function
 				// the way this works is the callback names are appended to the topic string
@@ -636,8 +663,6 @@
 				if (responder && !responderIsFunction && topicIsString) {
 					$each(responder, function(val, key) {
 						if ($isFunction(val)) {
-							console.log(key);
-							console.log(that);
 							var re = new RegExp("^" + topic + key);
 							that.listen(re, val, maxResponses);
 						}
@@ -645,7 +670,7 @@
 					return false;
 				}
 
-				if ((topicIsRegExp || topicIsString) && responderIsFunction) {
+				if ((topicIsString || topicIsRegExp) && responderIsFunction) {
 
 					// dont add something twice
 					var alreadySet;
@@ -671,6 +696,12 @@
 				}
 			},
 
+			/** stopListening
+			 * @param ignoreable (string|function) optional - remove listeners
+			 * if a string is passed all listeners to that topic will be removed
+			 * if a function is passed all listeners using that responder will be removed
+			 * if nothing is provided all listeners will be removed
+			 */
 			stopListening: function(ignoreable) {
 				if($isString(ignoreable)) {
 					this._listeners = $reject(this._listeners, function(listener) {
@@ -686,13 +717,22 @@
 				return this;
 			},
 
+			/** talksTo
+			 * @param speaker (object|function|array) - !!will make the provided object a speaker if it is not already
+			 * @description will forward all messages to the provided speaker by adding it to our _audience
+			 */
 			talksTo: function(speaker) {
-				if ($isSpeaker(speaker) && this !== speaker && this._audience.indexOf(speaker) === -1 && speaker !== this) {
-					this._audience.push(speaker);
+				if (this !== speaker && this._audience.indexOf(speaker) === -1) {
+					this._audience.push($speak(speaker));
 				}
 				return this;
 			},
 
+			/** listensTo
+			 * @param speaker (speaker)
+			 * @description all messages sent to speaker will be forwarded to us
+			 *
+			 */
 			listensTo: function(speaker) {
 				if ($isSpeaker(speaker) && speaker._audience.indexOf(this) === -1 && speaker !== this) {
 					speaker._audience.push(this);
@@ -707,6 +747,7 @@
 		};
 
 		aSpeaker.on = aSpeaker.listen;
+		aSpeaker.emit = aSpeaker.tell;
 
 		// return just the newSpeaker function;
 		return function(obj, overwrite) {
@@ -731,64 +772,133 @@
 	})();
 
 	var $isSpeaker = function(obj) {
-		return (obj && $isFunction(obj.tell) && $isArray(obj._listeners));
+		return !!(obj && $isFunction(obj.tell) && $isArray(obj._listeners));
 	};
 
 
 	// models -------------------------------------------------------
 
-	$model = function(spec, useHistory) {
+	var models = {};
 
-		var model = {};
-		var api = $new($speak({
+	var modelApiGet = function(mVals, key) {
+		var len = arguments.length;
+		if (len == 2 && $isString(key)) {
+			return mVals[key];
 
-			init: function() {
-				if (spec) {
-					this.set(spec);
+		} else if (len > 2 || $isArray(key)) {
+			var set = {}, keys = $flat($sliceIt(arguments, 1));
+			$each(keys, function(k) {
+				if (k in mVals) {
+					set[k] = mVals[k];
 				}
-			},
+			});
+			return set;
 
-			get: function(key) {
-				var len = arguments.length;
-				if (len == 1 && $isString(key)) {
-					return model[key];
+		} else {
+			return mVals;
+		}
+	};
 
-				} else if (len > 1 || $isArray(key)) {
-					var set = {}, keys = $flat($sliceIt(arguments));
-					$each(keys, function(k) {
-						if (k in model) {
-							set[k] = model[k];
+	var modelApiSet = function(mVals, key, val) {
+		var change = {};
+
+		if ($isString(key)) {
+			mVals[key] = val;
+			change[key] = val;
+
+		} else if (arguments.length == 2) {
+			// normal update
+			change = key;
+			$each(change, function(v, k) {
+				mVals[k] = v;
+			});
+		}
+
+		this.tell("change", change);
+		return this;
+	};
+
+	// define a type of object or data model
+	$define = function(type, options) {
+		var existingModel = models[name];
+
+		// schema getter
+		if (type && arguments.length === 1 && existingModel) {
+			return existingModel;
+
+		// schema constructor
+		} else if (type && !existingModel) {
+			options = options || {};
+			var schema = {
+				defaults: 		$deepCopy(options.defaults||{}),
+				type: type,
+//				validation: 	options.validation || {},
+//				retain: 		options.retain || false,
+				destroy:		function() {
+					var oldModel = models[type];
+					delete models[type];
+					return {
+						destroyed: 	type,
+						was:		oldModels
+					}
+				},
+				// instance api
+				getModel: function(vals, silent) {
+					var modelVals = $deepCopy(schema.defaults);
+
+					var model = $speak({
+						type: type,
+						// facade here allows us to have a unique closure for model
+						// without having new instances taking up memory for the larger get/set functions
+						get: function(key) {
+							return modelApiGet.apply(this, $flat(modelVals, $sliceIt(arguments)));
+						},
+						set: function(key, val) {
+							return modelApiSet.apply(this, $flat(modelVals, $sliceIt(arguments)));
 						}
 					});
-					return set;
 
-				} else {
+					// take our initial values and apply them dependant upon silently or with set
+					vals = ($isBoolean(vals) || $isString(vals)) ? undefined : vals;
+
+					console.log(vals);
+					
+					if (vals && silent) {
+						$mixin(modelVals, vals);
+					} else if (vals) {
+						model.set(vals);
+					}
+
 					return model;
 				}
-			},
+			};
 
-			set: function(key, val) {
-				var change = {};
+			models[type] = schema;
 
-				if ($isString(key)) {
-					model[key] = val;
-					change[key] = val;
+			console.log(models);
+		// error
+		} else {
+			return new Error("Error: valid model name required.");
+		}
+	};
 
-				} else if (arguments.length == 1) {
-					// normal update
-					change = key;
-					$each(change, function(v, k) {
-						model[k] = v;
-					});
-				}
+	$model = function(type, vals, silent) {
 
-				this.tell("change", change);
-			}
-		}));
+		// support (type, silent) signature
+		if ($isBoolean(vals)) {
+			silent = vals;
+			vals = false;
+		}
 
-		delete api.init;
+		var schema = models[type];
 
-		return api;
+		if (!type || !$isString(type) || !schema) {
+			throw new Error("$model: valid type string required");
+		} else if (vals && $isArray(vals)) {
+			throw new Error("$model: valid values object required");
+		} else {
+			return schema.getModel(vals, !!silent);
+		}
 	};
 
 
@@ -1192,6 +1302,10 @@
 		// messaging
 		$speak: $speak,
 		$isSpeaker: $isSpeaker,
+
+		// models
+		$define: $define,
+		$model: $model,
 
 		// string
 		$trim: $trim,

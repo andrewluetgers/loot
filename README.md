@@ -37,7 +37,7 @@ see underscore.js
 ### Objects
 This is how I like to construct objects and do inheritance.
 
-  * **$new(prototype)** optionally provide a prototype object for a new object instance. If an "init" function attribute exists it will be called then set to null.
+  * **$new(prototype)** optionally provide a prototype object for a new object instance. If an "init" function or an array of init functions exist it/they will be called.
   * **$deepCopy(source, filter)** returns a deep copy of source. Optional filter(key, source, target) is called for every property traversed, if it returns true the property is copied over, if it returns false the property is ignored.
   * **$deepMerge(target, source, filter)** returns a deep copy of source applied to target. Optional filter(key, source, target) is called for every property, if it returns true the property is copied over, if it returns false the property is ignored.
   * **$extend(obj)** obj will gain shallow copies of *all* properties of all other provided objects. This allows for building objects that share properties through composition vs prototype. This can save on memory and provide information sharing.
@@ -51,7 +51,7 @@ This is how I like to construct objects and do inheritance.
 ### Pub/Sub
   * **$speak(obj)** Creates a new speaker (pub/sub). Optionally provide an object to turn into a speaker.
     * __tell(topic, message, speaker)__ tell (publish) a message to listeners (and self). Topic can be an exact string, a begins with matching string or a regex used for matching.
-    * __listen(topic, responder, maxResponses)__ listnen (subscribe) to a specific message type (expressed as a stirng) told to this speaker and fire the responder function for it. If max responses is provided responder will remove itselfe after that number of executions.
+    * __listen(topic, responder, maxResponses)__ listnen (subscribe) to a specific message type (expressed as a stirng) told to this speaker and fire the responder function for it. If max responses is provided responder will remove itselfe after that number of executions. Responder signature: function(message, topic, originalSpeaker)
     * __stopListening(ignoreable)__ stop listening with (unsubscribe) the ignorable listener. If ignorable is expressed as a type string all listeners of that type will be removed. If a funciton is passed all listeners using that funciton will be removed.
     * __talksTo(speaker)__ messages spoken by or told to this speaker will then be relayed to the provided speaker as well
     * __listensTo(speaker)__ messages told to the provided speaker will be relayed to this speaker as well
@@ -61,7 +61,7 @@ This is how I like to construct objects and do inheritance.
   * **$model(obj)** Creates a model instance with set and get methods that emits a change event.
     * __set(key, value)__ adds key:value pair to model and emits a change event containting the changes
     * __set(object)__ adds the given keys:value pairs to the model and emits a change event containting the changes
-    ''
+    '''
     myModel.listen("change", function(changes) {
     	if ("name" in changes) {
     		alert("name set to " + changes.name);
@@ -74,7 +74,7 @@ This is how I like to construct objects and do inheritance.
     })
 
    	// will alert "name set to Jim"
-    ''
+    '''
     * __set(key)__ sets key to undefined
     * __get()__ returns the entire model
     * __get(key)__ returns the value of the given key on the model
