@@ -778,7 +778,7 @@
 
 	// models -------------------------------------------------------
 
-	var models = {};
+	var schemaBank = {};
 
 	var modelApiGet = function(mVals, key) {
 		var len = arguments.length;
@@ -819,8 +819,8 @@
 	};
 
 	// define a type of object or data model
-	$define = function(type, options) {
-		var existingModel = models[name];
+	$schema = function(type, options) {
+		var existingModel = schemaBank[name];
 
 		// schema getter
 		if (type && arguments.length === 1 && existingModel) {
@@ -829,21 +829,21 @@
 		// schema constructor
 		} else if (type && !existingModel) {
 			options = options || {};
-			var schema = {
+			var schema = $speak({
 				defaults: 		$deepCopy(options.defaults||{}),
 				type: type,
 //				validation: 	options.validation || {},
 //				retain: 		options.retain || false,
 				destroy:		function() {
-					var oldModel = models[type];
-					delete models[type];
+					var oldModel = schemaBank[type];
+					delete schemaBank[type];
 					return {
 						destroyed: 	type,
 						was:		oldModels
 					}
 				},
 				// instance api
-				getModel: function(vals, silent) {
+				getModel: function(vals) {
 					var modelVals = $deepCopy(schema.defaults);
 
 					var model = $speak({
@@ -858,46 +858,38 @@
 						}
 					});
 
+					// all model events are forwarded to their parent schema
+					model.talksTo(this);
+
 					// take our initial values and apply them dependant upon silently or with set
 					vals = ($isBoolean(vals) || $isString(vals)) ? undefined : vals;
 
-					console.log(vals);
-					
-					if (vals && silent) {
+					if (vals) {
 						$mixin(modelVals, vals);
-					} else if (vals) {
-						model.set(vals);
 					}
 
 					return model;
 				}
-			};
+			});
 
-			models[type] = schema;
+			schemaBank[type] = schema;
 
-			console.log(models);
+			console.log(schemaBank);
 		// error
 		} else {
 			return new Error("Error: valid model name required.");
 		}
 	};
 
-	$model = function(type, vals, silent) {
-
-		// support (type, silent) signature
-		if ($isBoolean(vals)) {
-			silent = vals;
-			vals = false;
-		}
-
-		var schema = models[type];
+	$model = function(type, vals) {
+		var schema = schemaBank[type];
 
 		if (!type || !$isString(type) || !schema) {
 			throw new Error("$model: valid type string required");
-		} else if (vals && $isArray(vals)) {
+		} else if (vals && ($isArray(vals) || $isString(vals) || $isBoolean(vals) || $isFunction(vals) || $isRegExp(vals)|| $isNumber(vals))) {
 			throw new Error("$model: valid values object required");
 		} else {
-			return schema.getModel(vals, !!silent);
+			return schema.getModel(vals);
 		}
 	};
 
@@ -1304,7 +1296,8 @@
 		$isSpeaker: $isSpeaker,
 
 		// models
-		$define: $define,
+		$define: $schema,
+		$schema: $schema,
 		$model: $model,
 
 		// string
