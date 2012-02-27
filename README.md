@@ -85,7 +85,6 @@ see underscore.js
   var alertAgeChange = function(changes, topic, originalSpeaker) {
     if ("age" in changes) {
       // lets grab all the values from the model
-      console.log(this, originalSpeaker);
       var values = originalSpeaker.get();
       alert(values.first + "'s age set to " + changes.age);
     }

@@ -150,30 +150,27 @@ var N = 100;
 
 (function() {
 
-	var box = $model({
-
-			init: function() {
-				this.set({
-					count: 0,
-					top: 0,
-					left: 0,
-					color: 0,
-					content: 0,
-					number: 0
-				});
-			},
-
-			tick: function() {
-				var count = this.count += 1;
-				this.set({
-					count:		(count = this.count + 1),
-					top: 		Math.sin(count / 10) * 10,
-					left: 		Math.cos(count / 10) * 10,
-					color: 		count % 255,
-					content: 	count % 100
-				});
-			}
-		});
+	$define("box", {
+		defaults: {
+			count: 0,
+			top: 0,
+			left: 0,
+			color: 0,
+			content: 0,
+			number: 0
+		},
+		tick: function() {
+			var count = this.get("count");
+			count += 1;
+			this.set({
+				count:		count,
+				top: 		Math.sin(count / 10) * 10,
+				left: 		Math.cos(count / 10) * 10,
+				color: 		count % 255,
+				content: 	count % 100
+			});
+		}
+	});
 
 	var boxView = $speak({
 		init: function() {
@@ -190,7 +187,8 @@ var N = 100;
 
 		render: function() {
 			var el = this.el,
-				box = this.model;
+				box = this.model.get();
+
 	
 			el.id = "box-"+box.number;
 			el.style.cssText = 'top: ' + box.top + 'px; left: ' +  box.left +'px; background: rgb(0,0,' + box.color + ');';
@@ -209,9 +207,9 @@ var N = 100;
 		var x = N;
 		boxes = [];
 		while (x--) {
-			var bx = $make(box, {number:x});
+			var bx = $model("box", {number:x});
 			boxes.push(bx);
-			var bxView = $make(boxView, {model: bx, number:x});
+			var bxView = $make(boxView, {model: bx});
 			$id("grid").appendChild(bxView.render());
 		}
 	};

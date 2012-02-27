@@ -369,9 +369,9 @@
 	 */
 	var $mixin = function(target) {
 		if(target) {
-			// accept objects or arrays of objects
 			var sources = [].concat($sliceIt(arguments, 1));
 
+			// accept objects or arrays of objects
 			$each(sources, function(source) {
 				var prop;
 				for (prop in source) {
@@ -751,6 +751,14 @@
 		aSpeaker.on = aSpeaker.listen;
 		aSpeaker.emit = aSpeaker.tell;
 
+		// lets not on't copy the larger functions all over
+		aSpeakerFacade = {};
+		$each(aSpeaker, function(val, key) {
+			aSpeakerFacade[key] = function() {
+				return val.apply(this, $sliceIt(arguments));
+			}
+		});
+
 		// return just the newSpeaker function;
 		return function(obj, overwrite) {
 			if (obj && !overwrite && obj.hasOwnProperty("_listeners") && obj.hasOwnProperty("_audience")) {
@@ -761,11 +769,11 @@
 			if (!obj) {
 				// looks like we are starting a new speaker from scratch so
 				// we can create a more memory-friendly prototypal clone of aSpeaker
-				obj = $make(aSpeaker, {_listeners: [], _audience: []});
+				obj = $make(aSpeakerFacade, {_listeners: [], _audience: []});
 
 			} else {
 				// can't use a prototypal clone so we augment obj via shallow copy instead
-				obj = $extend(obj, aSpeaker, {_listeners: [], _audience: []});
+				obj = $extend(obj, aSpeakerFacade, {_listeners: [], _audience: []});
 			}
 
 			return obj;
@@ -830,9 +838,10 @@
 
 		// schema constructor
 		} else if (type && !existingModel) {
-			options = options || {};
+			options = $deepCopy(options || {});
+			options.defaults = options.defaults || {};
+
 			var schema = $speak({
-				defaults: 		$deepCopy(options.defaults||{}),
 				type: type,
 //				validation: 	options.validation || {},
 //				retain: 		options.retain || false,
@@ -846,9 +855,9 @@
 				},
 				// instance api
 				getModel: function(vals) {
-					var modelVals = $deepCopy(schema.defaults);
-
-					var model = $speak({
+					var modelVals = $deepCopy(options.defaults);
+					var modelProto = $speak($new(options));
+					var model = $mixin(modelProto, {
 						type: type,
 						// facade here allows us to have a unique closure for model
 						// without having new instances taking up memory for the larger get/set functions
@@ -876,7 +885,6 @@
 
 			schemaBank[type] = schema;
 
-			console.log(schemaBank);
 		// error
 		} else {
 			return new Error("Error: valid model name required.");
@@ -1037,7 +1045,6 @@
 							// support alternate attribute names
 							key = directProperties[key] || key;
 							this.attr[key] = value;
-							console.log(key);
 						} else {
 							// remove the attribute
 							delete this.attr[key];
