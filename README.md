@@ -82,9 +82,12 @@ see underscore.js
   });
 
   // lets listen for a change in jim's age and alert that
-  var alertAgeChange = function(changes) {
+  var alertAgeChange = function(changes, topic, originalSpeaker) {
     if ("age" in changes) {
-      alert(myPerson.first + "'s age set to " + changes.age);
+      // lets grab all the values from the model
+      console.log(this, originalSpeaker);
+      var values = originalSpeaker.get();
+      alert(values.first + "'s age set to " + changes.age);
     }
   };
   
@@ -97,7 +100,7 @@ see underscore.js
     first: "Jim",
     last: "Hipster",
     age: 25,
-    height
+    height: "5'8\""
   });
   // will alert twice "Jim's age set to 25"
   ```

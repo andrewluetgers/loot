@@ -121,8 +121,8 @@
 			ok(myBlankSpeakerTestResponses == 1, "properly responded to simple tell");
 			ok(myBlankSpeakerTestLastMessage == "this is a test", "responder received the message as first arg");
 			ok(myBlankSpeakerTestLastTopic == "test", "received the topic as second arg");
-			ok(myBlankSpeakerTestLastSpeaker == undefined, "properly received undefined for speaker in 3rd arg since not a shared message");
-			ok(myBlankSpeakerTestLastScope == myBlankSpeaker, "scope was properly the speaker that was told");
+			ok(myBlankSpeakerTestLastSpeaker === myBlankSpeaker, "properly received the original speaker for 3rd arg");
+			ok(myBlankSpeakerTestLastScope === myBlankSpeaker, "scope was properly the speaker that was told");
 
 			ok(mySpeakerTestResponses == 0, "message was not shared with others");
 
@@ -159,12 +159,12 @@
 			ok(mySpeaker3TestResponses == 1, "third party (2nd share) properly responded to");
 			ok(mySpeaker3TestLastTopic == "test", "properly received the topic as first arg");
 			ok(mySpeaker3TestLastMessage == "this is a test with a sharing chain", "responder received the message as second arg");
-			ok(mySpeaker3TestLastSpeaker == myBlankSpeaker, "properly received undefined for speaker in 3rd arg since not a shared message");
-			ok(mySpeaker3TestLastScope == mySpeaker3, "scope was properly the speaker that was told");
+			ok(mySpeaker3TestLastSpeaker === myBlankSpeaker, "properly received original speaker for 3rd arg");
+			ok(mySpeaker3TestLastScope === mySpeaker3, "scope was properly the speaker that was told");
 
 			mySpeaker3.selectiveHearing = function(message, topic, speaker) {
 				ok(this === mySpeaker3, "selective hearing function properly scoped");
-				ok(speaker === undefined, "selective hearing speaker undefined for non shared messages");
+				ok(speaker === mySpeaker3, "selective hearing speaker is the original speaker for non shared messages");
 				return !(topic == "test"); // ignore test messages
 			};
 			mySpeaker3.tell("test", "testing selectiveHearing");

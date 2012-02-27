@@ -613,7 +613,9 @@
 			 */
 			tell: function(topic, message, speaker) {
 
-				if ($isString(topic) && (!$isFunction(this.selectiveHearing) || this.selectiveHearing(message, topic, speaker))) {
+
+
+				if ($isString(topic) && (!$isFunction(this.selectiveHearing) || this.selectiveHearing(message, topic, speaker || this))) {
 					var that = this;
 
 					// fire the listeners
@@ -630,7 +632,7 @@
 							}
 
 							// fire the responder within the currently bound scope
-							listener.responder.call(that, message, topic, speaker);
+							listener.responder.call(that, message, topic, speaker || that);
 						}
 					});
 
@@ -681,7 +683,7 @@
 
 					if (!alreadySet) {
 						this._listeners.push({
-							topicRe: topicIsRegExp ? topic : new RegExp("^" + topic),
+							topicRe: topicIsRegExp ? topic : new RegExp("^" + topic + "(\\[*|:*|$)"),
 							topic: topic,
 							responder: responder,
 							responses: 0,
@@ -820,7 +822,7 @@
 
 	// define a type of object or data model
 	$schema = function(type, options) {
-		var existingModel = schemaBank[name];
+		var existingModel = schemaBank[type];
 
 		// schema getter
 		if (type && arguments.length === 1 && existingModel) {
