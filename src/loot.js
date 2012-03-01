@@ -64,7 +64,7 @@
 	// Is a given value an array?
 	// Delegates to ECMA5's native Array.isArray
 	var $isArray = Array.isArray || function(obj) {
-		return toString.call(obj) === '[object Array]';
+		return obj instanceof Array;
 	};
 
 	// Is a given value a function?

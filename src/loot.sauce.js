@@ -202,7 +202,6 @@ loot.extend("$sauce", {
 						err.key = key;
 					}
 
-
 					if ($isFunction(errorH)) {
 						errorH.call(parent, err, typeId + ":error:" + url);
 					}
