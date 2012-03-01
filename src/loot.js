@@ -64,7 +64,7 @@
 	// Is a given value an array?
 	// Delegates to ECMA5's native Array.isArray
 	var $isArray = Array.isArray || function(obj) {
-		return obj instanceof Array;
+		return toString.call(obj) === '[object Array]';
 	};
 
 	// Is a given value a function?
@@ -812,11 +812,13 @@
 	var modelApiSet = function(mVals, key, val) {
 		var change = {};
 
+
+
 		if ($isString(key)) {
 			mVals[key] = val;
 			change[key] = val;
 
-		} else if (!val) {
+		} else {
 			// normal update
 			$each(key, function(v, k) {
 				mVals[k] = v;
@@ -1220,8 +1222,7 @@
 
 		var create = function(tag, props, children) {
 
-			var parts, name, tag, len, el, i, j, l, prop,
-				outputstrings = !!(doc == $doc);
+			var parts, name, len, el, i, j, l;
 
 			// support (tag, children) signature
 			if ($isArray(props)) {
@@ -1249,24 +1250,24 @@
 			}
 
 			el = doc.createElement(tag);
-			
-			if (!outputstrings && props) {
-				for (prop in props) {
-					setProperty(el, prop, props[prop]);
-				}
-			} else if (outputstrings) {
-				el.set(props);
-			}
 
-			if (!outputstrings && children) {
-				appendChildren(el, children);
-			} else if (outputstrings && children) {
-				el.append(children);
+			if (_outputStrings) {
+				props && el.set(props);
+				children && el.append(children);
+
+			} else {
+				props && $each(props, function(val, key) {
+					setProperty(el, key, val);
+				});
+				children && appendChildren(el, children);
 			}
 			return el;
 		};
 
+		var _outputStrings = false;
+
 		create.outputStrings = function(outputStrings) {
+			_outputStrings = outputStrings;
 			if (!outputStrings) {
 				doc = document;
 			} else {
