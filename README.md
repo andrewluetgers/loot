@@ -24,15 +24,17 @@ see underscore.js
   * **$isBoolean**
   * **$isRegExp**
 
-### Collections
+### Collections (objects, arrays)
+  * **$clear(obj)** deletes all properties also removes all items if obj is an array, if you want to be anal about deleting things here you go
   * **$each** see underscore.js
   * **$map** see underscore.js
   * **$any** see underscore.js (a modifid implemntation but basically the same thing)
   * **$find** see underscore.js
   * **$reject** see underscore.js
   * **$length** see underscore.js
-  * **$sliceIt(obj, start, end)** apply slice to a string, array or arguments object with optional start and end indexes
   * **$flat** flatten arrays recursively. Accepts any number of items. Returns an array of all values, any nested arrays are concated down to the one array.
+  * **$slice(obj, start, end)** apply slice to a string, array or arguments object with optional start and end indexes
+  * **$splice(obj, start, howMany, items)** apply splice to a string, array or arguments object, accepts multiple arguments or an array for "items" arg
 
 ### Objects
   * **$new(prototype)** optionally provide a prototype object for a new object instance. If an "init" function or an array of init functions exist it/they will be called.
@@ -71,7 +73,10 @@ see underscore.js
   $define("person", {
     defaults: {
       first: "John",
-      last: "Doe"
+      last: "Doe",
+      fullName: function() {
+        return this.first + " " +  this.last;
+      }
     }
   });
 
@@ -109,8 +114,8 @@ see underscore.js
 
 ### DOM
   * **$id** shortcut to document.getElementById
-  * **$tpl** see underscore.js template
-  * **$el(selector, attributes, children) or (selector, children) or (selector)** super cool node builder / html string builder eg. $el("button#buy.bigButton", {type:"submit"}, ["Buy It Now"]), will return a dom structure unless you call $el.outputStrings(true), then it will output an html string instead.  Makes uses of http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
+  * **$tpl** using the super-fast doT see https://github.com/olado/doT
+  * **$el(selector, attributes, children) or (selector, children) or (selector)** a handy node builder / html string builder for those times you dont want to write a template or use the dom directly. eg. $el("button#buy.bigButton", {type:"submit"}, ["Buy It Now"]), will return a dom structure unless you call $el.outputStrings(true), then it will output an html string instead.  Makes uses of http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
   * **$escapeHTML(html)** see backbone
 
 ### Language Shims

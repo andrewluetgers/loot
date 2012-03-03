@@ -4,10 +4,10 @@
 <head>
 	<meta charset="UTF-8" />
 	<title>QUnit Test Suite</title>
-	<link rel="stylesheet" href="qunit/qunit.css" type="text/css" media="screen">
-	<script type="text/javascript" src="qunit/qunit.js"></script>
+	<link rel="stylesheet" href="../lib/qunit/qunit.css" type="text/css" media="screen">
+	<script type="text/javascript" src="../lib/qunit/qunit.js"></script>
 	<script type="text/javascript" src="../lib/jquery-1.6.js"></script>
-	<script type="text/javascript" src="jquery.mockjax.js"></script>
+	<script type="text/javascript" src="../lib/jquery.mockjax.js"></script>
 	<script type="text/javascript" src="../src/loot.js"></script>
 	<script type="text/javascript" src="../src/loot.sauce.js"></script>
 	<script type="text/javascript">
@@ -558,6 +558,7 @@
 				if (msg.test) {
 					same(msg, {test:1}, "change event is fired providing the changeset");
 				} else {
+					console.log("wtf", this, arguments, msg);
 					same(msg, {
 						foo: "bar",
 						allYourBase: "are belong to us"
@@ -604,7 +605,27 @@
 
 			m.set("test");
 			t = m.get("test");
+			console.log(t);
 			ok(t === undefined, "set without a second argument deletes");
+
+			m.set("bar", 5);
+
+			var falsy = {
+				test: 0,
+				foo: undefined,
+				allYourBase: null,
+				bar: false,
+				nully: null,
+				falsy: false,
+				zeroy: 0,
+				undefinedy: undefined
+			};
+
+			m.set(falsy);
+			t = m.get();
+			console.log(t);
+			same(t, falsy, "set without a second argument deletes");
+
 
 		});
 

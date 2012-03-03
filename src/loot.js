@@ -88,6 +88,10 @@
 		return obj !== obj;
 	};
 
+	var $isNull = function(obj) {
+		return obj === null;
+	};
+
 	// Is a given value a boolean?
 	var $isBoolean = function(obj) {
 		return obj === true || obj === false;
@@ -98,8 +102,19 @@
 		return !!(obj && obj.test && obj.exec && (obj.ignoreCase || obj.ignoreCase === false));
 	};
 
-	// array -------------------------------------------------------
+	// collections (objects, arrays) -------------------------------------------------------
 	var arrayProto = Array.prototype;
+
+	var $clear = function(obj) {
+
+		if ($isArray(obj)) {
+			obj.splice(0, obj.length);
+		}
+
+		for (var key in obj) {
+			delete obj[key];
+		}
+	};
 
 
 	// the underscore each function
@@ -215,15 +230,23 @@
 		return len;
 	};
 
-	var $sliceIt = function(obj, start, end) {
-		return Array.prototype.slice.call(obj, start || 0, end);
-	};
-
 	// flatten arrays recursively
 	function $flat() {
 		var flatArray = arrayProto.concat.apply(arrayProto, arguments);
 		return $any(flatArray, $isArray) ? $flat.apply(this, flatArray) : flatArray;
 	}
+
+	var slice = Array.prototype.slice;
+	var $slice = function(obj, start, end) {
+		return slice.call(obj, start || 0, end);
+	};
+
+	var splice = Array.prototype.splice;
+	var $splice = function(obj, start, howMany) {
+		return splice.apply(obj, $flat($slice(arguments, 1)));
+	};
+
+
 
 	// object -------------------------------------------------------
 	
@@ -239,10 +262,10 @@
 
 		if(!ignoreInit && newInstance.init) {
 
-			// support single init functions or arrays of them
+			// fix any uglyness that may have come through in the inits array
 			var inits = $find($flat(newInstance.init), $isFunction);
 
-			// fix any uglyness that may have come through in the inits array
+			// support single init functions or arrays of them
 			newInstance.init = (inits.length > 1) ? inits : inits[0];
 
 			// call the init methods using the new object for "this"
@@ -270,17 +293,21 @@
 		var key, sourceProp, targetProp,
 			targetType = typeof target;
 
-		if (typeof source != 'object') {
+		if ($isString(source) || $isBoolean(source) || $isNumber(source)) {
 			throw new Error("copy source must be an object");
 		}
 
+		if (target && ($isString(source) || $isBoolean(source) || $isNumber(source))) {
+			throw new Error("optional copy target must be an object");
+		}
+
 		// support (source, filter) signature
-		if (arguments.length === 2 && targetType === "function") {
+		if (arguments.length === 2 && $isFunction(target)) {
 			filter = target;
 			target = {};
 		} else {
 			filter = ($isFunction(filter)) ? filter : false;
-			target = (targetType === "object") ? target : {};
+			target = target || {};
 		}
 
 		for (key in source) {
@@ -297,12 +324,11 @@
 				continue;
 			}
 
-			if (typeof sourceProp === 'object') {
+			if (typeof sourceProp === 'object' && !$isNull(sourceProp)) {
 				targetProp = $isArray(sourceProp) ? [] : {};
 				target[key] = copy(sourceProp, targetProp, filter);
 
-			// don't copy undefined values
-			} else if (sourceProp !== undefined) {
+			} else {
 				target[key] = sourceProp;
 			}
 		}
@@ -343,7 +369,7 @@
 	var $extend = function(target) {
 		if (target) {
 			// accept objects or arrays of objects
-			var sources = [].concat($sliceIt(arguments, 1));
+			var sources = [].concat($slice(arguments, 1));
 
 			$each(sources, function(source) {
 				for (var prop in source) {
@@ -369,17 +395,19 @@
 	 */
 	var $mixin = function(target) {
 		if(target) {
-			var sources = [].concat($sliceIt(arguments, 1));
+			var sources = $slice(arguments, 1);
 
 			// accept objects or arrays of objects
 			$each(sources, function(source) {
 				var prop;
 				for (prop in source) {
+					console.log(prop, source);
 					// do a deep copy that excludes any inherited properties at any level
 					$deepMerge(target, source, function(key, source) {
 						return source.hasOwnProperty(key);
 					});
 				}
+				console.log("-------")
 			});
 		}
 
@@ -612,9 +640,6 @@
 			 * here oyu can override that value, you should not need to use this
 			 */
 			tell: function(topic, message, speaker) {
-
-
-
 				if ($isString(topic) && (!$isFunction(this.selectiveHearing) || this.selectiveHearing(message, topic, speaker || this))) {
 					var that = this;
 
@@ -748,14 +773,11 @@
 			// _audience: []
 		};
 
-		aSpeaker.on = aSpeaker.listen;
-		aSpeaker.emit = aSpeaker.tell;
-
 		// lets not on't copy the larger functions all over
 		aSpeakerFacade = {};
 		$each(aSpeaker, function(val, key) {
 			aSpeakerFacade[key] = function() {
-				return val.apply(this, $sliceIt(arguments));
+				return val.apply(this, $slice(arguments));
 			}
 		});
 
@@ -790,42 +812,76 @@
 
 	var schemaBank = {};
 
-	var modelApiGet = function(mVals, key) {
-		var len = arguments.length;
-		if (len == 2 && $isString(key)) {
-			return mVals[key];
+	var modelApiGet = function(modelVals, _key) {
+		var len = arguments.length, val;
+		if (len == 2 && $isString(_key)) {
+			val = modelVals[_key];
+			// supports computed values
+			return $isFunction(val) ? modelVals[_key]() : val;
 
-		} else if (len > 2 || $isArray(key)) {
-			var set = {}, keys = $flat($sliceIt(arguments, 1));
-			$each(keys, function(k) {
-				if (k in mVals) {
-					set[k] = mVals[k];
+		} else if (len > 2 || $isArray(_key)) {
+			var results = {}, keys = $flat($slice(arguments, 1));
+			$each(keys, function(key) {
+				if (key in modelVals) {
+					val = modelVals[key];
+					// supports computed values
+					results[key] = $isFunction(val) ? modelVals[key]() : val;
 				}
 			});
-			return set;
+			return results;
 
 		} else {
-			return mVals;
+			return modelVals;
 		}
 	};
 
-	var modelApiSet = function(mVals, key, val) {
-		var change = {};
+	var modelApiSet = function(modelVals, _key, _val) {
+		var obj = _key,
+			changes = {},
+			validationFailures = {},
+			validate = this.validate || {},
+			validateFn;
 
-
-
-		if ($isString(key)) {
-			mVals[key] = val;
-			change[key] = val;
-
-		} else {
-			// normal update
-			$each(key, function(v, k) {
-				mVals[k] = v;
-			});
+		// if using single item syntax convert it to multi-item syntax so we only need one implementation
+		if ($isString(obj)) {
+			// set single item to
+			if (_val === undefined) {
+				modelVals[_key] = _val;
+				return;
+			} else {
+				var obj = {};
+				obj[_key] = _val;
+			}
 		}
 
-		this.tell("change", change);
+		// generate our changes
+		$each(obj, function(val, key) {
+			// multiple items
+			validateFn = validate[key];
+
+			if(validateFn) {
+				validationResult = validateFn(v);
+				if (validationResult === true) {
+					changes[key] = val;
+				} else {
+					validationFailures[key] = validationResult;
+				}
+			} else {
+				changes[key] = val;
+			}
+		});
+		
+		if ($length(validationFailures)) {
+			this.tell("validationFailed", {
+				passed: changes,
+				failed: validationFailures
+			});
+		} else {
+			// no errors! merge our changes into the model values
+			$mixin(modelVals, changes);
+			console.log(modelVals, changes);
+			this.tell("change", changes);
+		}
 
 		return this;
 	};
@@ -833,6 +889,7 @@
 	// define a type of object or data model
 	$schema = function(type, options) {
 		var existingModel = schemaBank[type];
+		var instances = [];
 
 		// schema getter
 		if (type && arguments.length === 1 && existingModel) {
@@ -843,41 +900,62 @@
 			options = $deepCopy(options || {});
 			options.defaults = options.defaults || {};
 
+
 			var schema = $speak({
 				type: type,
 //				validation: 	options.validation || {},
 //				retain: 		options.retain || false,
 				destroy:		function() {
-					var oldModel = schemaBank[type];
+					$each(instances, function(instance) {
+						instance.die();
+					});
+
+					existingModel = null;
 					delete schemaBank[type];
+					$clear(this);
+
 					return {
-						destroyed: 	type,
-						was:		oldModels
+						destroyed: 	type
 					}
 				},
+
+				getModelInstances: function() {
+					// return a copy of the instances array not the real thing
+					return instances.concat([]);
+				},
+
 				// instance api
-				getModel: function(vals) {
+				getNewModelInstance: function(vals) {
 					var modelVals = $deepCopy(options.defaults);
 					var modelProto = $speak($new(options));
 					var model = $mixin(modelProto, {
-						type: type,
-						// facade here allows us to have a unique closure for model
-						// without having new instances taking up memory for the larger get/set functions
+						schema: type,
+
+						// the following get and set facade allows us to have a unique closure for modelVals and modelProto
+						// without having copies of the larger modelApiSet and modelApiGet functions on each model instance hopefully saving some memory usage
 						get: function(key) {
-							return modelApiGet.apply(this, $flat(modelVals, $sliceIt(arguments)));
+							return modelApiGet.apply(this, $flat(modelVals, $slice(arguments)));
 						},
 						set: function(key, val) {
 							return modelApiSet.call(this, modelVals, key, val);
+						},
+						die: function() {
+							this.tell("dead", this);
+							$splice(instances, instances.indexOf(this));
+							$clear(this);
+							modelVals = modelProto = model = null;
 						}
 					});
+
+					if (options.validate) {
+						model.validate = $new(options.validate);
+					}
 
 					// all model events are forwarded to their parent schema
 					model.talksTo(this);
 
-					// take our initial values and apply them dependant upon silently or with set
-					vals = ($isBoolean(vals) || $isString(vals)) ? undefined : vals;
-
-					if (vals) {
+					// copy our initial values to the model
+					if (!$isString(vals)) {
 						$mixin(modelVals, vals);
 					}
 
@@ -901,7 +979,7 @@
 		} else if (vals && ($isArray(vals) || $isString(vals) || $isBoolean(vals) || $isFunction(vals) || $isRegExp(vals)|| $isNumber(vals))) {
 			throw new Error("$model: valid values object required");
 		} else {
-			return schema.getModel(vals);
+			return schema.getNewModelInstance(vals);
 		}
 	};
 
@@ -923,78 +1001,104 @@
 		return document.getElementById(id);
 	};
 
-	// template -------------------------------------------------------
-	// a slightly modded version of underscore template
-	// see init
-	// JavaScript micro-templating, similar to John Resig's implementation.
-	// Underscore templating handles arbitrary delimiters, preserves whitespace,
-	// and correctly escapes quotes within interpolated code.
+	// $tmpl -------------------------------------------------------
+	// just aliasing doT.js
+	// 2011, Laura Doktorova
+	// https://github.com/olado/doT
+	//
+	// doT.js is an open source component of http://bebedo.com
+	//
+	// doT is a custom blend of templating functions from jQote2.js
+	// (jQuery plugin) by aefxx (http://aefxx.com/jquery-plugins/jqote2/)
+	// and underscore.js (http://documentcloud.github.com/underscore/)
+	// plus extensions.
+	//
+	// Licensed under the MIT license.
+	//
 	var $tmpl = (function() {
 
-		// create the regexes only once
-		var evaluate = 		/<\$([\s\S]+?)\$>/g,
-			interpolate = 	/\<\$=\{([\s\S]+?)\$>/g,
-			bslash =		/\\/g,
-			squote = 		/'/g,
-			esquote =		/\\'/g,
-			toSpace =		/[\r\n\t]/g,
-			retrn =			/\r/g,
-			newln =			/\n/g,
-			tab =			/\t/g,
-			space = 		/\s/g;
+		var doT = { version : '0.1.7' };
 
-		// the template function
-		var template = function(str, data) {
-			var tmpl = 'var __p=[],print=function(){__p.push.apply(__p,arguments);};' +
-					'with(obj||{}){__p.push(\''
-					+ str.replace(bslash, '\\\\')
-					.replace(squote, "\\'")
-					.replace(interpolate, function(match, code) {
-						return "'," + code.replace(esquote, "'") + ",'";
-					})
-					.replace(evaluate || null, function(match, code) {
-						return "');" + code.replace(esquote, "'").replace(toSpace, ' ') + "__p.push('";
-					})
-					.replace(retrn, '\\r')
-					.replace(newln, '\\n')
-					.replace(tab, '\\t')
-					+ "');}return __p.join('');";
-
-			// the compiled template
-			var func = new Function('obj', tmpl);
-
-			// return a processed template if provided data
-			// else return a complied reusable template render function
-			return data ? func(data) : func;
+		doT.templateSettings = {
+			evaluate: 			/\{\{([\s\S]+?)\}\}/g,
+			interpolate: 		/\{\{=([\s\S]+?)\}\}/g,
+			encode: 			/\{\{!([\s\S]+?)\}\}/g,
+			use: 				/\{\{#([\s\S]+?)\}\}/g, //compile time evaluation
+			define: 			/\{\{##\s*([\w\.$]+)\s*(\:|=)([\s\S]+?)#\}\}/g, //compile time defs
+			conditionalStart: 	/\{\{\?([\s\S]+?)\}\}/g,
+			conditionalEnd: 	/\{\{\?\}\}/g,
+			varname: 'it',
+			strip : true,
+			append: true
 		};
 
-
-		// will compile a template for innerHTML of elem with id=t
-		// if given a string like "myTemplate, myOtherTemplate, someTemplate"
-		// will return a hash of compiled templates using the ids for keys
-		template.compile = function(t) {
-
-			if ($isString("string")) {
-
-				var ts = t.replace(space, "").split(","),
-					len = ts.length,
-					compiled = {},
-					id;
-
-				for (var i=0; i<len; i++) {
-					id = ts[i];
-					compiled[id] = template($id(id).innerHTML);
+		function resolveDefs(c, block, def) {
+			return ((typeof block === 'string') ? block : block.toString())
+			.replace(c.define, function (match, code, assign, value) {
+				if (code.indexOf('def.') === 0) {
+					code = code.substring(4);
 				}
+				if (!(code in def)) {
+					if (assign === ':') {
+						def[code]= value;
+					} else {
+						eval("def[code]=" + value);
+					}
+				}
+				return '';
+			})
+			.replace(c.use, function(match, code) {
+				var v = eval(code);
+				return v ? resolveDefs(c, v, def) : v;
+			});
+		}
 
-				return (len == 1) ? compiled[id] : compiled;
+		doT.template = function(tmpl, c, def) {
+			c = c || doT.templateSettings;
+			var cstart = c.append ? "'+(" : "';out+=(", // optimal choice depends on platform/size of templates
+				cend   = c.append ? ")+'" : ");out+='";
+			var str = (c.use || c.define) ? resolveDefs(c, tmpl, def || {}) : tmpl;
 
-			} else {
-				throw new Error("Expected a string, saw "+ typeof t);
+			str = ("var out='" +
+				((c.strip) ? str.replace(/\s*<!\[CDATA\[\s*|\s*\]\]>\s*|[\r\n\t]|(\/\*[\s\S]*?\*\/)/g, ''): str)
+				.replace(/\\/g, '\\\\')
+				.replace(/'/g, "\\'")
+				.replace(c.interpolate, function(match, code) {
+					return cstart + code.replace(/\\'/g, "'").replace(/\\\\/g,"\\").replace(/[\r\t\n]/g, ' ') + cend;
+				})
+				.replace(c.encode, function(match, code) {
+					return cstart + code.replace(/\\'/g, "'").replace(/\\\\/g, "\\").replace(/[\r\t\n]/g, ' ') + ").toString().replace(/&(?!\\w+;)/g, '&#38;').split('<').join('&#60;').split('>').join('&#62;').split('" + '"' + "').join('&#34;').split(" + '"' + "'" + '"' + ").join('&#39;').split('/').join('&#47;'" + cend;
+				})
+				.replace(c.conditionalEnd, function(match, expression) {
+					return "';}out+='";
+				})
+				.replace(c.conditionalStart, function(match, expression) {
+					var code = "if(" + expression + "){";
+					return "';" + code.replace(/\\'/g, "'").replace(/\\\\/g,"\\").replace(/[\r\t\n]/g, ' ')  + "out+='";
+				})
+				.replace(c.evaluate, function(match, code) {
+					return "';" + code.replace(/\\'/g, "'").replace(/\\\\/g,"\\").replace(/[\r\t\n]/g, ' ') + "out+='";
+				})
+				+ "';return out;")
+				.replace(/\n/g, '\\n')
+				.replace(/\t/g, '\\t')
+				.replace(/\r/g, '\\r')
+				.split("out+='';").join('')
+				.split("var out='';out+=").join('var out=');
+
+			try {
+				return new Function(c.varname, str);
+			} catch (e) {
+				if (typeof console !== 'undefined') console.log("Could not create a template function: " + str);
+				throw e;
 			}
 		};
 
-		return template;
+		doT.compile = function(tmpl, def) {
+			return doT.template(tmpl, null, def);
+		};
 
+		return doT;
 	}());
 
 
@@ -1028,8 +1132,7 @@
 			append: function(nodes) {
 				// no we don't do validation here, so sue me
 				// this will handle a single node or an array of nodes or a mixed array of nodes and arrays of nodes
-				var argsArray = $flat(this.children.length, 0, nodes);
-				this.children.splice.apply(this.children, argsArray);
+				this.children.splice.apply(this.children,  $flat(this.children.length, 0, nodes));
 				return this;
 			},
 			set: function(key, value) {
@@ -1173,13 +1276,13 @@
 		var doc = document;
 
 		var directProperties = {
-			'class': 'className',
-			className: 'className',
-			defaultValue: 'defaultValue',
-			'for': 'htmlFor',
-			html: 'innerHTML',
-			text: 'textContent',
-			value: 'value'
+			'class': 		'className',
+			className: 		'className',
+			defaultValue: 	'defaultValue',
+			'for': 			'htmlFor',
+			html: 			'innerHTML',
+			text: 			'textContent',
+			value: 			'value'
 		};
 
 		var booleanProperties = {
@@ -1350,18 +1453,21 @@
 		$isFunction: $isFunction,
 		$isString: $isString,
 		$isNaN: $isNaN,
+		$isNull: $isNull,
 		$isBoolean: $isBoolean,
 		$isRegExp: $isRegExp,
 
 		// collections
+		$clear: $clear,
 		$each: $each,
 		$map: $map,
 		$any: $any,
 		$find: $find,
 		$reject: $reject,
 		$length: $length,
-		$sliceIt: $sliceIt,
 		$flat: $flat,
+		$slice: $slice,
+		$splice: $splice,
 
 		// objects
 		$new: $new,
