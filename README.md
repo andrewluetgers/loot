@@ -53,7 +53,7 @@ see underscore.js
   * **$speak(obj)** Creates a new speaker (pub/sub). Optionally provide an object to turn into a speaker.
     * __tell(topic, message, speaker)__ tell (publish) a message to listeners (and self). Topic can be an exact string, a begins with matching string or a regex used for matching.
     * __listen(topic, responder, maxResponses)__ listnen (subscribe) to a specific message type (expressed as a stirng) told to this speaker and fire the responder function for it. If max responses is provided responder will remove itselfe after that number of executions. Responder signature: function(message, topic, originalSpeaker)
-    * __stopListening(ignoreable)__ stop listening with (unsubscribe) the ignorable listener. If ignorable is expressed as a type string all listeners of that type will be removed. If a funciton is passed all listeners using that funciton will be removed.
+    * __ignore(ignoreable)__ stop listening with (unsubscribe) the ignorable listener. If ignorable is expressed as a type string all listeners of that type will be removed. If a funciton is passed all listeners using that funciton will be removed.
     * __talksTo(speaker)__ messages spoken by or told to this speaker will then be relayed to the provided speaker as well
     * __listensTo(speaker)__ messages told to the provided speaker will be relayed to this speaker as well
   * **$isSpeaker(obj)** returns true if the provided object is a pub/sub speaker
@@ -72,7 +72,9 @@ see underscore.js
     * __get(array)__ given an array of key strings returns an obect of matching key value pairs from the model
     * __die()__ deletes all properties on this model instance, schema no longer references model instance, emits a "dead" event whi
   * **$models(type)** an alias of $schema(type).getModelInstances();
-
+  * **$isSchema(obj)** returns true if obj is a product of $define or $schema constructors
+  * **$isModel(obj)** returns true if obj is a product of $model constructor
+  
   ``` javascript
   // define a schema
   $define("person", {

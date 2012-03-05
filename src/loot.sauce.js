@@ -135,7 +135,7 @@ loot.extend("$cache", loot.exports.$speak({
 			var bin = $cache.get(spec.typeId, this.baseUrl, req);
 
 			if (forceRefresh || bin.val === null || (bin.ttl && ($now()-bin.set > spec.ttl)) ) {
-				$sauce.io.call(this, baseUrl, req, dataType, reqType, handlers);
+				$io.call(this, baseUrl, req, dataType, reqType, handlers);
 			}
 
 			// always return the bin??
@@ -155,131 +155,68 @@ loot.extend("$cache", loot.exports.$speak({
 
 
 
-loot.extend("$sauce", {
+loot.extend("$io", loot.exports.$speak(function(url, req, dataType, method) {
 
-	io: loot.exports.$speak(function(url, req, dataType, reqType) {
+	var key = $cache.getKey(url, req),
+		parent = $isSpeaker(this) ? this : $io,
+		typeId = parent.typeId || "io",
+		lastArg = arguments[arguments.length-1],
+		handlers = (!lastArg || $isString(lastArg) || $isBoolean(lastArg)) ? {} : lastArg,
+		startH = handlers.start,
+		successH = handlers.success,
+		errorH = handlers.error,
+		useCache = (typeId === "io") ? false : true,
+		bin = useCache ? $cache.get(typeId, url, req) : null;
 
-		var key = $cache.getKey(url, req),
-			parent = $isSpeaker(this) ? this : $sauce.io,
-			typeId = parent.typeId || "io",
-			lastArg = arguments[arguments.length-1],
-			handlers = (!lastArg || $isString(lastArg) || $isBoolean(lastArg)) ? {} : lastArg,
-			startH = handlers.start,
-			successH = handlers.success,
-			errorH = handlers.error,
-			useCache = (typeId === "io") ? false : true,
-			bin = useCache ? $cache.get(typeId, url, req) : null;
+	var xhr = $.ajax({
+			dataType: 	$isString(dataType) ? dataType : "json",
+			type: 		$isString(method) ? method : "post",
+			url: 		url,
+			data: 		req,
 
-		var xhr = $.ajax({
-				dataType: 	$isString(dataType) ? dataType : "json",
-				type: 		$isString(reqType) ? reqType : "post",
-				url: 		url,
-				data: 		req,
+			success: function(val, textStatus, xhr) {
+				var msg = useCache ?
+							$cache.set(typeId, url, req, val, {xhr: xhr}) :
+							{val: val, xhr: xhr, url: url, req: req};
 
-				success: function(val, textStatus, xhr) {
-					var msg = useCache ?
-								$cache.set(typeId, url, req, val, {xhr: xhr}) :
-								{val: val, xhr: xhr, url: url, req: req};
-
-					if ($isFunction(successH)) {
-						successH.call(parent, msg, typeId + ":success:" + url);
-					}
-
-					parent.tell(typeId + ":success:" + url, msg);
-				},
-
-				error: function(xhr, textStatus, error) {
-					var err = {
-						status: textStatus,
-						key: key,
-						error: error,
-						req: req,
-						xhr: xhr
-					};
-
-					if (useCache) {
-						err.bin = bin;
-						err.key = key;
-					}
-
-					if ($isFunction(errorH)) {
-						errorH.call(parent, err, typeId + ":error:" + url);
-					}
-
-					parent.tell(typeId + ":error:" + url, err);
+				if ($isFunction(successH)) {
+					successH.call(parent, msg, typeId + ":success:" + url);
 				}
-			});
 
-		if (useCache) {
-			bin.xhr = xhr;
-		}
+				parent.tell(typeId + ":success:" + url, msg);
+			},
 
-		if ($isFunction(startH)) {
-			startH.call(parent, bin, typeId + ":start:" + url);
-		}
+			error: function(xhr, textStatus, error) {
+				var err = {
+					status: textStatus,
+					key: key,
+					error: error,
+					req: req,
+					xhr: xhr
+				};
 
-		parent.tell(typeId + ":start:" + url, bin);
+				if (useCache) {
+					err.bin = bin;
+					err.key = key;
+				}
 
-		return bin;
-	})
+				if ($isFunction(errorH)) {
+					errorH.call(parent, err, typeId + ":error:" + url);
+				}
 
-	// junk below here
-//	newDataConnector: function(id, url, base, extension) {
-//		// the base dataConnector
-//		var aDataConnector = $speak({
-//			id: id,
-//			url: "",
-//			initialRequest: null,
-//			lastRequest: null
-//		});
-//
-//		// the newDataConnector constructor
-//		return $make(aDataConnector, extension, mixin);
-//	},
+				parent.tell(typeId + ":error:" + url, err);
+			}
+		});
 
-//	dataView: {
-//		dataViewId: null,
-//		template: null,
-//
-//		afterMake: function() {
-//			this.listen("dataConnector:io:success", function() {
-//
-//			});
-//		}
-//	},
+	if (useCache) {
+		bin.xhr = xhr;
+	}
 
+	if ($isFunction(startH)) {
+		startH.call(parent, bin, typeId + ":start:" + url);
+	}
 
-//	scrollView: {
-//		scrollViewId: null,
-//		template: null,
-//		domNode: null,
-//		disableScrollHandlers: false,
-//
-//		init: function(jScrollPaneSettings) {
-//			$(this.domNode).jScrollPane(jScrollPaneSettings);
-//
-//			// apply a buffer to the tokens handler
-//			var loadNextPageBuffered = $buffer(this.loadNextPageOfData, 100, this),
-//				that = this;
-//
-//			$(this.domNode).live("jsp-scroll-y", function(e, offset, atTop, atBottom) {
-//
-//				if(that.disableScrollHandlers || $isNaN(that.finalPage)) {
-//					console.log("skip scroll handler !!!MMMMM");
-//					return false;
-//				}
-//
-//				if (atBottom) {
-//					console.log("scroll handler "+$isNaN(that.finalPage)+" !!!!MMMM");
-//					loadNextPageBuffered();
-//				}
-//			});
-//
-//		},
-//
-//		destroy: function() {
-//
-//		}
-//	}
+	parent.tell(typeId + ":start:" + url, bin);
 
-});
+	return bin;
+}));

@@ -33,9 +33,6 @@
 		}
 
 	</style>
-	<p>
-		Folks often ask about how the difference between Backbone and Ember's approaches to model/view binding play out in web apps. This script uses the latest Backbone.js and Ember.js to animate 100 circles (or more -- change "N" in the JavaScript), so that you can see the responsiveness after you click the button, and visualize the speed difference. The Ember team is aware that in very performance-sensitive situations, like this example, its binding implementation may be too much overhead. They have reviewed this example, and hope to be able to remove this difference in the future. Note that this is just a simple benchmark: you wouldn't be doing this in an actual app.
-	</p>
 
 	<button onclick="runBackbone()">Animate with Backbone</button>
 	<button onclick="runEmber()">Animate with Ember</button>
@@ -56,10 +53,10 @@
 		</div>
 	</script>
 
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+	<script src="../../lib/jquery-1.7.1.js"></script>
 	<script src="../../lib/underscore.js"></script>
-	<script src="http://backbonejs.org/backbone-min.js"></script>
-	<script src="http://cloud.github.com/downloads/emberjs/ember.js/ember-0.9.4.min.js"></script>
+	<script src="../../lib/backbone.js"></script>
+	<script src="../../lib/ember.js"></script>
 	<script src="../../src/loot.js"></script>
 	<!--<script src="https://raw.github.com/andrewluetgers/loot/master/src/loot.js"></script>-->
 	<script src="main.js"></script>

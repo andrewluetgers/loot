@@ -1,6 +1,8 @@
 
 (function() {
 
+	var root = this;
+
 	// language shims -------------------------------------------
 
 	// Extend the String prototype to include a splice method.
@@ -639,30 +641,35 @@
 			 */
 			tell: function(topic, message, speaker) {
 				if ($isString(topic) && (!$isFunction(this.selectiveHearing) || this.selectiveHearing(message, topic, speaker || this))) {
-					var that = this;
 
-					// fire the listeners
-					$each(this._listeners, function(listener) {
-						var lTopic = listener.topic,
-							lTopicRe = listener.topicRe;
+					var i, len, listener, lMax, lTopic, lTopicRe,
+						listeners = this._listeners,
+						audience = this._audience,
+						originalSpeaker = speaker || this;
 
-						if (lTopic === topic || topic.match(lTopicRe) ) {
+					for(i=0, len=listeners.length; i<len; i++ ) {
+						listener = listeners[i];
+						lMax = listener.maxResponses;
+						lTopic = listener.topic;
+						lTopicRe = listener.topicRe;
+
+						if (lTopic === topic || (lTopicRe && topic.match(lTopicRe)) ) {
 							listener.responses++;
 
-							// stopListening if we hit our maxResponses
-							if ($isNumber(listener.maxResponses) && listener.responses >= listener.maxResponses) {
-								that.stopListening(listener);
+							// ignore if we hit our maxResponses
+							if (lMax && listener.responses >= lMax) {
+								this.ignore(listener);
 							}
 
 							// fire the responder within the currently bound scope
-							listener.responder.call(that, message, topic, speaker || that);
+							listener.responder.call(this, message, topic, originalSpeaker);
 						}
-					});
+					}
 
 					// tell the audience
-					$each(this._audience, function(member) {
-						member.tell(topic, message, speaker || that);
-					});
+					for(i=0, len=audience.length; i<len; i++) {
+						audience[i].tell(topic, message, originalSpeaker);
+					}
 				}
 				return this;
 			},
@@ -675,11 +682,15 @@
 			 */
 			listen: function(topic, responder, maxResponses) {
 
+				if (maxResponses && !$isString(maxResponses)) {
+					throw new Error("Invalid parameter: expected a number but saw " + typeof maxResponses);
+				}
+
 				var topicIsRegExp, topicIsString,
 					responderIsFunction = $isFunction(responder),
 					that = this;
 
-				// dont test for regex topic if we don't need to
+				// don't test for regex topic if we don't need to
 				(topicIsString = $isString(topic)) || (topicIsRegExp = $isRegExp(topic));
 
 				// call self for each function if given a map of callbacks instead of a single function
@@ -688,8 +699,8 @@
 				if (responder && !responderIsFunction && topicIsString) {
 					$each(responder, function(val, key) {
 						if ($isFunction(val)) {
-							var re = new RegExp("^" + topic + key);
-							that.listen(re, val, maxResponses);
+							//var re = new RegExp("^" + topic + key);
+							that.listen(key, val, maxResponses);
 						}
 					});
 					return false;
@@ -697,22 +708,26 @@
 
 				if ((topicIsString || topicIsRegExp) && responderIsFunction) {
 
-					// dont add something twice
-					var alreadySet;
+					// don't add something twice
+					var listener,
+						listeners = this._listeners;
 
-					$each(this._listeners, function(listener) {
-						if(listener.topic === topic  && listener.responder === responder) {alreadySet = true;}
-					});
-
-					if (!alreadySet) {
-						this._listeners.push({
-							topicRe: topicIsRegExp ? topic : new RegExp("^" + topic + "(\\[*|:*|$)"),
-							topic: topic,
-							responder: responder,
-							responses: 0,
-							maxResponses: maxResponses
-						});
+					for(var i=0, len=listeners.length; i<len; i++ ) {
+						listener = listeners[i];
+						if(listener.topic === topic  && listener.responder === responder) {
+							return this;
+						}
 					}
+
+					// we only hit this block if the listener has not already been added
+					this._listeners.push({
+						// todo we need to
+						topicRe: topicIsRegExp ? topic : null, //new RegExp("^" + topic + "(\\[*|:*|$)"),
+						topic: topic,
+						responder: responder,
+						responses: 0,
+						maxResponses: maxResponses
+					});
 
 					return this;
 
@@ -721,13 +736,13 @@
 				}
 			},
 
-			/** stopListening
+			/** ignore
 			 * @param ignoreable (string|function) optional - remove listeners
 			 * if a string is passed all listeners to that topic will be removed
 			 * if a function is passed all listeners using that responder will be removed
 			 * if nothing is provided all listeners will be removed
 			 */
-			stopListening: function(ignoreable) {
+			ignore: function(ignoreable) {
 				if($isString(ignoreable)) {
 					this._listeners = $reject(this._listeners, function(listener) {
 						return (listener.topic === ignoreable);
@@ -860,7 +875,7 @@
 			validateFn = validate[key];
 
 			if(validateFn) {
-				validationResult = validateFn(v);
+				validationResult = validateFn(val);
 				if (validationResult === true) {
 					changes[key] = val;
 				} else {
@@ -872,6 +887,7 @@
 		});
 		
 		if ($length(validationFailures)) {
+			console.log("validationFailures", validationFailures, this);
 			this.tell("validationFailed", {
 				passed: changes,
 				failed: validationFailures
@@ -899,7 +915,6 @@
 			options = $copy(options || {});
 			options.defaults = options.defaults || {};
 
-
 			var schema = $speak({
 				type: type,
 				destroy: function() {
@@ -914,7 +929,7 @@
 
 				getModelInstances: function() {
 					// return a copy of the instances array not the real thing
-					return instances.concat([]);
+					return instances;
 				},
 
 				// instance api
@@ -934,7 +949,9 @@
 						},
 						die: function() {
 							this.tell("dead", this);
+							// remove this instance from the instances array
 							$splice(instances, instances.indexOf(this));
+							// cleanup
 							$clear(this);
 							modelVals = modelProto = model = null;
 						}
@@ -988,6 +1005,13 @@
 		return $schema(type).getModelInstances();
 	}
 
+	function $isSchema(obj) {
+		return ($isFunction(obj.destroy) && $isString(obj.type) && obj.getModelInstances && obj.getNewModelInstance);
+	}
+
+	function $isModel(obj) {
+		return ($isFunction(obj.die) && $isString(obj.schema) && obj.set && obj.get);
+	}
 
 
 	// trim string -------------------------------------------------------
@@ -1418,6 +1442,8 @@
 		$schema: $schema,
 		$model: $model,
 		$models: $models,
+		$isSchema: $isSchema,
+		$isModel: $isModel,
 
 		// string
 		$trim: $trim,
@@ -1428,6 +1454,7 @@
 		$node: $node,
 		$el: $el,
 		$escapeHTML: $escapeHTML
+		
 	};
 
 	loot.addExport = function(name, obj) {

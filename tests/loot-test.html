@@ -66,7 +66,7 @@
 
 
 		test("messaging with $speak", function() {
-			expect(29);
+			expect(28);
 
 			var myBlankSpeaker = $speak({name:"myBlankSpeaker"});
 
@@ -193,34 +193,6 @@
 			regexListener.tell("test:value", "this is a tes");
 			regexListener.tell("test:value:blah", "this is a tes");
 			ok(regexListenerMatched === 3, "regex listeners work!");
-
-
-			// compound event type with implicit callback mapping
-			var implicitCallbacks = $speak(),
-				implicitCalls = 0,
-				commonHandler = function(msg, type) {
-					console.log(arguments);
-					implicitCalls++;
-				};
-
-			implicitCallbacks.listen("test:", {
-				"\\d{3}": commonHandler,
-				start: commonHandler,
-				error: commonHandler,
-				yo: commonHandler,
-				dawg: commonHandler
-			});
-
-			// these should not work
-			implicitCallbacks.tell("test:", "this is a tes");
-			implicitCallbacks.tell("test:1", "this is a tes");
-
-			// these should work
-			implicitCallbacks.tell("test:start", "this is a tes");
-			implicitCallbacks.tell("test:error", "this is a tes");
-			implicitCallbacks.tell("test:123", "this is a tes");
-			ok(implicitCalls === 3, "implicitly typed listeners work!");
-
 
 		});
 
@@ -539,7 +511,7 @@
 
 		
 
-		test("$model", function() {
+		test("$define, $schema, $model", function() {
 
 			var data = {
 				test: 1,
@@ -584,29 +556,38 @@
 			same(t, {test: 1, foo: "bar", allYourBase: "are belong to us"}, "get model (no arguments)");
 
 			// initial set on model call
-			m = $model("testSchema", {
+			var x = $model("testSchema", {
 				test: 1,
 				foo: "bar",
 				allYourBase: "are belong to us"
 			});
 
-			t = m.get("test");
+			t = x.get("test");
 			ok(t === 1, "single key get");
 
-			t = m.get("test", "foo");
+			t = x.get("test", "foo");
 			same(t, {test: 1, foo: "bar"}, "multi-key get using arguments");
 
-			t = m.get(["test", "foo"]);
+			t = x.get(["test", "foo"]);
 			same(t, {test: 1, foo: "bar"}, "multi-key get using an array");
 
-			t = m.get();
+			t = x.get();
 			same(t, {test: 1, foo: "bar", allYourBase: "are belong to us"}, "get model (no arguments)");
 
-			m.set("test");
-			t = m.get("test");
+			x.set("test");
+			t = x.get("test");
 			ok(t === undefined, "set without a second argument deletes");
 
-			m.set("bar", 5);
+
+			// testing $models
+			var m2 = $models("testSchema");
+
+			ok($isArray(m2), "$models returns an array when provided a valid schema type");
+			ok( (m2.length === 2) && m2[0] === m && m2[1] === x , "$models returns an array of all model instances created under the provided schema");
+
+
+			// testing setting things to falsy values
+			x.set("bar", 5);
 
 			var falsy = {
 				test: 0,
@@ -619,17 +600,81 @@
 				undefinedy: undefined
 			};
 
-			m.set(falsy);
-			t = m.get();
+			x.set(falsy);
+			t = x.get();
 			same(t, falsy, "set without a second argument sets to undefined");
 
-			m.listen("dead", function(msg) {
+			// testing model instance destruction
+			x.listen("dead", function(msg) {
 				same(this.get(), falsy, "dead event fired providing last opportunity to deal with the model and its values");
 			});
-			m.die();
-			ok(m.get == undefined, "methods no longer exist on model after die");
 
-			// todo, $models, getModelInstances, destroy, various events, validators, computed values
+			x.die();
+			ok(x.get == undefined, "methods no longer exist on model after die");
+
+			ok(m2.length == 1 && m2[0] === m, "the killed instance is removed from the instances array");
+			
+			// todo, destroy, various events, validators, computed values, error conditions
+			var itemsKilled = 0;
+			m.listen("dead", function() {
+				itemsKilled++;
+			});
+
+			$schema.listen("destroyed", function(msg) {
+				same(msg, {schema:"testSchema"}, "schema destroy event fired with message of destroyed schema type string for message")
+				ok(itemsKilled === 1, "all model instances killed on schema destroy")
+			});
+
+			$schema("testSchema").destroy();
+
+			$schema.listen("created", function(msg, type, speaker) {
+				console.log("created",arguments);
+				ok(msg, "created event was fired");
+			});
+
+			// test schema cration with defaults, validators and computed values
+			var $validateWtih = function(fn, msg) {
+				return function(val) {
+					return fn(val) ? true : msg;
+				}
+			};
+
+			$define("dog", {
+				defaults: {
+					// computed value
+					color: "brown",
+					info: function() {
+						return (this.name || "unknown") + " is " + (this.age || "unknown") + " years old " + (this.breed || "unknown") + " breed";
+					}
+				},
+				validate: {
+					name: $validateWtih($isString, "String Required"),
+					age: $validateWtih($isNumber, "Number Required"),
+					breed: $validateWtih($isString, "String Required")
+				}
+			});
+
+			var dog1 = $model("dog");
+			var info = "unknown is unknown years old unknown breed";
+
+			ok(dog1.get("info") === info, "computed values work as expected");
+			ok(dog1.get("color") === "brown", "default values work as expected");
+
+			console.log($schema("dog"));
+
+			$schema("dog").listen("validatonFailed", function(msg) {
+				console.log(msg);
+				if (msg.failed.name) {
+					ok(msg.failed.name === "String Required", "validators can return a string explaining a failure")
+				}
+			});
+
+			dog1.set("name", 5);
+			dog1.set({
+				name: null,
+				age: null,
+				breed: "pointer"
+			});
 
 		});
 
@@ -659,14 +704,14 @@
 
 			stop();
 
-			$sauce.io.listen("io:start:", function(msg, type) {
+			$io.listen("io:start:", function(msg, type) {
 				console.log(type);
 				console.log(msg);
 				ok(type.match(/^io:start/), "io:start event fires");
-				ok(this == $sauce.io, "'this' is sauce.io");
+				ok(this == $io, "'this' is sauce.io");
 			});
 
-			$sauce.io.listen("io:success", function(msg, type) {
+			$io.listen("io:success", function(msg, type) {
 				console.log(type);
 				console.log(msg);
 				ok(type.match(/^io:success/), "io:success event fires");
@@ -674,21 +719,21 @@
 				ok(msg.req.b == 4, "received the original req");
 				ok(msg.xhr, "received the xhr");
 				ok(msg.url == "/test", "received the url");
-				ok(this == $sauce.io, "'this' is sauce.io");
+				ok(this == $io, "'this' is sauce.io");
 			});
 
 
-			$sauce.io.listen("io:error", function(msg, type) {
+			$io.listen("io:error", function(msg, type) {
 				console.log(type);
 				console.log(msg);
 				ok(type.match(/^io:error/), "io:error event fires");
-				ok(this == $sauce.io, "'this' is sauce.io");
+				ok(this == $io, "'this' is sauce.io");
 				start();
 			});
 
-			$sauce.io("/test", {b:4, a:1});
-			$sauce.io("/test", {b:4, a:1});
-			$sauce.io("/err", {b:4, a:1});
+			$io("/test", {b:4, a:1});
+			$io("/test", {b:4, a:1});
+			$io("/err", {b:4, a:1});
 
 		});
 
@@ -713,23 +758,23 @@
 			stop();
 
 			console.log("non evented callbacks");
-			$sauce.io.stopListening();
+			$io.ignore();
 
 			setTimeout(function() {
-				$sauce.io("/test2", {b:5, a:3}, {
+				$io("/test2", {b:5, a:3}, {
 					start: function(msg, type) {
 						console.log(type);
 						console.log(msg);
 						startFired++;
 						ok(type.match("io:start"), "io:start event fires");
-						ok(this == $sauce.io, "'this' is sauce.io");
+						ok(this == $io, "'this' is sauce.io");
 					},
 					success: function(msg, type) {
 						console.log(type);
 						console.log(msg);
 						successFired++;
 						ok(type.match("io:success"), "io:success event fires");
-						ok(this == $sauce.io, "'this' is sauce.io");
+						ok(this == $io, "'this' is sauce.io");
 						ok(errorFired === 0, "error handler didn't fire");
 					},
 					error: function(msg, type) {
@@ -777,7 +822,7 @@
 			ok(typeof bin.setAt == "number", "bins store a timestamp for last update");
 
 			// remove all listeners on the cache to reduce test noises
-			$cache.stopListening();
+			$cache.ignore();
 
 			$cache.set("aNewType", "/aTest", {param:1}, 1, testMetaData);
 			$cache.set("aNewType", "/aTest", {param:2}, 2, testMetaData);
