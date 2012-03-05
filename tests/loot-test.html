@@ -367,20 +367,20 @@
 		});
 
 
-		test("$deepCopy", function() {
+		test("$copy", function() {
 
 			expect(5);
 
 			var objA = {name: "objA"};
 			var objB = {name: "objB", testObj: {array:[1, "string", {object:{name:"hey", age: 23} }, [0,2, 3, 5, [0, 0, 0]] ], func: function(){return this;}}};
 
-			var aCopy = $deepCopy(objA);
+			var aCopy = $copy(objA);
 			same(aCopy, objA, "deep copy of a simple object works");
 
 			objA.name = "objectA";
 			ok(aCopy.name === "objA", "changes on simple object do not transfer to copy");
 
-			var bCopy = $deepCopy(objB);
+			var bCopy = $copy(objB);
 			same(bCopy, objB, "deep copy of a complex object works");
 
 			objB.testObj.array[2].object.name = "yo";
@@ -395,7 +395,7 @@
 				custom: "owned"
 			};
 
-			var newB = $deepCopy(b2Copy, function(key, source) {
+			var newB = $copy(b2Copy, function(key, source) {
 				return source.hasOwnProperty(key);
 			});
 
@@ -404,14 +404,14 @@
 		});
 
 
-		test("$deepMerge", function() {
+		test("$merge", function() {
 
 			expect(3);
 
 			var objA = {name: "objA"};
 			var objB = {name: "objB", custom: "owned", testObj: {array:[1, "string", {object:{name:"hey", age: 23} }, [0,2, 3, 5, [0, 0, 0]] ], func: function(){return this;}}};
 
-			$deepMerge(objA, objB);
+			$merge(objA, objB);
 			same(objB, objA, "properly augments the provided target object");
 
 			// test filter method that only allows owned properties
@@ -427,14 +427,14 @@
 				custom: "owned"
 			};
 
-			$deepMerge(augment, b2Copy, function(key, source) {
+			$merge(augment, b2Copy, function(key, source) {
 				return source.hasOwnProperty(key);
 			});
 
 			same(augment, base, "filter function works properly");
 
 
-			$deepMerge(augment, b2Copy);
+			$merge(augment, b2Copy);
 
 			same(augment, b2Copy, "will copy over inherited properties by default");
 
@@ -547,18 +547,17 @@
 				allYourBase: "are belong to us"
 			};
 
-			$schema("TestModel");
+			
+
+			$define("testSchema");
 
 			// start with blank model
-			var m = $model("TestModel");
-
-			console.log(m, $isSpeaker(m));
+			var m = $model("testSchema");
 
 			m.listen("change", function(msg) {
 				if (msg.test) {
-					same(msg, {test:1}, "change event is fired providing the changeset");
+					same(msg, {test:1}, "change event is fired providing the change-set");
 				} else {
-					console.log("wtf", this, arguments, msg);
 					same(msg, {
 						foo: "bar",
 						allYourBase: "are belong to us"
@@ -585,7 +584,7 @@
 			same(t, {test: 1, foo: "bar", allYourBase: "are belong to us"}, "get model (no arguments)");
 
 			// initial set on model call
-			m = $model("TestModel", {
+			m = $model("testSchema", {
 				test: 1,
 				foo: "bar",
 				allYourBase: "are belong to us"
@@ -605,7 +604,6 @@
 
 			m.set("test");
 			t = m.get("test");
-			console.log(t);
 			ok(t === undefined, "set without a second argument deletes");
 
 			m.set("bar", 5);
@@ -623,9 +621,15 @@
 
 			m.set(falsy);
 			t = m.get();
-			console.log(t);
-			same(t, falsy, "set without a second argument deletes");
+			same(t, falsy, "set without a second argument sets to undefined");
 
+			m.listen("dead", function(msg) {
+				same(this.get(), falsy, "dead event fired providing last opportunity to deal with the model and its values");
+			});
+			m.die();
+			ok(m.get == undefined, "methods no longer exist on model after die");
+
+			// todo, $models, getModelInstances, destroy, various events, validators, computed values
 
 		});
 

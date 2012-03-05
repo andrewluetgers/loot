@@ -6,7 +6,7 @@
 	</head>
 	<body>
 	<ul id="results"></ul>
-	<script src="../libs/benchmark.js"></script>
+	<script src="../../lib/benchmarkjs/benchmark.js"></script>
 
 	<script src="http://cloud.github.com/downloads/wycats/handlebars.js/handlebars-1.0.0.beta.6.js"></script>
 	<script src="../../src/loot.js"></script>
@@ -124,8 +124,7 @@
 		};
 
 
-		var genDOMWithSugar = function ( data ) {
-			var el = create;
+		var genDOMWith$el = function ( data ) {
 			return $el( 'div', {
 				className: 'Foo' +
 					( data.isSelected ? ' selected' : '' ) +
@@ -181,6 +180,7 @@
 				])
 			] );
 		};
+
 
 		var genDOM = function ( data ) {
 			var doc = document,
@@ -497,21 +497,21 @@
 		var suite = new Benchmark.Suite;
 
 		// add tests
-		suite.add("DOM", function() {
+		suite.add("$el", function() {
+			genDOMWith$el(data);
+		})
+		.add("$el - outputStrings", function() {
+			$el.outputStrings(true);
+			genDOMWith$el(data);
+		})
+		.add("DOM", function() {
 			genDOM(data);
 		})
-//		.add("innerHTML", function() {
-//			genDOMWithInnerHTML(data);
-//		})
-//		.add("Handlebars", function() {
-//			genHandlebarsTemplate(data);
-//		})
-//		.add("DOM With Sugar", function() {
-//			genDOMWithSugar(data);
-//		})
-		.add("DOM With Sugar outputStrings", function() {
-			$el.outputStrings(true);
-			//genDOMWithSugar(data);
+		.add("innerHTML", function() {
+			genDOMWithInnerHTML(data);
+		})
+		.add("Handlebars", function() {
+			genHandlebarsTemplate(data);
 		})
 		// add listeners
 		.on("error", function() {
@@ -521,11 +521,11 @@
 			console.log("abort", this, arguments);
 		})
 		.on('cycle', function(event, bench) {
-			$id("results").appendChild($el("li", [String(bench)]));
+			$id("results").innerHTML += "<li>" + String(bench) + "</li>";
 			console.log(this, event, bench, String(bench));
 		})
 		.on('complete', function() {
-			$id("results").appendChild($el("li", ['Fastest is ' + this.filter('fastest').pluck('name')]));
+			$id("results").innerHTML +="<li>Fastest is " + this.filter('fastest').pluck('name') +"</li>";
 			console.log(this, 'Fastest is ' + this.filter('fastest').pluck('name'));
 		})
 		// run async

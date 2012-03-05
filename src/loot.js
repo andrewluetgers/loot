@@ -45,32 +45,32 @@
 	// stolen wholesale from underscore
 
 	// Is a given value a number?
-	var $isNumber = function(obj) {
+	function $isNumber(obj) {
 		return (obj === 0 || (obj && obj.toExponential && obj.toFixed));
-	};
+	}
 
 	// Is a given array or object empty?
-	var $isEmpty = function(obj) {
+	function $isEmpty(obj) {
 		if ($isArray(obj) || $isString(obj)) return obj.length === 0;
 		for (var key in obj) if (hasOwnProperty.call(obj, key)) return false;
 		return true;
-	};
+	}
 
 	// Is a given value a DOM element?
-	var $isElement = function(obj) {
+	function $isElement(obj) {
 		return (obj && obj.nodeType == 1);
-	};
+	}
 
 	// Is a given value an array?
 	// Delegates to ECMA5's native Array.isArray
-	var $isArray = Array.isArray || function(obj) {
+	var $isArray = Array.isArray || function $isAry(obj) {
 		return toString.call(obj) === '[object Array]';
-	};
+	}
 
 	// Is a given value a function?
-	var $isFunction = function(obj) {
+	function $isFunction(obj) {
 		return (obj && obj.constructor && obj.call && obj.apply);
-	};
+	}
 
 	// Is a given value a string?
 	var $isString = function(obj) {
@@ -78,34 +78,34 @@
 	};
 
 	// Is a given value a number?
-	var $isNumber = function(obj) {
+	function $isNumber(obj) {
 		return (obj === 0 || (obj && obj.toExponential && obj.toFixed));
-	};
+	}
 
 	// Is the given value `NaN`? `NaN` happens to be the only value in JavaScript
 	// that does not equal itself.
-	var $isNaN = function(obj) {
+	function $isNaN(obj) {
 		return obj !== obj;
-	};
+	}
 
-	var $isNull = function(obj) {
+	function $isNull(obj) {
 		return obj === null;
-	};
+	}
 
 	// Is a given value a boolean?
-	var $isBoolean = function(obj) {
+	function $isBoolean(obj) {
 		return obj === true || obj === false;
-	};
+	}
 
 	// Is the given value a regular expression?
-	var $isRegExp = function(obj) {
+	function $isRegExp(obj) {
 		return !!(obj && obj.test && obj.exec && (obj.ignoreCase || obj.ignoreCase === false));
-	};
+	}
 
 	// collections (objects, arrays) -------------------------------------------------------
 	var arrayProto = Array.prototype;
 
-	var $clear = function(obj) {
+	function $clear(obj) {
 
 		if ($isArray(obj)) {
 			obj.splice(0, obj.length);
@@ -114,7 +114,7 @@
 		for (var key in obj) {
 			delete obj[key];
 		}
-	};
+	}
 
 
 	// the underscore each function
@@ -125,7 +125,7 @@
 			nativeForEach = Array.prototype.forEach,
 			hasOwnProperty = Object.prototype.hasOwnProperty;
 
-		var each = function(obj, iterator, context) {
+		function each(obj, iterator, context) {
 			if (obj == null) return;
 
 			if (nativeForEach && obj.forEach === nativeForEach) {
@@ -142,7 +142,7 @@
 					}
 				}
 			}
-		};
+		}
 
 		each.breaker = breaker;
 		each.nativeForEach = nativeForEach;
@@ -157,7 +157,7 @@
 
 	// Return the results of applying the iterator to each element.
 	// Delegates to **ECMAScript 5**'s native "map" if available.
-	var $map = function(obj, iterator, context) {
+	function $map(obj, iterator, context) {
 
 		var results = [];
 
@@ -177,14 +177,14 @@
 			results.length = obj.length;
 		}
 		return results;
-	};
+	}
 
 
 	var nativeSome = Array.prototype.some;
 
 	// Determine if at least one element in the object matches a truth test.
 	// Delegates to **ECMAScript 5**'s native "some" if available
-	var $any = function(obj, iterator, context) {
+	function $any(obj, iterator, context) {
 		var result = false;
 
 		if (nativeSome && obj.some === nativeSome) {
@@ -199,36 +199,36 @@
 		});
 
 		return !!result;
-	};
+	}
 
 	// Return all the elements for which a truth test passes.
-	var $find = function(obj, iterator, context) {
+	function $find(obj, iterator, context) {
 		var results = [];
 		if (obj == null) return results;
 		$each(obj, function(value, index, list) {
 			if (iterator.call(context, value, index, list)) results.push(value);
 		});
 		return results;
-	};
+	}
 
 	// Return all the elements for which a truth test fails.
-	var $reject = function(obj, iterator, context) {
+	function $reject(obj, iterator, context) {
 		var results = [];
 		if (obj == null) return results;
 		$each(obj, function(value, index, list) {
 			if (!iterator.call(context, value, index, list)) results[results.length] = value;
 		});
 		return results;
-	};
+	}
 
-	var $length = function(item) {
+	function $length(item) {
 		var len = item.length;
 		if (!$isNumber(len)) {
 			len = 0;
 			$each(item, function(){len++});
 		}
 		return len;
-	};
+	}
 
 	// flatten arrays recursively
 	function $flat() {
@@ -237,14 +237,14 @@
 	}
 
 	var slice = Array.prototype.slice;
-	var $slice = function(obj, start, end) {
+	function $slice(obj, start, end) {
 		return slice.call(obj, start || 0, end);
-	};
+	}
 
 	var splice = Array.prototype.splice;
-	var $splice = function(obj, start, howMany) {
+	function $splice(obj, start, howMany) {
 		return splice.apply(obj, $flat($slice(arguments, 1)));
-	};
+	}
 
 
 
@@ -254,7 +254,7 @@
 	// http://oranlooney.com/functional-javascript/
 	function F() {}
 
-	var $new = function(prototype, ignoreInit) {
+	function $new(prototype, ignoreInit) {
 
 		F.prototype = prototype || {};
 
@@ -275,7 +275,7 @@
 		}
 
 		return newInstance;
-	};
+	}
 
 	/**
 	 * serves as a utility method for deepCopy and deepMerge
@@ -285,7 +285,7 @@
 	 *  the filter function returns true if a property should be copied and false if it should be ignored
 	 *  filter can also be provided as the last of two arguments when omitting a target
 	 *  filter example: to deep copy only owned properties from objA to objB
-	 *  	$deepCopy(objA, objB, function(key, source) {
+	 *  	$copy(objA, objB, function(key, source) {
 	 *  		return source.hasOwnProperty(key);
 	 *  	});
 	 */
@@ -336,23 +336,23 @@
 		return target;
 	}
 
-	var $deepCopy = function(source, filter) {
+	function $copy(source, filter) {
 		if (filter && !$isFunction(filter)) {
-			throw new Error("$deepCopy: Optional second argument (filter) must be a function. Instead saw " + typeof filter);
+			throw new Error("$copy: Optional second argument (filter) must be a function. Instead saw " + typeof filter);
 		}
 		return copy(source, filter);
-	};
+	}
 
-	var $deepMerge = function(target, source, filter) {
+	function $merge(target, source, filter) {
 		if (!target || !source) {
-			throw new Error("$deepMerge: First two arguments (target, source) are required and must be enumerable. Instead saw (" + typeof target +", "+ typeof source +")");
+			throw new Error("$merge: First two arguments (target, source) are required and must be enumerable. Instead saw (" + typeof target +", "+ typeof source +")");
 		}
 
 		if (filter && !$isFunction(filter)) {
-			throw new Error("$deepMerge: Optional third argument (filter) must be a function. Instead saw " + typeof filter);
+			throw new Error("$merge: Optional third argument (filter) must be a function. Instead saw " + typeof filter);
 		}
 		return copy(source, target, filter);
-	};
+	}
 
 	/**
 	 * $extend augments the first object with shallow copies of
@@ -366,7 +366,7 @@
 	 * $extend(object, [object, object, object])
 	 * $extend(object, object, [object, object], object)
 	 */
-	var $extend = function(target) {
+	function $extend(target) {
 		if (target) {
 			// accept objects or arrays of objects
 			var sources = [].concat($slice(arguments, 1));
@@ -379,7 +379,7 @@
 		}
 
 		return target;
-	};
+	}
 
 	/**
 	 * $mixin augments the first object with deep copies of
@@ -393,7 +393,7 @@
 	 * $mixin(object, [object, object, object])
 	 * $mixin(object, object, [object, object], object)
 	 */
-	var $mixin = function(target) {
+	function $mixin(target) {
 		if(target) {
 			var sources = $slice(arguments, 1);
 
@@ -401,18 +401,16 @@
 			$each(sources, function(source) {
 				var prop;
 				for (prop in source) {
-					console.log(prop, source);
 					// do a deep copy that excludes any inherited properties at any level
-					$deepMerge(target, source, function(key, source) {
+					$merge(target, source, function(key, source) {
 						return source.hasOwnProperty(key);
 					});
 				}
-				console.log("-------")
 			});
 		}
 
 		return target;
-	};
+	}
 
 	/**
 	 * make new objects like a pro
@@ -421,7 +419,7 @@
 	 * @param mixin/s
 	 * @author ATL
 	 */
-	var $make = function(prototype, extender, mixin) {
+	function $make(prototype, extender, mixin) {
 
 		mixin = mixin || {};
 
@@ -492,14 +490,14 @@
 		myProto.init = (inits.length > 1) ? inits : inits[0];
 
 		return myProto;
-	};
+	}
 
 
 	// date/time -------------------------------------------------------
 
-	var $now = function() {
+	function $now() {
 		return new Date().getTime();
-	};
+	}
 
 	/* $timeAgo
 	/*
@@ -517,7 +515,7 @@
 
 	// modified by andrew luetgers to accept timestamps
 
-	var $timeAgo = function(date, compareTo) {
+	function $timeAgo(date, compareTo) {
 
 		function normalizeDateInput(date) {
 			switch (typeof date) {
@@ -618,7 +616,7 @@
 						(i > 0 ? token : '');
 			}
 		}
-	};
+	}
 
 
 	// messaging -------------------------------------------------------
@@ -782,7 +780,7 @@
 		});
 
 		// return just the newSpeaker function;
-		return function(obj, overwrite) {
+		function speak(obj, overwrite) {
 			if (obj && !overwrite && obj.hasOwnProperty("_listeners") && obj.hasOwnProperty("_audience")) {
 				// already a publisher, do noting
 				return obj;
@@ -799,13 +797,15 @@
 			}
 
 			return obj;
-		};
+		}
+
+		return speak;
 
 	})();
 
-	var $isSpeaker = function(obj) {
+	function $isSpeaker(obj) {
 		return !!(obj && $isFunction(obj.tell) && $isArray(obj._listeners));
-	};
+	}
 
 
 	// models -------------------------------------------------------
@@ -835,7 +835,7 @@
 		}
 	};
 
-	var modelApiSet = function(modelVals, _key, _val) {
+	function modelApiSet(modelVals, _key, _val) {
 		var obj = _key,
 			changes = {},
 			validationFailures = {},
@@ -879,44 +879,37 @@
 		} else {
 			// no errors! merge our changes into the model values
 			$mixin(modelVals, changes);
-			console.log(modelVals, changes);
 			this.tell("change", changes);
 		}
 
 		return this;
-	};
+	}
 
 	// define a type of object or data model
-	$schema = function(type, options) {
-		var existingModel = schemaBank[type];
+	function $schema(type, options) {
+		var existingSchema = schemaBank[type];
 		var instances = [];
 
 		// schema getter
-		if (type && arguments.length === 1 && existingModel) {
-			return existingModel;
+		if (type && arguments.length === 1 && existingSchema) {
+			return existingSchema;
 
 		// schema constructor
-		} else if (type && !existingModel) {
-			options = $deepCopy(options || {});
+		} else if (type && !existingSchema) {
+			options = $copy(options || {});
 			options.defaults = options.defaults || {};
 
 
 			var schema = $speak({
 				type: type,
-//				validation: 	options.validation || {},
-//				retain: 		options.retain || false,
-				destroy:		function() {
+				destroy: function() {
 					$each(instances, function(instance) {
 						instance.die();
 					});
-
-					existingModel = null;
+					existingSchema = null;
 					delete schemaBank[type];
 					$clear(this);
-
-					return {
-						destroyed: 	type
-					}
+					$schema.tell("destroyed", {schema:type});
 				},
 
 				getModelInstances: function() {
@@ -926,7 +919,7 @@
 
 				// instance api
 				getNewModelInstance: function(vals) {
-					var modelVals = $deepCopy(options.defaults);
+					var modelVals = $copy(options.defaults);
 					var modelProto = $speak($new(options));
 					var model = $mixin(modelProto, {
 						schema: type,
@@ -959,47 +952,59 @@
 						$mixin(modelVals, vals);
 					}
 
+					instances.push(model);
+					model.tell("created", this);
+
 					return model;
 				}
 			});
 
 			schemaBank[type] = schema;
 
+			$schema.tell("defined", {schema:type});
+
 		// error
 		} else {
 			return new Error("Error: valid model name required.");
 		}
-	};
+	}
+	// make schema a speaker
+	$speak($schema);
 
-	$model = function(type, vals) {
+	function $model(type, vals) {
 		var schema = schemaBank[type];
 
 		if (!type || !$isString(type) || !schema) {
-			throw new Error("$model: valid type string required");
+			//throw new Error("$model: valid type string required");
+			return null;
 		} else if (vals && ($isArray(vals) || $isString(vals) || $isBoolean(vals) || $isFunction(vals) || $isRegExp(vals)|| $isNumber(vals))) {
 			throw new Error("$model: valid values object required");
 		} else {
 			return schema.getNewModelInstance(vals);
 		}
-	};
+	}
+
+	function $models(type) {
+		return $schema(type).getModelInstances();
+	}
 
 
 
 	// trim string -------------------------------------------------------
 	// type agnostic string trim, just returns the original val if its not a string
-	var $trim = function(str) {
+	function $trim(str) {
 		if ($isString(str)) {
 			return str.trim();
 		} else {
 			return str;
 		}
-	};
+	}
 
 
 	// dom -------------------------------------------------------
-	var $id = function(id) {
+	function $id(id) {
 		return document.getElementById(id);
-	};
+	}
 
 	// $tmpl -------------------------------------------------------
 	// just aliasing doT.js
@@ -1103,7 +1108,7 @@
 
 
 
-	// hyper-simplistic dom node api for html string building
+	// hyper-simplistic dom node api for html string building, used by $el for outputStrings mode
 	var $node = (function() {
 
 		var directProperties = {className:'class', htmlFor:'for'};
@@ -1189,87 +1194,6 @@
 		createElement: $node
 	};
 
-
-	var $el2 = (function () {
-
-		var doc = document;
-
-		var directProperties = {
-			'class': 'className',
-			className: 'className',
-			defaultValue: 'defaultValue',
-			'for': 'htmlFor',
-			html: 'innerHTML',
-			text: 'textContent',
-			value: 'value'
-		};
-
-		var booleanProperties = {
-			checked: 1,
-			defaultChecked: 1,
-			disabled: 1,
-			multiple: 1,
-			selected: 1
-		};
-
-		var setProperty = function ( el, key, value ) {
-			var prop = directProperties[ key ];
-			if ( prop ) {
-				el[ prop ] = ( value == null ? '' : '' + value );
-			} else if ( booleanProperties[ key ] ) {
-				el[ key ] = !!value;
-			} else if ( value == null ) {
-				el.removeAttribute( key );
-			} else {
-				el.setAttribute( key, '' + value );
-			}
-		};
-
-		var appendChildren = function ( el, children ) {
-			var i, l, node;
-			for ( i = 0, l = children.length; i < l; i += 1 ) {
-				node = children[i];
-				if ( node ) {
-					if ( node instanceof Array ) {
-						appendChildren( el, node );
-					} else {
-						if ( typeof node === 'string' ) {
-							node = doc.createTextNode( node );
-						}
-						el.appendChild( node );
-					}
-				}
-			}
-		};
-
-
-		var create = function ( tag, props, children ) {
-			if ( props instanceof Array ) {
-				children = props;
-				props = null;
-			}
-
-			var parts, name, el,
-				i, j, l, node, prop;
-
-
-
-			el = doc.createElement( tag );
-			if ( props ) {
-				for ( prop in props ) {
-					setProperty( el, prop, props[ prop ] );
-				}
-			}
-			if ( children ) {
-				appendChildren( el, children );
-			}
-			return el;
-		};
-
-		return create;
-
-	}());
-
 	// dom builder see: http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
 	// modified to support dom node ouput or string output, for server land
 	var $el = (function () {
@@ -1302,6 +1226,7 @@
 			} else if ( value == null ) {
 				el.removeAttribute( key );
 			} else {
+				console.log(key, value);
 				el.setAttribute(key, '' + value);
 			}
 		};
@@ -1323,14 +1248,16 @@
 
 		var splitter = /(#|\.)/;
 
-		var create = function(tag, props, children) {
+		function create(tag, props, children) {
+
+			props = props || {};
 
 			var parts, name, len, el, i, j, l;
 
 			// support (tag, children) signature
 			if ($isArray(props)) {
 				children = props;
-				props = null;
+				props = {};
 			}
 
 			parts = tag.split(splitter);
@@ -1338,9 +1265,6 @@
 			len = parts.length;
 
 			if (len > 2) {
-				if (!props) {
-					props = {};
-				}
 
 				for (i=1, j=2, l=len; j<l; i+=2, j+=2) {
 					name = parts[j];
@@ -1365,7 +1289,7 @@
 				children && appendChildren(el, children);
 			}
 			return el;
-		};
+		}
 
 		var _outputStrings = false;
 
@@ -1376,6 +1300,10 @@
 			} else {
 				doc = $doc;
 			}
+		};
+
+		create.outputMode = function() {
+			return _outputStrings ? "string" : "DOM";
 		};
 
 		return create;
@@ -1471,8 +1399,8 @@
 
 		// objects
 		$new: $new,
-		$deepCopy: $deepCopy,
-		$deepMerge: $deepMerge,
+		$copy: $copy,
+		$merge: $merge,
 		$extend: $extend,
 		$mixin: $mixin,
 		$make: $make,
@@ -1489,6 +1417,7 @@
 		$define: $schema,
 		$schema: $schema,
 		$model: $model,
+		$models: $models,
 
 		// string
 		$trim: $trim,

@@ -63,16 +63,19 @@ var N = 100;
 	var frame = 0;
 	var start;
 
-
-
 	var backboneAnimate = function() {
-		!start && (start = $now());
+		!frame && (start = $now());
 		frame++;
+
 		$each(boxes, function(box) {
 			box.tick();
 		});
 		$id("frameRate").innerHTML = frame / (($now() - start)/1000);
 		window.timeout = _.defer(backboneAnimate);
+
+		if (frame > 30) {
+			frame = 0;
+		}
 	};
 
 	window.runBackbone = function() {
@@ -130,13 +133,17 @@ var N = 100;
 	var start;
 
 	var emberAnimate = function() {
-		!start && (start = $now());
+		!frame && (start = $now());
 		frame++;
 		$each(boxes, function(box) {
 			box.tick();
 		});
 		$id("frameRate").innerHTML = frame / (($now() - start)/1000);
 		window.timeout = _.defer(emberAnimate);
+
+		if (frame > 30) {
+			frame = 0;
+		}
 	};
 
 	window.runEmber = function() {
@@ -218,13 +225,19 @@ var N = 100;
 	var start;
 
 	var lootAnimate = function() {
-		!start && (start = $now());
+		!frame && (start = $now());
 		frame++;
+
 		$each(boxes, function(box) {
 			box.tick();
 		});
+
 		$id("frameRate").innerHTML = frame / (($now() - start)/1000);
 		window.timeout = _.defer(lootAnimate);
+
+		if (frame > 30) {
+			frame = 0;
+		}
 	};
 
 	window.runLoot = function() {

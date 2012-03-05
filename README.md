@@ -21,6 +21,7 @@ see underscore.js
   * **$isFunction**
   * **$isString**
   * **$isNaN**
+  * **$isNull**
   * **$isBoolean**
   * **$isRegExp**
 
@@ -38,8 +39,8 @@ see underscore.js
 
 ### Objects
   * **$new(prototype)** optionally provide a prototype object for a new object instance. If an "init" function or an array of init functions exist it/they will be called.
-  * **$deepCopy(source, filter)** returns a deep copy of source. Optional filter(key, source, target) is called for every property traversed, if it returns true the property is copied over, if it returns false the property is ignored.
-  * **$deepMerge(target, source, filter)** returns a deep copy of source applied to target. Optional filter(key, source, target) is called for every property, if it returns true the property is copied over, if it returns false the property is ignored.
+  * **$copy(source, filter)** returns a deep copy of source. Optional filter(key, source, target) is called for every property traversed, if it returns true the property is copied over, if it returns false the property is ignored.
+  * **$merge(target, source, filter)** returns a deep copy of source applied to target. Optional filter(key, source, target) is called for every property, if it returns true the property is copied over, if it returns false the property is ignored.
   * **$extend(obj)** obj will gain shallow copies of *all* properties of all other provided objects. This allows for building objects that share properties through composition vs prototype. This can save on memory and provide information sharing.
   * **$mixin(obj)** obj will gain deep copies of 'owned' properties of all other provided objects. The 'hasOwnProperty' test is applied to all properties during the deep copy.
   * **$make(prototype, extender, mixin)** All args are optional, extender and mixin may each be single objects or arrays of objects. $make calls $new on the prototype then extends it with extender and mixes in the mixin. "init" functions can exist as properties on any or all of the provided objects and will get called at the end with the new object as the "this". If any of the arguments is a speaker then the new object will also be a speaker. Also see tests and source for advanced message sharing capabilities.
@@ -60,13 +61,17 @@ see underscore.js
 ### Models
   * **$define(type, options)** creates a schema definition (which is a speaker) with given options that will be associated with the given type string. Once this is done you can use $model to create an instance of that type. Provide only a pre existing schema type string and it will return that schema.
   * **$schema(type)** an alias for define which makes more sense for getter-syntax usage.
-  * **$model(type, obj)** Creates a model instance (which is a speaker) with set and get methods that emits a change event.
+    * __getModelInstances__ returns an array of all model instances based on this schema, see "$models" alias below
+    * __destroy__ calls die on all model instances for this schema and then removes the schema from the list of defined schemas
+  * **$model(type, obj)** Creates a model instance (which is a speaker) with set and get methods that emits a "change" event.
     * __set(key, value)__ adds key:value pair to model and emits a change event containting the changes
-    * __set(object)__ adds the given keys:value pairs to the model and emits a change event containting the changes
+    * __set(object)__ adds the given keys:value pairs to the model and emits a "change" event containting the changes
     * __set(key)__ sets key to undefined
     * __get()__ returns the entire model
     * __get(key)__ returns the value of the given key on the model
     * __get(array)__ given an array of key strings returns an obect of matching key value pairs from the model
+    * __die()__ deletes all properties on this model instance, schema no longer references model instance, emits a "dead" event whi
+  * **$models(type)** an alias of $schema(type).getModelInstances();
 
   ``` javascript
   // define a schema
