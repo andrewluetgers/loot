@@ -66,7 +66,7 @@
 
 
 		test("messaging with $speak", function() {
-			expect(28);
+			expect(27);
 
 			var myBlankSpeaker = $speak({name:"myBlankSpeaker"});
 
@@ -181,19 +181,6 @@
 			mySpeaker.tell("test", "testing selectiveHearing again");
 			ok(mySpeaker3TestResponses == 2, "selective hearing listens to items when truth test returns true");
 
-			// regex listeners
-			var regexListener = $speak(),
-				regexListenerMatched = 0;
-
-			regexListener.listen(/^test/, function() {
-				regexListenerMatched++;
-			});
-
-			regexListener.tell("test:", "this is a tes");
-			regexListener.tell("test:value", "this is a tes");
-			regexListener.tell("test:value:blah", "this is a tes");
-			ok(regexListenerMatched === 3, "regex listeners work!");
-
 		});
 
 
@@ -292,7 +279,7 @@
 
 			var newMessenger = $make(myMessenger, {name: "newMessenger"});
 
-			same(newMessenger._listeners, [], "_listeners array is cleared out so we don't inherit/share them");
+			same(newMessenger._listeningFor, {}, "_listeningFor object is cleared out so we don't inherit/share them");
 			same(newMessenger._audience, [], "_audience array is cleared out so we don't inherit/share audiences");
 
 

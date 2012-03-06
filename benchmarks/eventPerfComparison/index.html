@@ -1,0 +1,384 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+		"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+	<head>
+		<title></title>
+	</head>
+	<body>
+	<h3>1 event, 1 handler</h3>
+	<ul id="results"></ul></br></br>
+	<h3>many events, 1 handler</h3>
+	<ul id="results2"></ul></br></br>
+	<h3>1 event, many handlers</h3>
+	<ul id="results3"></ul></br></br>
+	<h3>many events, many handlers</h3>
+	<ul id="results4"></ul>
+	<script src="../../lib/benchmarkjs/benchmark.js"></script>
+	<script src="../../lib/jquery-1.7.1.js"></script>
+	<script src="../../lib/underscore.js"></script>
+	<script src="../../lib/backbone.js"></script>
+	<script src="../../lib/ember.js"></script>
+	<!--<script src="../../lib/loot-old.js"></script>-->
+	<script src="../../src/loot.js"></script>
+
+	<script type="text/javascript">
+
+
+		// 1 events 1 handler -------------------------------------------------------------------------------
+		var suite1 = function() {
+
+			// backbone setup ------------------------------
+			var backboneObject = _.extend({count:0}, Backbone.Events);
+
+			backboneObject.on("test", function(msg) {
+//				this.count++;
+	//			console.log("backbone", msg, this.count);
+			});
+
+
+			// ember setup ------------------------------
+			var EmberObject = Ember.Object.extend({count:0});
+			var emberObject = EmberObject.create();
+			var count = 0;
+
+			Ember.addListener(emberObject, "test", function(object, event, msg) {
+//				count++;
+	//			console.log("ember", msg, count);
+			});
+
+
+			// loot setup ------------------------------
+			var lootObject = $speak({count:0});
+
+			lootObject.listen("test", function(msg) {
+//				this.count++;
+	//			console.log("loot", msg, this.count);
+			});
+
+
+			// add tests
+			var suite = new Benchmark.Suite;
+			suite.add("backbone events", function() {
+				backboneObject.trigger("test", "an event");
+			})
+			.add("ember events", function() {
+				Ember.sendEvent(emberObject, "test", "an event");
+			})
+			.add("loot events", function() {
+				lootObject.tell("test", "an event");
+			})
+			// add listeners
+			.on("error", function() {
+				console.log("error", this, arguments);
+			})
+			.on("abort", function() {
+				console.log("abort", this, arguments);
+			})
+			.on('cycle', function(event, bench) {
+				$id("results").innerHTML += "<li>" + String(bench) + "</li>";
+				console.log(String(bench));
+			})
+			.on('complete', function() {
+				$id("results").innerHTML +="<li>Fastest is " + this.filter('fastest').pluck('name') +"</li>";
+				console.log(this, 'Fastest is ' + this.filter('fastest').pluck('name'));
+				suite2();
+			})
+			// run async
+			.run({ 'async': true });
+		};
+
+
+
+
+		var suite2 = function() {
+
+			// many events one handler -------------------------------------------------------------------------------
+			var eventsToAdd = 10;
+
+			// backbone setup ------------------------------
+			var backboneObject = _.extend({count:0}, Backbone.Events);
+
+			var bb = function(i) {
+				backboneObject.on("test"+i, function(msg) {
+//					this.count++;
+		//			console.log("backbone", msg, this.count);
+				});
+			};
+
+			for(var i=0, len=eventsToAdd; i<len; i++) {
+				bb(i);
+			}
+
+
+
+			// ember setup ------------------------------
+			var EmberObject = Ember.Object.extend({count:0});
+			var emberObject = EmberObject.create();
+			var count = 0;
+
+			var em = function(i) {
+				Ember.addListener(emberObject, "test"+i, function(object, event, msg) {
+//					count++;
+		//			console.log("ember", msg, count);
+				});
+			};
+
+			for(var i=0, len=eventsToAdd; i<len; i++) {
+				em(i);
+			}
+
+
+
+			// loot setup ------------------------------
+			var lootObject = $speak({count:0});
+
+			var lo = function(i) {
+				lootObject.listen("test"+i, function(msg) {
+//					this.count++;
+		//			console.log("loot", msg, this.count);
+				});
+			};
+
+			for(var i=0, len=eventsToAdd; i<len; i++) {
+				lo(i);
+			}
+
+			// add tests
+			var suite = new Benchmark.Suite;
+			suite.add("backbone events", function() {
+				for(var i=0, len=eventsToAdd; i<len; i++) {
+					backboneObject.trigger("test"+i, "an event");
+				}
+			})
+			.add("ember events", function() {
+				for(var i=0, len=eventsToAdd; i<len; i++) {
+					Ember.sendEvent(emberObject, "test"+i, "an event");
+				}
+			})
+			.add("loot events", function() {
+				for(var i=0, len=eventsToAdd; i<len; i++) {
+					lootObject.tell("test"+i, "an event");
+				}
+			})
+			// add listeners
+			.on("error", function() {
+				console.log("error", this, arguments);
+			})
+			.on("abort", function() {
+				console.log("abort", this, arguments);
+			})
+			.on('cycle', function(event, bench) {
+				$id("results2").innerHTML += "<li>" + String(bench) + "</li>";
+				console.log(String(bench));
+			})
+			.on('complete', function() {
+				$id("results2").innerHTML +="<li>Fastest is " + this.filter('fastest').pluck('name') +"</li>";
+				console.log(this, 'Fastest is ' + this.filter('fastest').pluck('name'));
+				suite3();
+			})
+			// run async
+			.run({ 'async': true });
+
+		};
+
+
+
+
+		var suite3 = function(next) {
+
+			// one event many handlers -------------------------------------------------------------------------------
+			var listenersToAdd = 10;
+
+			// backbone setup ------------------------------
+			var backboneObject = _.extend({count:0}, Backbone.Events);
+
+			var bb = function(i) {
+				backboneObject.on("test", function(msg) {
+//					this.count++;
+		//			console.log("backbone", msg, this.count);
+				});
+			};
+
+			for(var i=0, len=listenersToAdd; i<len; i++) {
+				bb(i);
+			}
+
+	
+
+			// ember setup ------------------------------
+			var EmberObject = Ember.Object.extend({count:0});
+			var emberObject = EmberObject.create();
+			var count = 0;
+
+			var em = function(i) {
+				Ember.addListener(emberObject, "test", function(object, event, msg) {
+//					count++;
+		//			console.log("ember", msg, count);
+				});
+			};
+
+			for(var i=0, len=listenersToAdd; i<len; i++) {
+				em(i);
+			}
+
+
+
+			// loot setup ------------------------------
+			var lootObject = $speak({count:0});
+
+			var lo = function(i) {
+				lootObject.listen("test", function(msg) {
+//					this.count++;
+		//			console.log("loot", msg, this.count);
+				});
+			};
+
+			for(var i=0, len=listenersToAdd; i<len; i++) {
+				lo(i);
+			}
+
+			// add tests
+			var suite = new Benchmark.Suite;
+			suite.add("backbone events", function() {
+				for(var i=0, len=listenersToAdd; i<len; i++) {
+					backboneObject.trigger("test", "an event");
+				}
+			})
+			.add("ember events", function() {
+				for(var i=0, len=listenersToAdd; i<len; i++) {
+					Ember.sendEvent(emberObject, "test", "an event");
+				}
+			})
+			.add("loot events", function() {
+				for(var i=0, len=listenersToAdd; i<len; i++) {
+					lootObject.tell("test", "an event");
+				}
+			})
+			// add listeners
+			.on("error", function() {
+				console.log("error", this, arguments);
+			})
+			.on("abort", function() {
+				console.log("abort", this, arguments);
+			})
+			.on('cycle', function(event, bench) {
+				$id("results3").innerHTML += "<li>" + String(bench) + "</li>";
+				console.log(String(bench));
+			})
+			.on('complete', function() {
+				$id("results3").innerHTML +="<li>Fastest is " + this.filter('fastest').pluck('name') +"</li>";
+				console.log(this, 'Fastest is ' + this.filter('fastest').pluck('name'));
+				suite4();
+			})
+			// run async
+			.run({ 'async': true });
+		};
+
+
+		var suite4 = function(next) {
+
+			// one event many handlers -------------------------------------------------------------------------------
+			var eventsToAdd = 10;
+			var listenersToAdd = 10;
+
+			// backbone setup ----------------------i-------
+			var backboneObject = _.extend({count:0}, Backbone.Events);
+
+			var bb = function(i) {
+				backboneObject.on("test"+i, function(msg) {
+//					this.count++;
+		//			console.log("backbone", msg, this.count);
+				});
+			};
+
+			for(var j=0, l=jLen=eventsToAdd; j<jLen; j++) {
+				for(var i=0, len=listenersToAdd; i<len; i++) {
+					bb(i);
+				}
+			}
+
+
+
+			// ember setup ------------------------------
+			var EmberObject = Ember.Object.extend({count:0});
+			var emberObject = EmberObject.create();
+			var count = 0;
+
+			var em = function(i) {
+				Ember.addListener(emberObject, "test"+i, function(object, event, msg) {
+//					count++;
+		//			console.log("ember", msg, count);
+				});
+			};
+
+			for(var j=0, l=jLen=eventsToAdd; j<jLen; j++) {
+				for(var i=0, len=listenersToAdd; i<len; i++) {
+					em(i);
+				}
+			}
+
+
+
+			// loot setup ------------------------------
+			var lootObject = $speak({count:0});
+
+			var lo = function(i) {
+				lootObject.listen("test"+i, function(msg) {
+//					this.count++;
+		//			console.log("loot", msg, this.count);
+				});
+			};
+
+			for(var j=0, l=jLen=eventsToAdd; j<jLen; j++) {
+				for(var i=0, len=listenersToAdd; i<len; i++) {
+					lo(i);
+				}
+			}
+
+			// add tests
+			var suite = new Benchmark.Suite;
+			suite.add("backbone events", function() {
+				for(var j=0, l=jLen=eventsToAdd; j<jLen; j++) {
+					for(var i=0, len=listenersToAdd; i<len; i++) {
+						backboneObject.trigger("test"+i, "an event");
+					}
+				}
+			})
+			.add("ember events", function() {
+				for(var j=0, l=jLen=eventsToAdd; j<jLen; j++) {
+					for(var i=0, len=listenersToAdd; i<len; i++) {
+						Ember.sendEvent(emberObject, "test"+i, "an event");
+					}
+				}
+			})
+			.add("loot events", function() {
+				for(var j=0, l=jLen=eventsToAdd; j<jLen; j++) {
+					for(var i=0, len=listenersToAdd; i<len; i++) {
+						lootObject.tell("test"+i, "an event");
+					}
+				}
+			})
+			// add listeners
+			.on("error", function() {
+				console.log("error", this, arguments);
+			})
+			.on("abort", function() {
+				console.log("abort", this, arguments);
+			})
+			.on('cycle', function(event, bench) {
+				$id("results4").innerHTML += "<li>" + String(bench) + "</li>";
+				console.log(String(bench));
+			})
+			.on('complete', function() {
+				$id("results4").innerHTML +="<li>Fastest is " + this.filter('fastest').pluck('name') +"</li>";
+				console.log(this, 'Fastest is ' + this.filter('fastest').pluck('name'));
+			})
+			// run async
+			.run({ 'async': true });
+		};
+
+		suite1();
+
+	</script>
+</body>
+</html>

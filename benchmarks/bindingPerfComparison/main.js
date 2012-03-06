@@ -42,7 +42,7 @@ var N = 100;
 		},
 
 		render: function() {
-//			this.$el.html(this.template(this.model.attributes));
+			this.$el.html(this.template(this.model.attributes));
 			return this;
 		}
 
@@ -54,7 +54,7 @@ var N = 100;
 		boxes = _.map(_.range(N), function(i) {
 			var box = new Box({number: i});
 			var view = new BoxView({model: box});
-//			$('#grid').append(view.render().el);
+			$('#grid').append(view.render().el);
 			return box;
 		});
 	};
@@ -70,10 +70,10 @@ var N = 100;
 		$each(boxes, function(box) {
 			box.tick();
 		});
-		$id("frameRate").innerHTML = frame / (($now() - start)/1000);
 		window.timeout = _.defer(backboneAnimate);
 
-		if (frame > 30) {
+		if (frame > 100) {
+			$id("frameRate").innerHTML = Math.round(frame / (($now() - start)/1000));
 			frame = 0;
 		}
 	};
@@ -103,17 +103,17 @@ var N = 100;
 			this.set('left', Math.cos(count / 10) * 10);
 			this.set('color', count % 255);
 			this.set('content', count % 100);
-		}
+		},
 
-//		style: function() {
-//			return 'top: ' + this.get('top') + 'px; left: ' +  this.get('left') +'px; background: rgb(0,0,' + this.get('color') + ');';
-//		}.property('top', 'left', 'color')
+		style: function() {
+			return 'top: ' + this.get('top') + 'px; left: ' +  this.get('left') +'px; background: rgb(0,0,' + this.get('color') + ');';
+		}.property('top', 'left', 'color')
 
 	});
 
 	var BoxView = Ember.View.extend({
 		classNames: ['box-view'],
-		templateName: 'box' 
+		templateName: 'box'
 	});
 
 	var boxes;
@@ -122,7 +122,7 @@ var N = 100;
 		boxes = _.map(_.range(N), function(i) {
 			var box = Box.create();
 			var view = BoxView.create({model: box});
-//			view.appendTo('#grid');
+			view.appendTo('#grid');
 			box.set('number', i);
 			return box;
 		});
@@ -138,10 +138,10 @@ var N = 100;
 		$each(boxes, function(box) {
 			box.tick();
 		});
-		$id("frameRate").innerHTML = frame / (($now() - start)/1000);
 		window.timeout = _.defer(emberAnimate);
 
-		if (frame > 30) {
+		if (frame > 100) {
+			$id("frameRate").innerHTML = Math.round(frame / (($now() - start)/1000));
 			frame = 0;
 		}
 	};
@@ -196,15 +196,15 @@ var N = 100;
 			var el = this.el,
 				box = this.model.get();
 
-//
-//			el.id = "box-"+box.number;
-//			el.style.cssText = 'top: ' + box.top + 'px; left: ' +  box.left +'px; background: rgb(0,0,' + box.color + ');';
-//			el.innerHTML = box.content;
-//
-//			if (!this.rendered) {
-//				this.rendered = true;
-//				return $el("div.box-view",[el]);
-//			}
+
+			el.id = "box-"+box.number;
+			el.style.cssText = 'top: ' + box.top + 'px; left: ' +  box.left +'px; background: rgb(0,0,' + box.color + ');';
+			el.innerHTML = box.content;
+
+			if (!this.rendered) {
+				this.rendered = true;
+				return $el("div.box-view",[el]);
+			}
 		}
 	}); 
 
@@ -217,7 +217,7 @@ var N = 100;
 			var bx = $model("box", {number:x});
 			boxes.push(bx);
 			var bxView = $make(boxView, {model: bx});
-//			$id("grid").appendChild(bxView.render());
+			$id("grid").appendChild(bxView.render());
 		}
 	};
 
@@ -232,10 +232,11 @@ var N = 100;
 			box.tick();
 		});
 
-		$id("frameRate").innerHTML = frame / (($now() - start)/1000);
+
 		window.timeout = _.defer(lootAnimate);
 
-		if (frame > 30) {
+		if (frame > 100) {
+			$id("frameRate").innerHTML = Math.round(frame / (($now() - start)/1000));
 			frame = 0;
 		}
 	};

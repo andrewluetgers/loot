@@ -13,24 +13,25 @@
 
 	<script id="template" type="text/x-handlebars-template">
 		<div class="Foo{{#if isSelected}} selected{{/if}}{{#if isActive}} selected{{/if}}">
-		<label><input type="checkbox" checked="{{#if isSelected}}checked{{/if}}"></label>
-		<button class="button" title="A title">The button text</button>
-		<a href="{{href}}"><span class="lorem{{#ifGreaterThanOne total}} ipsum{{/ifGreaterThanOne}}">
-			<span class="dolores" unselectable="on">{{text}}</span>
-			{{#ifGreaterThanOne total}}
-			<span class="total" unselectable="on">({{total}})</span>
-			{{/ifGreaterThanOne}}
-			{{#if yes}}
-			<span class="yes">*</span>
-			{{/if}}
-			<span class="text" unselectable="on">
-			{{#ifGreaterThanOne total}}{{text}}{{/ifGreaterThanOne}}
-			</span>
-			<time unselectable="on" title="{{displayDate}}">{{displayDate}}</time>
-			<span class="preview" unselectable="on">{{preview}}</span>
-		</a>
-	</div>
+			<label><input type="checkbox" checked="{{#if isSelected}}checked{{/if}}"></label>
+			<button class="button" title="A title">The button text</button>
+			<a href="{{href}}"><span class="lorem{{#ifGreaterThanOne total}} ipsum{{/ifGreaterThanOne}}">
+				<span class="dolores" unselectable="on">{{text}}</span>
+				{{#ifGreaterThanOne total}}
+				<span class="total" unselectable="on">({{total}})</span>
+				{{/ifGreaterThanOne}}
+				{{#if yes}}
+				<span class="yes">*</span>
+				{{/if}}
+				<span class="text" unselectable="on">
+				{{#ifGreaterThanOne total}}{{text}}{{/ifGreaterThanOne}}
+				</span>
+				<time unselectable="on" title="{{displayDate}}">{{displayDate}}</time>
+				<span class="preview" unselectable="on">{{preview}}</span>
+			</a>
+		</div>
 	</script>
+
 
 	<script type="text/javascript">
 		"use strict";
