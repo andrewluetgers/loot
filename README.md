@@ -61,8 +61,10 @@ see underscore.js
 ### Models
   * **$define(type, options)** creates a schema definition (which is a speaker) with given options that will be associated with the given type string. Once this is done you can use $model to create an instance of that type. Provide only a pre existing schema type string and it will return that schema.
   * **$schema(type)** an alias for define which makes more sense for getter-syntax usage.
-    * __getModelInstances__ returns an array of all model instances based on this schema, see "$models" alias below
-    * __destroy__ calls die on all model instances for this schema and then removes the schema from the list of defined schemas
+    * __getInstances__ returns an array of all model instances based on this schema, see "$models" alias below
+    * __newInstance()__ returns a new model instances based on this schema, see "$models" alias below
+    * __drop__ calls drop on all model instances for this schema and then removes the schema from the list of defined schemas
+
   * **$model(type, obj)** Creates a model instance (which is a speaker) with set and get methods that emits a "change" event.
     * __set(key, value)__ adds key:value pair to model and emits a change event containting the changes
     * __set(object)__ adds the given keys:value pairs to the model and emits a "change" event containting the changes
@@ -70,7 +72,7 @@ see underscore.js
     * __get()__ returns the entire model
     * __get(key)__ returns the value of the given key on the model
     * __get(array)__ given an array of key strings returns an obect of matching key value pairs from the model
-    * __die()__ deletes all properties on this model instance, schema no longer references model instance, emits a "dead" event whi
+    * __srop()__ deletes all properties on this model instance, schema no longer references model instance, emits a "drop" event whi
   * **$models(type)** an alias of $schema(type).getModelInstances();
   * **$isSchema(obj)** returns true if obj is a product of $define or $schema constructors
   * **$isModel(obj)** returns true if obj is a product of $model constructor
@@ -116,14 +118,18 @@ see underscore.js
   // will alert twice "Jim's age set to 25"
   ```
 
-### String
-  * **$trim** // type agnostic string trim, just returns the original val if its not a string
-
 ### DOM
   * **$id** shortcut to document.getElementById
   * **$tpl** using the super-fast doT see https://github.com/olado/doT
   * **$el(selector, attributes, children) or (selector, children) or (selector)** a handy node builder / html string builder for those times you dont want to write a template or use the dom directly. eg. $el("button#buy.bigButton", {type:"submit"}, ["Buy It Now"]), will return a dom structure unless you call $el.outputStrings(true), then it will output an html string instead.  Makes uses of http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
   * **$escapeHTML(html)** see backbone
+
+### Views
+  * **$view(node, model, templateOrRenderFn)** create a view that renders when a model is updated
+  * **$view(options)**
+
+### String
+  * **$trim** type agnostic string trim, just returns the original val if its not a string
 
 ### Language Shims
   * **String.splice(index, howManyToDelete, stringToInsert)** adds splice functionality for strings

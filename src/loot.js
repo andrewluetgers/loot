@@ -58,6 +58,8 @@
 		return true;
 	}
 
+
+
 	// Is a given value a DOM element?
 	function $isElement(obj) {
 		return (obj && obj.nodeType == 1);
@@ -621,218 +623,6 @@
 	}
 
 
-	// messaging -------------------------------------------------------
-
-	// API note
-	// the optional selectiveHearing property added to a speaker is a
-	// function with the same signature as any responder. the selectiveHearing
-	// function serves as a truth-test, if it returns truthy the message
-	// will be listened to otherwise it's ignored
-
-//	var $speak = (function() {
-//
-//		var aSpeaker = {
-//
-//			/** tell
-//			 * @param topic (string) the topic of the message, listeners can filter messages base on their topic
-//			 * @param message (anything) optional - a value passed to the listeners
-//			 * @param speaker (speaker) optional - listeners will be told the origin of the messages they receive
-//			 * here oyu can override that value, you should not need to use this
-//			 */
-//			tell: function(topic, message, speaker) {
-//				if ($isString(topic) && (!$isFunction(this.selectiveHearing) || this.selectiveHearing(message, topic, speaker || this))) {
-//
-//					var i, len, listener, lMax, lTopic, lTopicRe,
-//						listeners = this._listeners,
-//						audience = this._audience,
-//						originalSpeaker = speaker || this;
-//
-//					for(i=0, len=listeners.length; i<len; i++ ) {
-//						listener = listeners[i];
-//						lMax = listener.maxResponses;
-//						lTopic = listener.topic;
-//						lTopicRe = listener.topicRe;
-//
-//						if (lTopic === topic || (lTopicRe && topic.match(lTopicRe)) ) {
-//							listener.responses++;
-//
-//							// ignore if we hit our maxResponses
-//							if (lMax && listener.responses >= lMax) {
-//								this.ignore(listener);
-//							}
-//
-//							// fire the responder within the currently bound scope
-//							listener.responder.call(this, message, topic, originalSpeaker);
-//						}
-//					}
-//
-//					// tell the audience
-//					for(i=0, len=audience.length; i<len; i++) {
-//						audience[i].tell(topic, message, originalSpeaker);
-//					}
-//				}
-//				return this;
-//			},
-//
-//			/** listen
-//			 * @param topic (string|regex) will call the given responder if received topic === topic parm
-//			 * or in the case of a regex topic param if the receivedTopic.match(topicParam)
-//			 * @param responder (function) having the signature function(message, topic, originalSpeaker)
-//			 * @param maxResponses (number) optional - number of times the responder will be called before being removed
-//			 */
-//			listen: function(topic, responder, maxResponses) {
-//
-//				if (maxResponses && !$isString(maxResponses)) {
-//					throw new Error("Invalid parameter: expected a number but saw " + typeof maxResponses);
-//				}
-//
-//				var topicIsRegExp, topicIsString,
-//					responderIsFunction = $isFunction(responder),
-//					that = this;
-//
-//				// don't test for regex topic if we don't need to
-//				(topicIsString = $isString(topic)) || (topicIsRegExp = $isRegExp(topic));
-//
-//				// call self for each function if given a map of callbacks instead of a single function
-//				// the way this works is the callback names are appended to the topic string
-//				// then a regex is created from the new topic string for a starts-with match
-//				if (responder && !responderIsFunction && topicIsString) {
-//					$each(responder, function(val, key) {
-//						if ($isFunction(val)) {
-//							//var re = new RegExp("^" + topic + key);
-//							that.listen(key, val, maxResponses);
-//						}
-//					});
-//					return false;
-//				}
-//
-//				if ((topicIsString || topicIsRegExp) && responderIsFunction) {
-//
-//					// don't add something twice
-//					var listener,
-//						listeners = this._listeners;
-//
-//					for(var i=0, len=listeners.length; i<len; i++ ) {
-//						listener = listeners[i];
-//						if(listener.topic === topic  && listener.responder === responder) {
-//							return this;
-//						}
-//					}
-//
-//					// we only hit this block if the listener has not already been added
-//					this._listeners.push({
-//						topicRe: topicIsRegExp ? topic : null, //new RegExp("^" + topic + "(\\[*|:*|$)"),
-//						topic: topic,
-//						responder: responder,
-//						responses: 0,
-//						maxResponses: maxResponses
-//					});
-//
-//					return this;
-//
-//				} else {
-//					throw new Error("listen: invalid arguments");
-//				}
-//			},
-//
-//			/** ignore
-//			 * @param ignoreable (string|function) optional - remove listeners
-//			 * if a string is passed all listeners to that topic will be removed
-//			 * if a function is passed all listeners using that responder will be removed
-//			 * if nothing is provided all listeners will be removed
-//			 */
-//			ignore: function(ignoreable) {
-//				if($isString(ignoreable)) {
-//					this._listeners = $reject(this._listeners, function(listener) {
-//						return (listener.topic === ignoreable);
-//					});
-//				} else if(ignoreable) {
-//					this._listeners = $reject(this._listeners, function(listener) {
-//						return (listener.responder === ignoreable);
-//					});
-//				} else {
-//					this._listeners = [];
-//				}
-//				return this;
-//			},
-//
-//			/** talksTo
-//			 * @param speaker (object|function|array) - !!will make the provided object a speaker if it is not already
-//			 * @description will forward all messages to the provided speaker by adding it to our _audience
-//			 */
-//			talksTo: function(speaker) {
-//				if (this !== speaker && this._audience.indexOf(speaker) === -1) {
-//					this._audience.push($speak(speaker));
-//				}
-//				return this;
-//			},
-//
-//			/** listensTo
-//			 * @param speaker (speaker)
-//			 * @description all messages sent to speaker will be forwarded to us
-//			 *
-//			 */
-//			listensTo: function(speaker) {
-//				if ($isSpeaker(speaker) && speaker._audience.indexOf(this) === -1 && speaker !== this) {
-//					speaker._audience.push(this);
-//				}
-//				return this;
-//			}
-//
-//			// the following properties are added when the speaker is created
-//			// this prevents the risk of them being shared across speakers
-//			// _listeners: [],
-//			// _audience: []
-//		};
-//
-//		// lets not on't copy the larger functions all over
-//		aSpeakerFacade = {};
-//		$each(aSpeaker, function(val, key) {
-//			aSpeakerFacade[key] = function() {
-//				return val.apply(this, $slice(arguments));
-//			}
-//		});
-//
-//		// return just the newSpeaker function;
-//		function speak(obj, overwrite) {
-//			if (obj && !overwrite && obj.hasOwnProperty("_listeners") && obj.hasOwnProperty("_audience")) {
-//				// already a publisher, do noting
-//				return obj;
-//			}
-//
-//			if (!obj) {
-//				// looks like we are starting a new speaker from scratch so
-//				// we can create a more memory-friendly prototypal clone of aSpeaker
-//				obj = $make(aSpeakerFacade, {_listeners: [], _audience: []});
-//
-//			} else {
-//				// can't use a prototypal clone so we augment obj via shallow copy instead
-//				obj = $extend(obj, aSpeakerFacade, {_listeners: [], _audience: []});
-//			}
-//
-//			return obj;
-//		}
-//
-//		return speak;
-//
-//	})();
-//
-
-//
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 	// messaging -------------------------------------------------------
 
@@ -854,29 +644,36 @@
 			 */
 			tell: function(topic, message, speaker) {
 
-				var i, len, listener, lMax, lTopic,
-						topicSpecificListeners = this._listeningFor[topic],
-						audience = this._audience,
-						originalSpeaker = speaker || this;
+				var i, len, listener, lMax,
+					wildCardListeners,
+					topicSpecificListeners,
+					audience = this._audience,
+					originalSpeaker = speaker || this,
+					selectiveHearing = this.selectiveHearing;
 
-				if ($isString(topic) && (!$isFunction(this.selectiveHearing) || this.selectiveHearing(message, topic, originalSpeaker))) {
+				if (!selectiveHearing || ($isFunction(selectiveHearing) && this.selectiveHearing(message, topic, originalSpeaker)) ) {
 
-					if (topicSpecificListeners) {
-						for(i=0, len=topicSpecificListeners.length; i<len; i++ ) {
-							listener = topicSpecificListeners[i];
-							lMax = listener.maxResponses;
-							listener.responses++;
+					topicSpecificListeners = this._listeningFor[topic] || [];
+					wildCardListeners = this._listeningFor["*"];
 
-							// ignore if we hit our maxResponses
-							if (lMax && listener.responses >= lMax) {
-								this.ignore(listener);
-							}
-
-							// fire the responder within the currently bound scope
-							listener.responder.call(this, message, topic, originalSpeaker);
-						}
+					if (wildCardListeners) {
+						topicSpecificListeners = topicSpecificListeners.concat(wildCardListeners);
 					}
 
+					for(i=0, len=topicSpecificListeners.length; i<len; i++) {
+						listener = topicSpecificListeners[i];
+						lMax = listener.maxResponses;
+						listener.responses++;
+
+						// ignore if we hit our maxResponses
+						if (lMax && listener.responses >= lMax) {
+							this.ignore(listener);
+						}
+
+						// fire the responder within the currently bound scope
+						listener.responder.call(this, message, topic, originalSpeaker);
+					}
+					
 					// tell the audience
 					for(i=0, len=audience.length; i<len; i++) {
 						audience[i].tell(topic, message, originalSpeaker);
@@ -947,14 +744,16 @@
 			 * if nothing is provided all listeners will be removed
 			 */
 			ignore: function(ignoreable) {
-				if($isString(ignoreable)) {
-					this._listeningFor = $reject(this._listeningFor, function(listener) {
-						return (listener.topic === ignoreable);
-					});
-				} else if(ignoreable) {
-					this._listeningFor = $reject(this._listeningFor, function(listener) {
-						return (listener.responder === ignoreable);
-					});
+				if(ignoreable) {
+					if ($isString(ignoreable)) {
+						this._listeningFor = $reject(this._listeningFor, function(listener) {
+							return (listener.topic === ignoreable);
+						});
+					} else {
+						this._listeningFor = $reject(this._listeningFor, function(listener) {
+							return (listener.responder === ignoreable);
+						});
+					}
 				} else {
 					this._listeningFor = [];
 				}
@@ -1023,20 +822,9 @@
 	})();
 
 
-
 	function $isSpeaker(obj) {
 		return !!(obj && $isFunction(obj.tell) && $isArray(obj._audience));
 	}
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1070,49 +858,64 @@
 
 	function modelApiSet(modelVals, _key, _val) {
 		var obj = _key,
+			val, key,
 			changes = {},
-			validationFailures = {},
-			validate = this.validate || {},
-			validateFn;
+			validate = this.validate,
+			validateFn,
+			validationFailures,
+			failed;
+
 
 		// if using single item syntax convert it to multi-item syntax so we only need one implementation
-		if ($isString(obj)) {
+		if (typeof obj === "string") {
 			// set single item to
 			if (_val === undefined) {
 				modelVals[_key] = _val;
 				return;
 			} else {
-				var obj = {};
+				obj = {};
 				obj[_key] = _val;
 			}
 		}
 
 		// generate our changes
-		$each(obj, function(val, key) {
-			// multiple items
-			validateFn = validate[key];
 
-			if(validateFn) {
-				validationResult = validateFn(val);
-				if (validationResult === true) {
-					changes[key] = val;
-				} else {
-					validationFailures[key] = validationResult;
-				}
-			} else {
-				changes[key] = val;
+
+		if (!validate) {
+			// lets not check for validators if we don't have to
+			for (key in obj) {
+				changes[key] = obj[key];
 			}
-		});
+		} else {
+			// we have validators so check them and log failures
+			validationFailures = {};
+
+			for (key in obj) {
+				val = obj[key];
+				validateFn = validate[key];
+
+				if(validateFn) {
+					validationResult = validateFn(val);
+					if (validationResult === true) {
+						changes[key] = val;
+					} else {
+						failed = true;
+						validationFailures[key] = validationResult;
+					}
+				} else {
+					changes[key] = val;
+				}
+			}
+		}
 		
-		if ($length(validationFailures)) {
-			console.log("validationFailures", validationFailures, this);
+		if (failed) {
 			this.tell("validationFailed", {
 				passed: changes,
 				failed: validationFailures
 			});
 		} else {
 			// no errors! merge our changes into the model values
-			$mixin(modelVals, changes);
+			$extend(modelVals, changes);
 			this.tell("change", changes);
 		}
 
@@ -1121,40 +924,62 @@
 
 	// define a type of object or data model
 	function $schema(type, options) {
-		var existingSchema = schemaBank[type];
-		var instances = [];
+		var existingSchema = schemaBank[type],
+			instances = [];
 
 		// schema getter
 		if (type && arguments.length === 1 && existingSchema) {
 			return existingSchema;
 
 		// schema constructor
-		} else if (type && !existingSchema) {
+		} else if (type && $isString(type) && !existingSchema) {
 			options = $copy(options || {});
 			options.defaults = options.defaults || {};
+			
+			// type-check optional validators
+			if (options.validate) {
+				$each(options.validate, function(val) {
+					if (!$isFunction(val)) {
+						throw new Error("validator must be a function");
+					}
+				});
+			}
 
 			var schema = $speak({
 				type: type,
-				destroy: function() {
-					$each(instances, function(instance) {
-						instance.die();
-					});
+				drop: function() {
+					instances && this.dropInstances();
 					existingSchema = null;
 					delete schemaBank[type];
 					$clear(this);
-					$schema.tell("destroyed", {schema:type});
+					$schema.tell("drop", {schema:type});
 				},
 
-				getModelInstances: function() {
+				getInstances: function() {
 					// return a copy of the instances array not the real thing
 					return instances;
 				},
 
+				dropInstances: function(filter) {
+					var _instances = instances;
+
+					if (filter) {
+						_instances = $find(instances, filter);
+					}
+
+					$each(_instances, function(instance) {
+						instance.drop();
+					});
+
+					return this;
+				},
+
 				// instance api
-				getNewModelInstance: function(vals) {
+				newInstance: function(vals) {
 					var modelVals = $copy(options.defaults);
 					var modelProto = $speak($new(options));
-					var model = $mixin(modelProto, {
+					var drop = options.drop;
+					var model = $extend(modelProto, {
 						schema: type,
 
 						// the following get and set facade allows us to have a unique closure for modelVals and modelProto
@@ -1165,19 +990,14 @@
 						set: function(key, val) {
 							return modelApiSet.call(this, modelVals, key, val);
 						},
-						die: function() {
-							this.tell("dead", this);
+						drop: function() {
+							drop && $isFunction(drop) && drop && drop();
+							this.tell("drop", this);
 							// remove this instance from the instances array
-							$splice(instances, instances.indexOf(this));
-							// cleanup
+							instances && $splice(instances, instances.indexOf(this));
 							$clear(this);
-							modelVals = modelProto = model = null;
 						}
 					});
-
-					if (options.validate) {
-						model.validate = $new(options.validate);
-					}
 
 					// all model events are forwarded to their parent schema
 					model.talksTo(this);
@@ -1187,12 +1007,18 @@
 						$mixin(modelVals, vals);
 					}
 
-					instances.push(model);
+					instances && instances.push(model);
 					model.tell("created", this);
 
 					return model;
 				}
 			});
+
+			if (schema.dontManageInstances) {
+				instances = null;
+				schema.dropInstances = null;
+				schema.getInstances = null;
+			}
 
 			schemaBank[type] = schema;
 
@@ -1200,7 +1026,7 @@
 
 		// error
 		} else {
-			return new Error("Error: valid model name required.");
+			return new Error("Error: valid schema type required.");
 		}
 	}
 	// make schema a speaker
@@ -1215,20 +1041,20 @@
 		} else if (vals && ($isArray(vals) || $isString(vals) || $isBoolean(vals) || $isFunction(vals) || $isRegExp(vals)|| $isNumber(vals))) {
 			throw new Error("$model: valid values object required");
 		} else {
-			return schema.getNewModelInstance(vals);
+			return schema.newInstance(vals);
 		}
 	}
 
 	function $models(type) {
-		return $schema(type).getModelInstances();
+		return $schema(type).getInstances();
 	}
 
 	function $isSchema(obj) {
-		return ($isFunction(obj.destroy) && $isString(obj.type) && obj.getModelInstances && obj.getNewModelInstance);
+		return ($isFunction(obj.drop) && $isString(obj.type) && obj.getInstances && obj.newInstance);
 	}
 
 	function $isModel(obj) {
-		return ($isFunction(obj.die) && $isString(obj.schema) && obj.set && obj.get);
+		return ($isFunction(obj.drop) && $isString(obj.schema) && obj.set && obj.get);
 	}
 
 
@@ -1376,6 +1202,7 @@
 				this.appendChild = this.append;
 				this.removeAttribute = this.setAttribute = this.set;
 			},
+			nodeType: 1, // so we can pass the $isNode test
 			append: function(nodes) {
 				// no we don't do validation here, so sue me
 				// this will handle a single node or an array of nodes or a mixed array of nodes and arrays of nodes
@@ -1573,6 +1400,96 @@
 
 
 
+	/**
+	 *
+	 * @param parent - a DOM node
+	 * @param model - a product of $schema
+	 * @param templateOrRenderFn - a doT template string or a render function(data, changes, view) which must return a dom node, the results of which will be appended to the parent node
+	 * @description single argument signature
+	 *
+	 */
+	var $view = function(node, model, templateOrRenderFn) {
+
+		var view = $speak(),
+			renderer, update, drop;
+
+		if (node && arguments.length === 1) {
+			var spec = arguments[0];
+			node = spec.node;
+			model = spec.model;
+			drop = spec.drop;
+			templateOrRenderFn = spec.template || spec.render;
+
+			$extend(view, spec);
+		}
+
+		if(!$isElement(node)) {
+			throw new Error("$view: parent must be a DOM node");
+		}
+
+		if(!model || !$isModel(model)) {
+			throw new Error("$view: model argument must be a product of $model");
+		}
+
+		view.node = node;
+		view.model = model;
+
+		// define our renderer and render functions
+		if ($isString(templateOrRenderFn)) {
+			// in the case of a template we use extra param for template settings
+			renderer = $tmpl(templateOrRenderFn);
+
+			update = function(changes, type, rmodel) {
+				view.node.innerHTML = renderer(rmodel.get());
+				return view.node;
+			};
+
+		} else if ($isFunction(templateOrRenderFn)) {
+			var oldContent;
+			update = function(changes, type, rmodel) {
+				var content = templateOrRenderFn(rmodel.get(), changes, view);
+
+				if (content) {
+					if ($isElement(content)) {
+						if (oldContent) {
+							node.replaceChild(content, oldContent);
+						} else {
+							node.appendChild(content);
+						}
+						oldContent = content;
+
+					} else {
+						view.node.innerHTML = content;
+					}
+				}
+				
+				return view.node;
+			};
+
+		} else {
+			throw new Error("$view: template must be a template string or render function");
+		}
+
+		view.drop = function() {
+			model.ignore(update);
+			drop && $isFunction(drop) && drop();
+			this.tell("drop");
+			$clear(this);
+		};
+
+		model.listen("change", update);
+
+		view.init && $isFunction(view.init) && view.init();
+
+		return view;
+	};
+
+	var $isView = function(view) {
+		return view && view.drop && $isFunction(view.drop) && view.node && view.model;
+	};
+
+
+
 	// ------------------------------- exports -------------------------------
 	var _scope;
 
@@ -1671,13 +1588,17 @@
 		$tmpl: $tmpl,
 		$node: $node,
 		$el: $el,
-		$escapeHTML: $escapeHTML
-		
+		$escapeHTML: $escapeHTML,
+
+		// views
+		$view: $view,
+		$isView: $isView
+
 	};
 
 	loot.addExport = function(name, obj) {
 		if(this.exports[name]) {
-			throw new Error("dude... really? " + name + "is already taken, weak.");
+			throw new Error("loot.addExport: " + name + "is already taken.");
 		}
 
 		this.exports[name] = obj;
@@ -1712,4 +1633,3 @@
 	this.loot = loot;
 	loot(this);
 }());
-

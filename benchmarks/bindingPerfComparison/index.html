@@ -53,6 +53,12 @@
 		</div>
 	</script>
 
+	<script type="text/doT-template" id="loot-template" data-template-name="box">
+		<div class="box" {{bindAttr id="model.number" style="model.style"}}>
+		  {{ model.content }}
+		</div>
+	</script>
+
 	<script src="../../lib/jquery-1.7.1.js"></script>
 	<script src="../../lib/underscore.js"></script>
 	<script src="../../lib/backbone.js"></script>

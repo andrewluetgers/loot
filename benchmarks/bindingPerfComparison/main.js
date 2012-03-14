@@ -155,9 +155,11 @@ var N = 100;
 })();
 
 
+// with loot $view
 (function() {
 
 	$define("box", {
+		manageInstances: true,
 		defaults: {
 			count: 0,
 			top: 0,
@@ -179,45 +181,47 @@ var N = 100;
 		}
 	});
 
-	var boxView = $speak({
-		init: function() {
-			this.el = $el("div.box");
-			var that = this;
-			this.listensTo(this.model).listen("change", function(type, msg) {
-				that.render();
+
+
+
+	var boxViews,
+		clearViews = function() {
+			$each(boxViews, function(boxView) {
+				boxView.destroy();
 			});
-		},
-
-		model: null,
-
-		el: null,
-
-		render: function() {
-			var el = this.el,
-				box = this.model.get();
-
-
-			el.id = "box-"+box.number;
-			el.style.cssText = 'top: ' + box.top + 'px; left: ' +  box.left +'px; background: rgb(0,0,' + box.color + ');';
-			el.innerHTML = box.content;
-
-			if (!this.rendered) {
-				this.rendered = true;
-				return $el("div.box-view",[el]);
-			}
-		}
-	}); 
-
-	var boxes;
+		};
 
 	var lootInit = function() {
-		var x = N;
-		boxes = [];
+
+		boxViews = [];
+
+		var x = N,
+			aBoxParentNode = $el("div.box-view"),
+			aBoxNode = $el("div.box"),
+			render = function(data, changes, view) {
+
+				var el = view.el, newEl;
+
+				if (!el) {
+					newEl = el = view.el = aBoxNode.cloneNode();
+				}
+
+				el.style.cssText = 'top: ' + data.top + 'px; left: ' +  data.left +'px; background: rgb(0,0,' + data.color + ');';
+				el.innerHTML = data.content;
+
+				return newEl; // returns undefined after first run
+			};
+
 		while (x--) {
-			var bx = $model("box", {number:x});
-			boxes.push(bx);
-			var bxView = $make(boxView, {model: bx});
-			$id("grid").appendChild(bxView.render());
+			$view({
+				init: function() {
+					boxViews.push(this);
+					$id("grid").appendChild(this.node);
+				},
+				node:   aBoxParentNode.cloneNode(),
+				model:  $model("box", {number:x}),
+				render: render
+			});
 		}
 	};
 
@@ -228,10 +232,9 @@ var N = 100;
 		!frame && (start = $now());
 		frame++;
 
-		$each(boxes, function(box) {
-			box.tick();
+		$each(boxViews, function(boxView) {
+			boxView.model.tick();
 		});
-
 
 		window.timeout = _.defer(lootAnimate);
 
@@ -243,11 +246,13 @@ var N = 100;
 
 	window.runLoot = function() {
 		reset();
+		clearViews();
 		lootInit();
 		lootAnimate();
 	};
 
 })();
+
 
 window.timeout = null;
 
@@ -256,3 +261,5 @@ window.reset = function() {
 	$('#grid').empty();
 	clearTimeout(timeout);
 };
+
+
