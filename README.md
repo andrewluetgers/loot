@@ -59,24 +59,7 @@ see underscore.js
   * **$isSpeaker(obj)** returns true if the provided object is a pub/sub speaker
 
 ### Models
-  * **$define(type, options)** creates a schema definition (which is a speaker) with given options that will be associated with the given type string. Once this is done you can use $model to create an instance of that type. Provide only a pre existing schema type string and it will return that schema.
-  * **$schema(type)** an alias for define which makes more sense for getter-syntax usage.
-    * __getInstances__ returns an array of all model instances based on this schema, see "$models" alias below
-    * __newInstance()__ returns a new model instances based on this schema, see "$models" alias below
-    * __drop__ calls drop on all model instances for this schema and then removes the schema from the list of defined schemas
-
-  * **$model(type, obj)** Creates a model instance (which is a speaker) with set and get methods that emits a "change" event.
-    * __set(key, value)__ adds key:value pair to model and emits a change event containting the changes
-    * __set(object)__ adds the given keys:value pairs to the model and emits a "change" event containting the changes
-    * __set(key)__ sets key to undefined
-    * __get()__ returns the entire model
-    * __get(key)__ returns the value of the given key on the model
-    * __get(array)__ given an array of key strings returns an obect of matching key value pairs from the model
-    * __srop()__ deletes all properties on this model instance, schema no longer references model instance, emits a "drop" event whi
-  * **$models(type)** an alias of $schema(type).getModelInstances();
-  * **$isSchema(obj)** returns true if obj is a product of $define or $schema constructors
-  * **$isModel(obj)** returns true if obj is a product of $model constructor
-  
+  * **$define(type, options)** creates a schema definition (which is a speaker) with given options that will be associated with the given type string.
   ``` javascript
   // define a schema
   $define("person", {
@@ -88,8 +71,28 @@ see underscore.js
       }
     }
   });
+  ```
 
-  // now reference the schema to create a model
+  * **$schema(type)** an alias for define which makes more sense for getter-syntax usage.
+    * __getInstances__ returns an array of all model instances based on this schema, see "$models" alias below
+    * __newInstance()__ returns a new model instances based on this schema, see "$model" alias below
+    * __drop__ calls drop on all model instances for this schema and then removes the schema from the list of defined schemas
+  ``` javascript
+  // to delete a schema
+  $schema("person").drop();
+  ```
+
+  * **$model(type, obj)** Creates a model instance of a previously defined schema with set and get methods that emits a "change" event.
+    * __set(key, value)__ adds key:value pair to model and emits a change event containting the changes
+    * __set(object)__ adds the given keys:value pairs to the model and emits a "change" event containting the changes
+    * __set(key)__ sets key to undefined
+    * __get()__ returns the entire model
+    * __get(key)__ returns the value of the given key on the model
+    * __get(array)__ given an array of key strings returns an obect of matching key value pairs from the model
+    * __srop()__ deletes all properties on this model instance, schema no longer references model instance, emits a "drop" event whi
+  
+  ``` javascript
+  // referencing the person schema we defined above, we create a new intance setting some properties up front.
   var jim = $model("person", {
     first: "Jim",
     last: "Hipster"
@@ -106,17 +109,22 @@ see underscore.js
   
   jim.listen("change", alertAgeChange);
   
-  // we can also listen for changes that happen to any person model
+  // all model instances talk to their schema so we can also listen for changes that happen to any person model by adding a change listener like so...
   $schema("person").listen("change", alertAgeChange);
 
+  // the following will alert twice "Jim's age set to 25", firing first from the model then from the schema
   jim.set({
     first: "Jim",
     last: "Hipster",
     age: 25,
     height: "5'8\""
   });
-  // will alert twice "Jim's age set to 25"
+
   ```
+  * **$models(type)** an alias of $schema(type).getModelInstances();
+  * **$isSchema(obj)** returns true if obj is a product of $define or $schema constructors
+  * **$isModel(obj)** returns true if obj is a product of $model constructor
+
 
 ### DOM
   * **$id** shortcut to document.getElementById
