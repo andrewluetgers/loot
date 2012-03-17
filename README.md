@@ -60,6 +60,7 @@ see underscore.js
 
 ### Models
   * **$define(type, options)** creates a schema definition (which is a speaker) with given options that will be associated with the given type string.
+
   ``` javascript
   // define a schema
   $define("person", {
@@ -77,6 +78,7 @@ see underscore.js
     * __getInstances__ returns an array of all model instances based on this schema, see "$models" alias below
     * __newInstance()__ returns a new model instances based on this schema, see "$model" alias below
     * __drop__ calls drop on all model instances for this schema and then removes the schema from the list of defined schemas
+
   ``` javascript
   // to delete a schema
   $schema("person").drop();
