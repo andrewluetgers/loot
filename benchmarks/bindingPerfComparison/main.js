@@ -21,8 +21,8 @@ var N = 100;
 		tick: function() {
 			var count = this.count += 1;
 			this.set({
-				top: Math.sin(count / 10) * 10,
-				left: Math.cos(count / 10) * 10,
+				top: Math.sin(count / 10) * 20,
+				left: Math.cos(count / 10) * 20,
 				color: (count) % 255,
 				content: count % 100
 			});
@@ -99,8 +99,8 @@ var N = 100;
 		tick: function() {
 			var count = this.get('count') + 1;
 			this.set('count', count);
-			this.set('top', Math.sin(count / 10) * 10);
-			this.set('left', Math.cos(count / 10) * 10);
+			this.set('top', Math.sin(count / 10) * 20);
+			this.set('left', Math.cos(count / 10) * 20);
 			this.set('color', count % 255);
 			this.set('content', count % 100);
 		},
@@ -173,8 +173,8 @@ var N = 100;
 			count += 1;
 			this.set({
 				count:		count,
-				top: 		Math.sin(count / 10) * 10,
-				left: 		Math.cos(count / 10) * 10,
+				top: 		Math.sin(count / 10) * 20,
+				left: 		Math.cos(count / 10) * 20,
 				color: 		count % 255,
 				content: 	count % 100
 			});
@@ -187,7 +187,7 @@ var N = 100;
 	var boxViews,
 		clearViews = function() {
 			$each(boxViews, function(boxView) {
-				boxView.destroy();
+				boxView.drop();
 			});
 		};
 

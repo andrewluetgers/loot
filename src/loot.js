@@ -109,14 +109,16 @@
 	// collections (objects, arrays) -------------------------------------------------------
 	var arrayProto = Array.prototype;
 
+	var _clearKey;
 	function $clear(obj) {
-
 		if ($isArray(obj)) {
-			obj.splice(0, obj.length);
+			obj.length = 0;
 		}
 
-		for (var key in obj) {
-			delete obj[key];
+		for (_clearKey in obj) {
+			if (obj.hasOwnProperty(_clearKey)) {
+				delete obj[_clearKey];
+			}
 		}
 	}
 
@@ -127,7 +129,8 @@
 		// switched breaker to string "break" for better self documentation when used
 		var breaker = "break",
 			nativeForEach = Array.prototype.forEach,
-			hasOwnProperty = Object.prototype.hasOwnProperty;
+			hasOwnProperty = Object.prototype.hasOwnProperty,
+			i, l, key;
 
 		function each(obj, iterator, context) {
 			if (obj == null) return;
@@ -136,11 +139,11 @@
 				obj.forEach(iterator, context);
 
 			} else if ($isNumber(obj.length)) {
-				for (var i = 0, l = obj.length; i < l; i++) {
+				for (i = 0, l = obj.length; i < l; i++) {
 					if (iterator.call(context, obj[i], i, obj) === breaker) return;
 				}
 			} else {
-				for (var key in obj) {
+				for (key in obj) {
 					if (hasOwnProperty.call(obj, key)) {
 						if (iterator.call(context, obj[key], key, obj) === breaker) return;
 					}
@@ -247,10 +250,114 @@
 
 	var splice = Array.prototype.splice;
 	function $splice(obj, start, howMany) {
-		return splice.apply(obj, $flat($slice(arguments, 1)));
+		// slice creates garbage, lets not do that if we don't have to
+		if (arguments.length > 3 || typeof obj === "string") {
+			return splice.apply(obj, $flat($slice(arguments, 1)));
+		} else {
+			return splice.call(obj, start, howMany);
+		}
 	}
 
 
+	// recycling and reuse of objects (object pool / gc mitigation strategy) ---------------------------------------------
+
+	var _recycleBins = {};
+	var _defaultPoolMax = 100;
+	var _recycleBinName;
+	var _recycleBin;
+
+	// reset an object and make it ready to be reused
+	// if none is provided when calling $recyclable
+	// this is the reducer that will be used by default
+	function _reduce(obj) {
+		if (obj) {
+			if (obj.reduce) {
+				return obj.reduce();
+			} else {
+				// $clear will leave the prototype in tact! All inherited properties will shine through.
+				$clear(obj);
+			}
+		}
+		return obj;
+	}
+
+	function $recycle(obj) {
+		obj = obj || this;
+		_recycleBinName = obj.recycleBin;
+		_recycleBin = _recycleBins[_recycleBinName];
+		_recycleBin.push(_recycleBin.reduce(obj));
+	}
+
+	// make an object recyclable/reusable
+	function $recyclable(name, constructor, reducer, maxItems) {
+
+		reducer = reducer || _reduce;
+
+		if (!$isString(name)) {
+			throw new Error("name must be a string");
+		} else if (name in _recycleBins) {
+			throw new Error("name already in use");
+		}
+
+		if (!$isFunction(reducer)) {
+			throw new Error("reducer must be a function");
+		}
+
+		if (!$isFunction(constructor)) {
+			console.log("constructor must be a function", constructor);
+			throw new Error("constructor must be a function");
+		}
+
+		var bin = [];
+		bin.name = name;
+		bin.constructor = constructor;
+		bin.reducer = reducer;
+		bin.maxItems = maxItems || _defaultPoolMax;
+		_recycleBins[name] = bin;
+
+		$reuse[name] = function() {
+			return this(name);
+		};
+
+		return bin;
+	}
+
+	function $recycleBin(name) {
+		if (name && name in _recycleBins) {
+			return _recycleBins[name];
+		} else {
+			return _recycleBins;
+		}
+	}
+
+	// return a recycled object or a new object
+	var _recyclable;
+	function $reuse(name) {
+		if (name in _recycleBins) {
+			// return an object out of the recycleBin or a new one
+			_recycleBin = _recycleBins[name];
+			if (_recycleBin.length) {
+				_recyclable = _recycleBin.pop();
+				_recyclable.renew && _recyclable.renew();
+			} else {
+				_recyclable = _recycleBin.constructor();
+			}
+
+			return _recyclable;
+
+		} else {
+			throw new Error("no such recyclable " + name);
+		}
+	}
+
+	// lets make objects, arrays and speakers recyclable by default
+	// all models will also automatically be made recyclable
+	$recyclable("array", function() {
+		return [];
+	});
+	$recyclable("object", function() {
+		return {};
+	});
 
 	// object -------------------------------------------------------
 	
@@ -370,13 +477,14 @@
 	 * $extend(object, [object, object, object])
 	 * $extend(object, object, [object, object], object)
 	 */
+	var sources, prop;
 	function $extend(target) {
 		if (target) {
 			// accept objects or arrays of objects
-			var sources = [].concat($slice(arguments, 1));
+			sources = [].concat($slice(arguments, 1)); // todo can we do this without creating new objects??
 
 			$each(sources, function(source) {
-				for (var prop in source) {
+				for (prop in source) {
 					target[prop] = source[prop];
 				}
 			});
@@ -652,8 +760,7 @@
 					selectiveHearing = this.selectiveHearing;
 
 				if (!selectiveHearing || ($isFunction(selectiveHearing) && this.selectiveHearing(message, topic, originalSpeaker)) ) {
-
-					topicSpecificListeners = this._listeningFor[topic] || [];
+					topicSpecificListeners = this._listeningFor[topic] || $reuse.array();
 					wildCardListeners = this._listeningFor["*"];
 
 					if (wildCardListeners) {
@@ -683,7 +790,7 @@
 			},
 
 			/** listen
-			 * @param topic (string|regex) will call the given responder if received topic === topic parm
+			 * @param topic (string|regex) will call the given responder if received topic === topic param
 			 * or in the case of a regex topic param if the receivedTopic.match(topicParam)
 			 * @param responder (function) having the signature function(message, topic, originalSpeaker)
 			 * @param maxResponses (number) optional - number of times the responder will be called before being removed
@@ -703,7 +810,7 @@
 
 					if (topicIsString && responderType === "function") {
 						// don't add something twice
-						var topicSpecificListeners = this._listeningFor[topic] || [];
+						var topicSpecificListeners = this._listeningFor[topic] || $reuse.array();
 						$each(topicSpecificListeners, function(listener) {
 							if(listener.responder === responder) {
 								return this;
@@ -755,9 +862,14 @@
 						});
 					}
 				} else {
-					this._listeningFor = [];
+					$clear(this._listeningFor); // remove all elements
 				}
 				return this;
+			},
+
+			ignoreAll: function() {
+				$clear(this._listeningFor);
+				$clear(this._audience);
 			},
 
 			/** talksTo
@@ -785,12 +897,12 @@
 
 			// the following properties are added when the speaker is created
 			// this prevents the risk of them being shared across speakers
-			// _listeners: {},
+			// _listeningFor: {},
 			// _audience: []
 		};
 
 		// lets not copy the larger functions all over
-		aSpeakerFacade = {};
+		var aSpeakerFacade = {};
 		$each(aSpeaker, function(val, key) {
 			aSpeakerFacade[key] = function() {
 				return val.apply(this, $slice(arguments));
@@ -798,8 +910,9 @@
 		});
 
 		// return just the newSpeaker function;
-		function speak(obj, overwrite) {
-			if (obj && !overwrite && obj.hasOwnProperty("_listeningFor") && obj.hasOwnProperty("_audience")) {
+
+		function speak(obj) {
+			if (obj && obj.hasOwnProperty("_listeningFor") && obj.hasOwnProperty("_audience")) {
 				// already a publisher, do noting
 				return obj;
 			}
@@ -807,25 +920,45 @@
 			if (!obj) {
 				// looks like we are starting a new speaker from scratch so
 				// we can create a more memory-friendly prototypal clone of aSpeaker
-				obj = $make(aSpeakerFacade, {_listeningFor: {}, _audience: []});
-
+				obj = $new(aSpeakerFacade);
 			} else {
-				// can't use a prototypal clone so we augment obj via shallow copy instead
-				obj = $extend(obj, aSpeakerFacade, {_listeningFor: {}, _audience: []});
+				// can't use a prototypal clone of aSpeakerFacade so we augment obj via shallow copy instead
+				obj = $extend(obj, aSpeakerFacade);
 			}
+
+			// this is also a possible reuse pattern (to reduce garbage collections)
+			// so lets not create new objects/garbage if we don't have to
+			obj._listeningFor = $reuse.object();
+			obj._audience = $reuse.array();
 
 			return obj;
 		}
 
+		// setup the reduce method for speakers, so they can be recyclable
+		// we compare all keys to those on the base speaker object we defined above "aSpeakerFacade"
+		var _reducer = function(val, key, obj) {
+
+		};
+
+		// speakers are recyclable
+		$recyclable("speaker", speak, function(speaker) {
+			// reducer for speaker
+			for (key in speaker) {
+				if (!(key in aSpeakerFacade)) {
+					delete obj[key];
+				}
+				obj.ignoreAll();
+			}
+		});
+
 		return speak;
 
-	})();
+	}());
 
 
 	function $isSpeaker(obj) {
-		return !!(obj && $isFunction(obj.tell) && $isArray(obj._audience));
+		return (obj && $isFunction(obj.tell) && $isArray(obj._audience));
 	}
-
 
 
 
@@ -833,7 +966,7 @@
 
 	var schemaBank = {};
 
-	var modelApiGet = function(modelVals, _key) {
+	function modelApiGet(modelVals, _key) {
 		var len = arguments.length, val;
 		if (len == 2 && $isString(_key)) {
 			val = modelVals[_key];
@@ -854,7 +987,17 @@
 		} else {
 			return modelVals;
 		}
-	};
+	}
+
+	function modelApiReset(modelVals, defaults) {
+		for (key in modelVals) {
+			if (key in defaults) {
+				modelVals[key] = defaults[key];
+			} else {
+				delete modelVals[key];
+			}
+		}
+	}
 
 	function modelApiSet(modelVals, _key, _val) {
 		var obj = _key,
@@ -947,12 +1090,15 @@
 
 			var schema = $speak({
 				type: type,
+				constructor: function(vals) {
+					return this.newInstance(vals);
+				},
 				drop: function() {
-					instances && this.dropInstances();
-					existingSchema = null;
+					this.dropInstances();
+					instances = existingSchema = null;
 					delete schemaBank[type];
 					$clear(this);
-					$schema.tell("drop", {schema:type});
+					$schema.tell("drop", {schema: type});
 				},
 
 				getInstances: function() {
@@ -979,48 +1125,88 @@
 					var modelVals = $copy(options.defaults);
 					var modelProto = $speak($new(options));
 					var drop = options.drop;
+					var that = this;
+
+					if (drop && !$isFunction(drop)) {
+						throw new Error("drop must be a function");
+					}
+
+					// model instance api
 					var model = $extend(modelProto, {
 						schema: type,
 
 						// the following get and set facade allows us to have a unique closure for modelVals and modelProto
 						// without having copies of the larger modelApiSet and modelApiGet functions on each model instance hopefully saving some memory usage
 						get: function(key) {
-							return modelApiGet.apply(this, $flat(modelVals, $slice(arguments)));
+							if (arguments.length) {
+								return modelApiGet.apply(this, $flat(modelVals, $slice(arguments))); // todo can we do this in a better way
+							} else {
+								return modelVals;
+							}
 						},
 						set: function(key, val) {
 							return modelApiSet.call(this, modelVals, key, val);
 						},
-						drop: function() {
-							drop && $isFunction(drop) && drop && drop();
+						reset: function() {
+							return modelApiReset.call(this, modelVals, options.defaults);
+						},
+						renew: function() {
+							return init();
+						},
+						drop: function(willReuse) {
+							drop && drop();
 							this.tell("drop", this);
 							// remove this instance from the instances array
-							instances && $splice(instances, instances.indexOf(this));
-							$clear(this);
+							instances.splice(instances.indexOf(this), 1);
+							if (!willReuse) {
+								$clear(this);
+							}
 						}
 					});
-
-					// all model events are forwarded to their parent schema
-					model.talksTo(this);
 
 					// copy our initial values to the model
 					if (!$isString(vals)) {
 						$mixin(modelVals, vals);
 					}
 
-					instances && instances.push(model);
-					model.tell("created", this);
+					var init = function() {
+						// all model events are forwarded to their parent schema
+						model.talksTo(this);
 
-					return model;
+						instances.push(model);
+						model.tell("created", this);
+
+						return model;
+					};
+
+					return init();
 				}
 			});
 
-			if (schema.dontManageInstances) {
-				instances = null;
-				schema.dropInstances = null;
-				schema.getInstances = null;
-			}
-
 			schemaBank[type] = schema;
+
+
+			// make models from our new schema recyclable
+			var _modelApi = {schema:1, get:1, set:1, drop:1, renew:1, _audience:1, _listeningFor:1};
+			var key, _currentModelVals, defaults = options.defaults;
+			$recyclable(type+"Model", function() {
+				// constructor for model instance
+				return $model(type);
+
+			}, function(model) {
+				// reducer for model instance
+				model.drop(true);
+				model.ignoreAll();
+				for (key in model) {
+					if (!_modelApi[key]) {
+						delete model[key];
+					}
+				}
+				// reset the values on the model
+				model.reset();
+
+				return model;
+			});
 
 			$schema.tell("defined", {schema:type});
 
@@ -1266,7 +1452,8 @@
 	// dom builder see: http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
 	// modified to support dom node ouput or string output, for server land
 	var $el = (function () {
-		var doc = document;
+		var root = this;
+		var doc = this.document || $doc;
 
 		var directProperties = {
 			'class': 		'className',
@@ -1293,9 +1480,8 @@
 			} else if (booleanProperties[key]) {
 				el[key] = !!value;
 			} else if ( value == null ) {
-				el.removeAttribute( key );
+				el.removeAttribute(key);
 			} else {
-				console.log(key, value);
 				el.setAttribute(key, '' + value);
 			}
 		};
@@ -1365,7 +1551,7 @@
 		create.outputStrings = function(outputStrings) {
 			_outputStrings = outputStrings;
 			if (!outputStrings) {
-				doc = document;
+				doc = root.document || $doc;
 			} else {
 				doc = $doc;
 			}
@@ -1424,6 +1610,7 @@
 		}
 
 		if(!$isElement(node)) {
+			console.log(node);
 			throw new Error("$view: parent must be a DOM node");
 		}
 
@@ -1475,6 +1662,11 @@
 			drop && $isFunction(drop) && drop();
 			this.tell("drop");
 			$clear(this);
+		};
+
+
+		view.update = function() {
+			update({}, "update", this.model);
 		};
 
 		model.listen("change", update);
@@ -1571,6 +1763,12 @@
 		// messaging
 		$speak: $speak,
 		$isSpeaker: $isSpeaker,
+
+		// recycling
+		$recycleBin: $recycleBin,
+		$recyclable: $recyclable,
+		$recycle: $recycle,
+		$reuse: $reuse,
 
 		// models
 		$define: $schema,

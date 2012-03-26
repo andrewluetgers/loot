@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="UTF-8" />
+	<title>QUnit Test Suite</title>
+</head>
+
+<body>
+
+	<h1 id="title">Garbage Test</h1>
+	<p>check console for memory sawtooth</p>
+	<button id="button">Run Test</button>
+
+	<script type="text/javascript" src="../src/loot.js"></script>
+	<script type="text/javascript" src="../src/loot.sauce.js"></script>
+	<script type="text/javascript">
+
+		(function() {
+
+			var runTime = 5 * 1000;
+			var runs = 100000;
+			var done = false;
+			var running = false;
+			var title = document.getElementById("title");
+			var button = document.getElementById("button");
+
+
+
+			// garbage test stuff below here
+			var a = [1];
+			var b = [1,2,3,4,5,6,7,8,9,0];
+			var c;
+
+			var cleanup = function() {
+				j = [];
+			};
+
+			var pushPopTest = function() {
+				// put garbage test here
+				a.push(b);
+				c = a.pop();
+				c = 0;
+			};
+
+			var one = 1;
+			var indexTest = function() {
+				// put garbage test here
+				a[a.length-one] = b;
+				c = a[a.length];
+			};
+
+			j = [];
+			var makeGlobalGarbageTest = function() {
+				j.push([1,2,3,4,5,6,7,8,9,0]);
+			};
+
+			var makeLocalGarbageTest = function() {
+				var a = [1,2,3,4,5,6,7,8,9,0];
+			};
+
+
+			// loot events --------------------------------------
+			var eventsToAdd = 10;
+			var listenersToAdd = 10;
+			var lootObject = $speak({count:0});
+			var callback = function(msg) {
+					// this.count++;
+					// console.log("loot", msg, this.count);
+				};
+
+			var lo = function(i) {
+				lootObject.listen("test"+i, callback);
+			};
+
+			var j = i = 0;
+
+			for(j=0; j<eventsToAdd; j++) {
+				for(i=0; i<listenersToAdd; i++) {
+					lo(i);
+				}
+			}
+
+
+			var runEventsTest = function() {
+				for(j=0; j<eventsToAdd; j++) {
+					for(i=0; i<listenersToAdd; i++) {
+						lootObject.tell("test"+i);
+					}
+				}
+			};
+
+			// end loot events ---------------------------------
+
+			// reusable --------------------------------------
+			var recycledObjects = 100;
+			for(i=0; i<recycledObjects; i++) {
+				$recycle({test:"blah"});
+			}
+
+			var reuseTest = function() {
+				for(i=0; i<recycledObjects; i++) {
+					$reuse(Object);
+				}
+				for(i=0; i<recycledObjects; i++) {
+					$recycle({test:"blah"});
+				}
+			};
+			// reusable --------------------------------------
+
+
+			var garbageTest = reuseTest;
+
+			var runTests = function() {
+				while(runs--) {
+					garbageTest();
+				}
+				setTimeout(rerun, one);
+			};
+
+			var rerun = function() {
+				if (!done) {
+					runs = 100000;
+					runTests();
+				}
+			};
+	
+			button.onclick = function() {
+				if(running)  {
+					cleanup();
+					console.log("test already running");
+					return false;
+				}
+				console.log("test started");
+
+				done = false;
+				running = true;
+
+				setTimeout(function() {
+					console.log("test finished");
+					running = false;
+					done = true;
+					runs = 0;
+					cleanup();
+				}, runTime);
+
+				runTests();
+			};
+		}());
+
+
+	</script>
+</body>
+</html>

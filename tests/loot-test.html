@@ -670,10 +670,29 @@
 
 		test("$view", function() {
 
-			var testView = $view({
+			var parentNode = $el("div#parentNode");
 
-				
+			console.log(parentNode);
+			document.body.appendChild(parentNode);
+
+			var data = {
+				test: 1,
+				foo: "bar",
+				allYourBase: "are belong to us"
+			};
+
+			$define("testSchema2");
+
+			// start with blank model
+			var m = $model("testSchema2", data);
+
+			var testView = $view(parentNode, m, function(msg, type, originalSpeaker) {
+				console.log(arguments);
+				return this;
 			});
+//
+			testView.update();
+
 
 		});
 
