@@ -6,29 +6,29 @@ This is an experimental bag of tricks that is starting to look like a microframe
 Thought I'd see how the event system performs compared to acouple other libs and it turnd out to do quite well. After a little bit more tuning I'm pretty impressed by how many events you can push through the system. It varies alot depending on the browser and the test, in the worst case its better than 3x faster and in the best case its nearly 50x faster than Ember and Backbone. Stats by jsperf in Chrome 17.
 
 ```
-#### 1 event, 1 handler
+1 event, 1 handler
 * backbone events x 352,182 ops/sec ±0.85% (63 runs sampled)
 * ember events x 521,941 ops/sec ±0.60% (60 runs sampled)
 * loot events x 14,107,474 ops/sec ±0.52% (62 runs sampled)
-Fastest is loot events
+  Fastest is loot events
 
-#### many events, 1 handler
+many events, 1 handler
 * backbone events x 31,036 ops/sec ±0.63% (61 runs sampled)
 * ember events x 43,117 ops/sec ±0.66% (62 runs sampled)
 * loot events x 439,382 ops/sec ±0.64% (64 runs sampled)
-Fastest is loot events
+  Fastest is loot events
 
-#### 1 event, many handlers
+1 event, many handlers
 * backbone events x 29,048 ops/sec ±0.82% (63 runs sampled)
 * ember events x 13,788 ops/sec ±0.65% (63 runs sampled)
 * loot events x 275,297 ops/sec ±0.62% (57 runs sampled)
-Fastest is loot events
+  Fastest is loot events
 
-#### many events, many handlers
+many events, many handlers
 * backbone events x 2,743 ops/sec ±1.11% (15 runs sampled)
 * ember events x 1,079 ops/sec ±0.53% (61 runs sampled)
 * loot events x 20,948 ops/sec ±0.50% (63 runs sampled)
-Fastest is loot events
+  Fastest is loot events
 ```
 
 ## Use it
