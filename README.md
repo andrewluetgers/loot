@@ -82,6 +82,50 @@ see underscore.js
     * __ignore(ignoreable)__ stop listening with (unsubscribe) the ignorable listener. If ignorable is expressed as a type string all listeners of that type will be removed. If a funciton is passed all listeners using that funciton will be removed.
     * __talksTo(speaker)__ messages spoken by or told to this speaker will then be relayed to the provided speaker as well
     * __listensTo(speaker)__ messages told to the provided speaker will be relayed to this speaker as well
+
+  ``` javascript
+  // create new speaker
+  var mySpeaker = $speak();
+  mySpeaker.name = "Moulder";
+
+  // subscribe to an event and alert the message
+  mySpeaker.listen("someEvent", function(msg) {
+    alert(msg);
+  });
+
+  // now tell the event
+  mySpeaker.tell("someEvent", "I want to believe.");
+
+  // alerts "I want to believe."
+  ```
+
+  ``` javascript
+  var someObject = {
+    name: "Scully"
+  }
+
+  // add pub sub functionality to an existing object
+  $speak(someObject);
+
+  // lets forward all messages from mySpeaker to someObject
+  // there are two ways to do this, the folloing two calls are equivalent
+  mySpeaker.talksTo(someObject);
+  // or
+  someObject.listensTo(mySpeaker);
+
+
+  // lets use a catch-all to fire our handler on all events
+  someObject.listen("*", function(msg, type, originalSpeaker) {
+    // the reciever of the function is bound to this
+    alert(originalSpeaker.name + ' said: "' + msg + '" to ' + this.name + ' in a ' + type);
+  });
+
+  mySpeaker("random comment", "The truth is out there!");
+
+  // alerts 'Moulder said: "The truth is out there!" to Scully in a random comment'
+  ```
+
+
   * **$isSpeaker(obj)** returns true if the provided object is a pub/sub speaker
 
 ### Models
