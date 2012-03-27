@@ -780,7 +780,7 @@
 						// fire the responder within the currently bound scope
 						listener.responder.call(this, message, topic, originalSpeaker);
 					}
-					
+
 					// tell the audience
 					for(i=0, len=audience.length; i<len; i++) {
 						audience[i].tell(topic, message, originalSpeaker);
@@ -901,15 +901,6 @@
 			// _audience: []
 		};
 
-		// lets not copy the larger functions all over
-		var aSpeakerFacade = {};
-		$each(aSpeaker, function(val, key) {
-			aSpeakerFacade[key] = function() {
-				return val.apply(this, $slice(arguments));
-			}
-		});
-
-		// return just the newSpeaker function;
 
 		function speak(obj) {
 			if (obj && obj.hasOwnProperty("_listeningFor") && obj.hasOwnProperty("_audience")) {
@@ -920,10 +911,10 @@
 			if (!obj) {
 				// looks like we are starting a new speaker from scratch so
 				// we can create a more memory-friendly prototypal clone of aSpeaker
-				obj = $new(aSpeakerFacade);
+				obj = $new(aSpeaker);
 			} else {
 				// can't use a prototypal clone of aSpeakerFacade so we augment obj via shallow copy instead
-				obj = $extend(obj, aSpeakerFacade);
+				obj = $extend(obj, aSpeaker);
 			}
 
 			// this is also a possible reuse pattern (to reduce garbage collections)
@@ -944,7 +935,7 @@
 		$recyclable("speaker", speak, function(speaker) {
 			// reducer for speaker
 			for (key in speaker) {
-				if (!(key in aSpeakerFacade)) {
+				if (!(key in aSpeaker)) {
 					delete obj[key];
 				}
 				obj.ignoreAll();
@@ -1188,7 +1179,7 @@
 
 			// make models from our new schema recyclable
 			var _modelApi = {schema:1, get:1, set:1, drop:1, renew:1, _audience:1, _listeningFor:1};
-			var key, _currentModelVals, defaults = options.defaults;
+			var key;
 			$recyclable(type+"Model", function() {
 				// constructor for model instance
 				return $model(type);
