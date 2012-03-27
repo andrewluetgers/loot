@@ -120,7 +120,7 @@ see underscore.js
     alert(originalSpeaker.name + ' said: "' + msg + '" to ' + this.name + ' in a ' + type);
   });
 
-  mySpeaker("random comment", "The truth is out there!");
+  mySpeaker.tell("random comment", "The truth is out there!");
 
   // alerts 'Moulder said: "The truth is out there!" to Scully in a random comment'
   ```
