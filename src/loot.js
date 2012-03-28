@@ -19,8 +19,9 @@
 	}
 
 	if(!String.prototype.trim) {
+		var trimRe = /^\s+|\s+$/g;
 		String.prototype.trim = function () {
-			return this.replace(/^\s+|\s+$/g,'');
+			return this.replace(trimRe,'');
 		};
 	}
 
