@@ -66,29 +66,29 @@ see underscore.js
   * **$series** a multi-signature async swiss army knife, iteration happens in series, completing in given order.
     * **$series(func1, func2, ...)** each argument is a function(push, index, results), each function is called in sequence one after the other as push functions are called, alternately if "results" is not used "push" can be called "next" omitting the second argument when calling it.
 
-    ``` javascript
-    // call each function one after the other
-    $series(
-      // this fires first
-      function(next) {
-        // someAsyncFunction accepts a callback that it fires when complete
-        someAsyncFunction(function() {
-          next();
-        });
-      },
-      // this fires once the above function calls next
-      function(next) {
-        // someOtherAsyncFunction accepts a callback that it fires when complete
-        someOtherAsyncFunction(function() {
-          next();
-        });
-      },
-      // this fires once the above function calls next
-      function(next) {
-        someOtherFunction();
-      },
-    );
-    ```
+      ``` javascript
+      // call each function one after the other
+      $series(
+        // this fires first
+        function(next) {
+          // someAsyncFunction accepts a callback that it fires when complete
+          someAsyncFunction(function() {
+            next();
+          });
+        },
+        // this fires once the above function calls next
+        function(next) {
+          // someOtherAsyncFunction accepts a callback that it fires when complete
+          someOtherAsyncFunction(function() {
+            next();
+          });
+        },
+        // this fires once the above function calls next
+        function(next) {
+          someOtherFunction();
+        },
+      );
+      ```
 
     * **$series(tasks, callback)** an alias for $async.tasksSeries
 
