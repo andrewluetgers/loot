@@ -32,6 +32,7 @@ see underscore.js
 
 ### Object Pools
   Why use this? It is an experimental performance enhancement, ideally an object pool will limit the total ammount of work performed, memory used and garbage produced. Tests and benchmarks yet to be written, memory use and GC analysis yet to be performed.
+
   * **$recyclable(name, constructor, reducer, maxItems)** create an object pool, Arguments: name = string identifier for the pool, constructor = function that returns a new instance of the object (NOT called with new), reducer = function(obj) returns the object instance back to a reusable state. This is optional as there is a defalut which will call a reduce method on the object and if that does not exist will clear the object viea $clear, maxItems = number, defaults to 100, limits the maximum number of items that can be managed by the pool.
   * **$reuse(name)** creates a new object instance by calling the pool's construcor method or if one is available pulls an item from the pool and calls a "renew" method on the object if one exists.
   * **$recycle(obj)** calls the pool's reducer method passing in the provided object, all references to this object should be broken at this point. Arguments: obj = an object that was returned by the $reuse function.
@@ -51,6 +52,7 @@ see underscore.js
 
 ### Async
   Most of this code is derived from the excellent async.js, changes include different signatures with more information being passed around and support for objects in addition to arrays, (crazy right?) the multi-signature $parallel and $series functions are versitile enough that they are all you need to use.
+
   * **$parallel** a multi-signature async swiss army knife, iteration happens in parallel, completing in unknown order.
     * **$parallel(func1, func2, ...)** this is a a fairly useless case for parallel, much more useflu in $sequence, each argument is a function(push, index, results), each function is called in order, each finishes in unknown order.
     * **$parallel(tasks, callback)** an alias for $async.tasks
@@ -69,6 +71,7 @@ see underscore.js
 
 ### Pub/Sub
   This dude is optimized to perform insanely well, compared to other frameworks with a noop it can be upto 50x faster! That said, add in some work and most cross-frameowrk event system performance differences quickly diminsh to the point of being almost meaningless. Oh well.
+
   * **$speak(obj)** Creates a new speaker (pub/sub). Optionally provide an object to turn into a speaker.
     * __tell(topic, message, speaker)__ tell (publish) a message to listeners (and self), topic must be an exact string.
     * __listen(topic, responder, maxResponses)__ listnen (subscribe) to a specific message, topic = string (can be a catchall "*") messages with matching topics that get told to this speaker will fire the responder function. If max responses is provided responder will remove itselfe after that number of executions. Responder signature: function(message, topic, originalSpeaker)
