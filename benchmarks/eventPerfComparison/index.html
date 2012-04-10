@@ -23,6 +23,26 @@
 
 	<script type="text/javascript">
 
+		var howMuch = 10;
+
+		// lets call some functions and make some garbage
+		var doWork = function() {
+			var time = 0;
+			var start = $now();
+			var last;
+			var i = howMuch;
+			var dumbString = "";
+
+			while(i--) {
+				$each($slice("abcdefghijklmnopqrstuvwzyz"), function(val) {
+					dumbString += val;
+				});
+				dumbString = "";
+				time = start - $now();
+			}
+			return time;
+		};
+
 
 		// 1 events 1 handler -------------------------------------------------------------------------------
 		var suite1 = function() {
@@ -31,8 +51,7 @@
 			var backboneObject = _.extend({count:0}, Backbone.Events);
 
 			backboneObject.on("test", function(msg) {
-//				this.count++;
-	//			console.log("backbone", msg, this.count);
+				doWork();
 			});
 
 
@@ -42,8 +61,7 @@
 			var count = 0;
 
 			Ember.addListener(emberObject, "test", function(object, event, msg) {
-//				count++;
-	//			console.log("ember", msg, count);
+				doWork();
 			});
 
 
@@ -51,8 +69,7 @@
 			var lootObject = $speak({count:0});
 
 			lootObject.listen("test", function(msg) {
-//				this.count++;
-	//			console.log("loot", msg, this.count);
+				doWork();
 			});
 
 
@@ -100,8 +117,7 @@
 
 			var bb = function(i) {
 				backboneObject.on("test"+i, function(msg) {
-//					this.count++;
-		//			console.log("backbone", msg, this.count);
+					doWork();
 				});
 			};
 
@@ -118,8 +134,7 @@
 
 			var em = function(i) {
 				Ember.addListener(emberObject, "test"+i, function(object, event, msg) {
-//					count++;
-		//			console.log("ember", msg, count);
+					doWork();
 				});
 			};
 
@@ -134,8 +149,7 @@
 
 			var lo = function(i) {
 				lootObject.listen("test"+i, function(msg) {
-//					this.count++;
-		//			console.log("loot", msg, this.count);
+					doWork();
 				});
 			};
 
@@ -194,8 +208,7 @@
 
 			var bb = function(i) {
 				backboneObject.on("test", function(msg) {
-//					this.count++;
-		//			console.log("backbone", msg, this.count);
+					doWork();
 				});
 			};
 
@@ -212,8 +225,7 @@
 
 			var em = function(i) {
 				Ember.addListener(emberObject, "test", function(object, event, msg) {
-//					count++;
-		//			console.log("ember", msg, count);
+					doWork();
 				});
 			};
 
@@ -228,8 +240,7 @@
 
 			var lo = function(i) {
 				lootObject.listen("test", function(msg) {
-//					this.count++;
-		//			console.log("loot", msg, this.count);
+					doWork();
 				});
 			};
 
@@ -286,8 +297,7 @@
 
 			var bb = function(i) {
 				backboneObject.on("test"+i, function(msg) {
-//					this.count++;
-		//			console.log("backbone", msg, this.count);
+					doWork();
 				});
 			};
 
@@ -306,8 +316,7 @@
 
 			var em = function(i) {
 				Ember.addListener(emberObject, "test"+i, function(object, event, msg) {
-//					count++;
-		//			console.log("ember", msg, count);
+					doWork();
 				});
 			};
 
@@ -324,8 +333,7 @@
 
 			var lo = function(i) {
 				lootObject.listen("test"+i, function(msg) {
-//					this.count++;
-		//			console.log("loot", msg, this.count);
+					doWork();
 				});
 			};
 

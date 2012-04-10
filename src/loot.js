@@ -70,7 +70,7 @@
 	// Delegates to ECMA5's native Array.isArray
 	var $isArray = Array.isArray || function $isAry(obj) {
 		return toString.call(obj) === '[object Array]';
-	}
+	};
 
 	// Is a given value a function?
 	function $isFunction(obj) {
@@ -78,9 +78,9 @@
 	}
 
 	// Is a given value a string?
-	var $isString = function(obj) {
+	function $isString(obj) {
 		return (obj === '' || (obj && obj.charCodeAt && obj.substr));
-	};
+	}
 
 	// Is a given value a number?
 	function $isNumber(obj) {
@@ -159,6 +159,14 @@
 		return each;
 
 	}());
+
+	var $keys = function(obj) {
+		var keys = [];
+		$each(obj, function(val, key) {
+			keys.push(key);
+		});
+		return keys;
+	};
 	
 
 	var nativeMap = arrayProto.map;
@@ -167,9 +175,9 @@
 	// Delegates to **ECMAScript 5**'s native "map" if available.
 	function $map(obj, iterator, context) {
 
-		var results = [];
+		var results = $isArray(obj) ? [] : {};
 
-		if (obj == null) {
+		if (!obj) {
 			return results;
 		}
 
@@ -178,12 +186,9 @@
 		}
 
 		$each(obj, function(value, index, list) {
-			results[results.length] = iterator.call(context, value, index, list);
+			results[index] = iterator.call(context, value, index, list);
 		});
 
-		if (obj.length === +obj.length) {
-			results.length = obj.length;
-		}
 		return results;
 	}
 
@@ -199,7 +204,7 @@
 			return obj.some(iterator, context);
 		}
 
-		each(obj, function(value, index, list) {
+		$each(obj, function(value, index, list) {
 			// note: intentional assignment in the if
 			if (result = iterator.call(context, value, index, list)) {
 				return "break";
@@ -207,6 +212,11 @@
 		});
 
 		return !!result;
+	}
+
+	function $all(obj, iterator, context) {
+		var results = $find(obj, iterator, context);
+		return $length(obj) === results.length;
 	}
 
 	// Return all the elements for which a truth test passes.
@@ -230,7 +240,7 @@
 	}
 
 	function $length(item) {
-		var len = item.length;
+		var len = item && item.length;
 		if (!$isNumber(len)) {
 			len = 0;
 			$each(item, function(){len++});
@@ -260,8 +270,235 @@
 	}
 
 
-	// recycling and reuse of objects (object pool / gc mitigation strategy) ---------------------------------------------
+	// async functions taken from https://github.com/caolan/async with some modifications
+	// each and series support iterating over objects as well as arrays
 
+	var _async = {
+		each: function(obj, iterator, callback) {
+			var len = $length(obj), i = 0;
+			callback = callback || function() {};
+
+			if (!len) {
+				return callback();
+			}
+			
+			$each(obj, function(val, key, obj) {
+				iterator(function(err) {
+					if (err) {
+						callback && callback(err, obj);
+						callback = null;
+					} else {
+						if (++i === len) {
+							callback && callback(null, obj);
+						}
+					}
+				}, val, key, obj);
+			});
+		},
+
+		eachSeries: function(obj, iterator, callback) {
+			var next, keys = $keys(obj),
+				i = 0, len = keys.length,
+				key;
+
+			callback = callback || function() {};
+
+			next = function() {
+				key = keys[i];
+				iterator(function(err) {
+					if (err) {
+						callback && callback(err, obj);
+						callback = null;
+					} else {
+						if (++i === len) {
+							callback && callback(null, obj);
+						} else {
+							next();
+						}
+					}
+				}, obj[key], key, obj);
+			};
+
+			next();
+		},
+
+		// nextTick implementation with browser-compatible fallback
+		nextTick: (function() {
+			if (typeof process === 'undefined' || !(process.nextTick)) {
+				return function(fn) { setTimeout(fn, 0); };
+			} else {
+				return process.nextTick;
+			}
+		}()),
+
+		iterator: function(tasks) {
+			var makeCallback = function(index) {
+				var fn = function() {
+					if (tasks.length) {
+						tasks[index].apply(null, arguments);
+					}
+					return fn.next();
+				};
+				fn.next = function() {
+					return (index < tasks.length - 1) ? makeCallback(index + 1): null;
+				};
+				return fn;
+			};
+
+			return makeCallback(0);
+		},
+
+		// to be ued for async.limit and async.limitSeries
+		queue: function(worker, concurrency) {
+			var workers = 0;
+			var q = {
+				tasks: [],
+				concurrency: concurrency,
+				saturated: null,
+				empty: null,
+				drain: null,
+				push: function(data, callback) {
+					if(data.constructor !== Array) {
+						data = [data];
+					}
+					_forEach(data, function(task) {
+						q.tasks.push({
+							data: task,
+							callback: typeof callback === 'function' ? callback : null
+						});
+						if (q.saturated && q.tasks.length == concurrency) {
+							q.saturated();
+						}
+						_async.nextTick(q.process);
+					});
+				},
+				process: function() {
+					if (workers < q.concurrency && q.tasks.length) {
+						var task = q.tasks.shift();
+						if(q.empty && q.tasks.length == 0) q.empty();
+						workers += 1;
+						worker(task.data, function () {
+							workers -= 1;
+							if (task.callback) {
+								task.callback.apply(task, arguments);
+							}
+							if(q.drain && q.tasks.length + workers == 0) q.drain();
+							q.process();
+						});
+					}
+				},
+				length: function() {
+					return q.tasks.length;
+				},
+				running: function() {
+					return workers;
+				}
+			};
+			
+			return q;
+		}
+	};
+
+	var _doParallel = function(fn) {
+		return function() {
+			var args = $slice(arguments);
+			return fn.apply(null, [_async.each].concat(args));
+		};
+	};
+	var _doSeries = function(fn) {
+		return function() {
+			var args = $slice(arguments);
+			return fn.apply(null, [_async.eachSeries].concat(args));
+		};
+	};
+
+	var _asyncMap = function(eachfn, obj, iterator, callback) {
+		callback = callback || function() {};
+		var results = [];
+		eachfn(obj, function(next, val, key, obj) {
+			iterator(function(err, _val) {
+				results[key] = _val;
+				next(err);
+			}, val, key, results, obj);
+		}, function(err) {
+			callback(err, results, obj);
+		});
+	};
+
+	_async.map = _doParallel(_asyncMap);
+	_async.mapSeries = _doSeries(_asyncMap);
+
+	_async.tasks = function(tasks, callback) {
+		var iterator = function (push, task, key, result, obj) {
+			if (task && $isFunction(task)) {
+				task(push, key, result);
+			} else {
+				throw new Error("expected a function but saw " + typeof task);
+			}
+		};
+
+		_async.map(tasks, iterator, callback);
+	};
+
+
+	_async.tasksSeries = function(tasks, callback) {
+		var iterator = function (push, task, key, result, obj) {
+			if (task && $isFunction(task)) {
+				task(push, key, result);
+			} else {
+				throw new Error("expected a function but saw " + typeof task);
+			}
+		};
+
+		_async.mapSeries(tasks, iterator, callback);
+	};
+
+
+	// $parallel(func1, func2, func3)
+	// $parallel([func1, func2, func3], callback)
+	// $parallel(objectOrArray, iterator, callback)
+	var $parallel = function(tasks, callback) {
+		// first signature: a set of async functions to call, is converted to second signature format, no final callback is used
+		if ($isFunction(tasks)) {
+			tasks = $slice(arguments);
+			callback = function(){};
+		}
+
+		// second signature: array of functions and final callback
+		if ($isArray(tasks) && $isFunction(tasks[0])) {
+			_async.tasks(tasks, callback);
+
+		// third signature: async for each
+		} else {
+			var iterator = callback;
+			_async.map(tasks, iterator, arguments[2]);
+		}
+	};
+
+	// $series(func1, func2, func3)
+	// $series([func1, func2, func3], callback)
+	// $series(objectOrArray, iterator, callback)
+	var $series = function(tasks, callback) {
+		// first signature: a set of async functions to call, is converted to second signature format, no final callback is used
+		if ($isFunction(tasks)) {
+			tasks = $slice(arguments);
+			callback = function(){};
+		}
+
+		// second signature: array of functions and final callback
+		if ($isArray(tasks) && $isFunction(tasks[0])) {
+			_async.tasksSeries(tasks, callback);
+
+		// third signature: async for each
+		} else {
+			var iterator = callback;
+			_async.mapSeries(tasks, iterator, arguments[2]);
+		}
+	};
+
+
+
+	// recycling and reuse of objects (object pool / gc mitigation strategy) ---------------------------------------------
 	var _recycleBins = {};
 	var _defaultPoolMax = 100;
 	var _recycleBinName;
@@ -305,7 +542,6 @@
 		}
 
 		if (!$isFunction(constructor)) {
-			console.log("constructor must be a function", constructor);
 			throw new Error("constructor must be a function");
 		}
 
@@ -353,12 +589,12 @@
 
 	// lets make objects, arrays and speakers recyclable by default
 	// all models will also automatically be made recyclable
-	$recyclable("array", function() {
-		return [];
-	});
-	$recyclable("object", function() {
-		return {};
-	});
+//	$recyclable("array", function() {
+//		return [];
+//	});
+//	$recyclable("object", function() {
+//		return {};
+//	});
 
 	// object -------------------------------------------------------
 	
@@ -761,7 +997,7 @@
 					selectiveHearing = this.selectiveHearing;
 
 				if (!selectiveHearing || ($isFunction(selectiveHearing) && this.selectiveHearing(message, topic, originalSpeaker)) ) {
-					topicSpecificListeners = this._listeningFor[topic] || $reuse.array();
+					topicSpecificListeners = this._listeningFor[topic] || []; //$reuse.array();
 					wildCardListeners = this._listeningFor["*"];
 
 					if (wildCardListeners) {
@@ -811,7 +1047,7 @@
 
 					if (topicIsString && responderType === "function") {
 						// don't add something twice
-						var topicSpecificListeners = this._listeningFor[topic] || $reuse.array();
+						var topicSpecificListeners = this._listeningFor[topic] || []; //$reuse.array();
 						$each(topicSpecificListeners, function(listener) {
 							if(listener.responder === responder) {
 								return this;
@@ -920,8 +1156,8 @@
 
 			// this is also a possible reuse pattern (to reduce garbage collections)
 			// so lets not create new objects/garbage if we don't have to
-			obj._listeningFor = $reuse.object();
-			obj._audience = $reuse.array();
+			obj._listeningFor = {}; //$reuse.object();
+			obj._audience = []; //$reuse.array();
 
 			return obj;
 		}
@@ -933,15 +1169,15 @@
 		};
 
 		// speakers are recyclable
-		$recyclable("speaker", speak, function(speaker) {
-			// reducer for speaker
-			for (key in speaker) {
-				if (!(key in aSpeaker)) {
-					delete obj[key];
-				}
-				obj.ignoreAll();
-			}
-		});
+//		$recyclable("speaker", speak, function(speaker) {
+//			// reducer for speaker
+//			for (key in speaker) {
+//				if (!(key in aSpeaker)) {
+//					delete obj[key];
+//				}
+//				obj.ignoreAll();
+//			}
+//		});
 
 		return speak;
 
@@ -1179,26 +1415,26 @@
 
 
 			// make models from our new schema recyclable
-			var _modelApi = {schema:1, get:1, set:1, drop:1, renew:1, _audience:1, _listeningFor:1};
-			var key;
-			$recyclable(type+"Model", function() {
-				// constructor for model instance
-				return $model(type);
-
-			}, function(model) {
-				// reducer for model instance
-				model.drop(true);
-				model.ignoreAll();
-				for (key in model) {
-					if (!_modelApi[key]) {
-						delete model[key];
-					}
-				}
-				// reset the values on the model
-				model.reset();
-
-				return model;
-			});
+//			var _modelApi = {schema:1, get:1, set:1, drop:1, renew:1, _audience:1, _listeningFor:1};
+//			var key;
+//			$recyclable(type+"Model", function() {
+//				// constructor for model instance
+//				return $model(type);
+//
+//			}, function(model) {
+//				// reducer for model instance
+//				model.drop(true);
+//				model.ignoreAll();
+//				for (key in model) {
+//					if (!_modelApi[key]) {
+//						delete model[key];
+//					}
+//				}
+//				// reset the values on the model
+//				model.reset();
+//
+//				return model;
+//			});
 
 			$schema.tell("defined", {schema:type});
 
@@ -1602,7 +1838,6 @@
 		}
 
 		if(!$isElement(node)) {
-			console.log(node);
 			throw new Error("$view: parent must be a DOM node");
 		}
 
@@ -1731,6 +1966,7 @@
 		// collections
 		$clear: $clear,
 		$each: $each,
+		$keys: $keys,
 		$map: $map,
 		$any: $any,
 		$find: $find,
@@ -1739,6 +1975,11 @@
 		$flat: $flat,
 		$slice: $slice,
 		$splice: $splice,
+
+		// async
+		$async: _async,
+		$parallel: $parallel,
+		$series: $series,
 
 		// objects
 		$new: $new,

@@ -22,6 +22,21 @@ see underscore.js
   * **$isBoolean**
   * **$isRegExp**
 
+### Objects
+  * **$new(prototype)** optionally provide a prototype object for a new object instance. If an "init" function or an array of init functions exist it/they will be called.
+  * **$copy(source, filter)** returns a deep copy of source. Optional filter(key, source, target) is called for every property traversed, if it returns true the property is copied over, if it returns false the property is ignored.
+  * **$merge(target, source, filter)** returns a deep copy of source applied to target. Optional filter(key, source, target) is called for every property, if it returns true the property is copied over, if it returns false the property is ignored.
+  * **$extend(obj)** obj will gain shallow copies of *all* properties of all other provided objects. This allows for building objects that share properties through composition vs prototype. This can save on memory and provide information sharing.
+  * **$mixin(obj)** obj will gain deep copies of 'owned' properties of all other provided objects. The 'hasOwnProperty' test is applied to all properties during the deep copy.
+  * **$make(prototype, extender, mixin)** All args are optional, extender and mixin may each be single objects or arrays of objects. $make calls $new on the prototype then extends it with extender and mixes in the mixin. "init" functions can exist as properties on any or all of the provided objects and will get called at the end with the new object as the "this". If any of the arguments is a speaker then the new object will also be a speaker. Also see tests and source for advanced message sharing capabilities.
+
+### Object Pools
+  Why use this? It is an experimental performance enhancement, ideally an object pool will limit the total ammount of work performed, memory used and garbage produced. Tests and benchmarks yet to be written, memory use and GC analysis yet to be performed.
+  * **$recyclable(name, constructor, reducer, maxItems)** create an object pool, Arguments: name = string identifier for the pool, constructor = function that returns a new instance of the object (NOT called with new), reducer = function(obj) returns the object instance back to a reusable state. This is optional as there is a defalut which will call a reduce method on the object and if that does not exist will clear the object viea $clear, maxItems = number, defaults to 100, limits the maximum number of items that can be managed by the pool.
+  * **$reuse(name)** creates a new object instance by calling the pool's construcor method or if one is available pulls an item from the pool and calls a "renew" method on the object if one exists.
+  * **$recycle(obj)** calls the pool's reducer method passing in the provided object, all references to this object should be broken at this point. Arguments: obj = an object that was returned by the $reuse function.
+  * **$recycleBin(name)** returns an object pool by name or all pools if no name is provided.
+
 ### Collections (objects, arrays)
   * **$clear(obj)** deletes all properties also removes all items if obj is an array, if you want to be anal about deleting things here you go
   * **$each** see underscore.js
@@ -34,22 +49,29 @@ see underscore.js
   * **$slice(obj, start, end)** apply slice to a string, array or arguments object with optional start and end indexes
   * **$splice(obj, start, howMany, items)** apply splice to a string, array or arguments object, accepts multiple arguments or an array for "items" arg
 
-### Objects
-  * **$new(prototype)** optionally provide a prototype object for a new object instance. If an "init" function or an array of init functions exist it/they will be called.
-  * **$copy(source, filter)** returns a deep copy of source. Optional filter(key, source, target) is called for every property traversed, if it returns true the property is copied over, if it returns false the property is ignored.
-  * **$merge(target, source, filter)** returns a deep copy of source applied to target. Optional filter(key, source, target) is called for every property, if it returns true the property is copied over, if it returns false the property is ignored.
-  * **$extend(obj)** obj will gain shallow copies of *all* properties of all other provided objects. This allows for building objects that share properties through composition vs prototype. This can save on memory and provide information sharing.
-  * **$mixin(obj)** obj will gain deep copies of 'owned' properties of all other provided objects. The 'hasOwnProperty' test is applied to all properties during the deep copy.
-  * **$make(prototype, extender, mixin)** All args are optional, extender and mixin may each be single objects or arrays of objects. $make calls $new on the prototype then extends it with extender and mixes in the mixin. "init" functions can exist as properties on any or all of the provided objects and will get called at the end with the new object as the "this". If any of the arguments is a speaker then the new object will also be a speaker. Also see tests and source for advanced message sharing capabilities.
+### Async
+  Most of this code is derived from the excellent async.js, changes include different signatures with more information being passed around and support for objects in addition to arrays, (crazy right?) the multi-signature $parallel and $series functions are versitile enough that they are all you need to use.
+  * **$parallel** a multi-signature async swiss army knife, iteration happens in parallel, completing in unknown order.
+    * **$parallel(func1, func2, ...)** this is a a fairly useless case for parallel, much more useflu in $sequence, each argument is a function(push, index, results), each function is called in order, each finishes in unknown order.
+    * **$parallel(tasks, callback)** an alias for $async.tasks
+    * **$parallel(collection, iterator, callback)** an alias for $async.each
+  * **$series** a multi-signature async swiss army knife, iteration happens in series, completing in given order.
+    * **$series(func1, func2, ...)** each argument is a function(push, index, results), each function is called in sequence one after the other as push functions are called, alternately if "results" is not used "push" can be called "next" omitting the second argument when calling it.
+    * **$series(tasks, callback)** an alias for $async.tasksSeries
+    * **$series(collection, iterator, callback)** an alias for $async.eachSeries
+  * **$async.each(collection, iterator, callback)** iteration happens as soon as possible (in parallel), completing in unknown order, fires the callback once all the done functions have been called. The first argument provided to the iterator function is a done function which accepts an error (anything that is non-falsey) which will cause iteration to halt and the callback to be fired with the error. Arguments: collection = array or object, iterator = function(done, val, key, collection), callback = function(err, collection)
+  * **$async.eachSeries(collection, iterator, callback)** same as $async.each but iteration happens one after the other (in series), completing in given order.  Arguments: same as $async.each
+  * **$async.map(collection, iterator, callback)** simmilar to $async.each, iteration happens in parallel, completing in unknown order, instead of a done function the iterator is provided a push function where the second argument gets pushed into a results array. Results are available to both iterator and callback functions. Arguments: collection = array or object, iterator = function(push, val, key, results, collection), callback = function(err, results, collection)
+  * **$async.mapSeries(collection, iterator, callback)** same as $async.map but iteration happens in series, completing in given order;
+  * **$async.tasks(tasks, callback)** woks like a map function calling each function in the tasks array/object, the first argument to each function must be called when the function is complete and can be used to pass along an error or push a value into results. Arguments: tasks = array of functions with the signature function(push, key, results), callback = function(err, results, tasks)
+  * **$async.tasksSeries(tasks, callback)** same as $async.parallelTasks but tasks are executed in series, one after the other. Alternately if results is not used push can be called "next" omitting the second argument when calling it.
 
-### Date
-  * **$now** shortcut for new Date().getTime()
-  * **$timeAgo(date, compareTo)** Human friendly time delta. Supports strings and numbers that can be passed to new Date() including some that can't (see source), optional compareTo value defaults to now
 
 ### Pub/Sub
+  This dude is optimized to perform insanely well, compared to other frameworks with a noop it can be upto 50x faster! That said, add in some work and most cross-frameowrk event system performance differences quickly diminsh to the point of being almost meaningless. Oh well.
   * **$speak(obj)** Creates a new speaker (pub/sub). Optionally provide an object to turn into a speaker.
-    * __tell(topic, message, speaker)__ tell (publish) a message to listeners (and self). Topic can be an exact string, a begins with matching string or a regex used for matching.
-    * __listen(topic, responder, maxResponses)__ listnen (subscribe) to a specific message type (expressed as a stirng) told to this speaker and fire the responder function for it. If max responses is provided responder will remove itselfe after that number of executions. Responder signature: function(message, topic, originalSpeaker)
+    * __tell(topic, message, speaker)__ tell (publish) a message to listeners (and self), topic must be an exact string.
+    * __listen(topic, responder, maxResponses)__ listnen (subscribe) to a specific message, topic = string (can be a catchall "*") messages with matching topics that get told to this speaker will fire the responder function. If max responses is provided responder will remove itselfe after that number of executions. Responder signature: function(message, topic, originalSpeaker)
     * __ignore(ignoreable)__ stop listening with (unsubscribe) the ignorable listener. If ignorable is expressed as a type string all listeners of that type will be removed. If a funciton is passed all listeners using that funciton will be removed.
     * __talksTo(speaker)__ messages spoken by or told to this speaker will then be relayed to the provided speaker as well
     * __listensTo(speaker)__ messages told to the provided speaker will be relayed to this speaker as well
@@ -57,7 +79,7 @@ see underscore.js
   ``` javascript
   // create new speaker
   var mySpeaker = $speak();
-  mySpeaker.name = "Moulder";
+  mySpeaker.name = "Mulder";
 
   // subscribe to an event and alert the message
   mySpeaker.listen("someEvent", function(msg) {
@@ -111,7 +133,7 @@ see underscore.js
       fullName: function() {
         return this.first + " " +  this.last;
       }
-    }
+    } 
   });
   ```
 
@@ -168,7 +190,6 @@ see underscore.js
   * **$isSchema(obj)** returns true if obj is a product of $define or $schema constructors
   * **$isModel(obj)** returns true if obj is a product of $model constructor
 
-
 ### DOM
   * **$id** shortcut to document.getElementById
   * **$tpl** using the super-fast doT see https://github.com/olado/doT
@@ -178,6 +199,10 @@ see underscore.js
 ### Views
   * **$view(node, model, templateOrRenderFn)** create a view that renders when a model is updated
   * **$view(options)**
+
+### Date
+  * **$now** shortcut for new Date().getTime()
+  * **$timeAgo(date, compareTo)** Human friendly time delta. Supports strings and numbers that can be passed to new Date() including some that can't (see source), optional compareTo value defaults to now
 
 ### String
   * **$trim** type agnostic string trim, just returns the original val if its not a string
