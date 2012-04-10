@@ -54,7 +54,7 @@ see underscore.js
   Most of this code is derived from the excellent async.js, changes include different signatures with more information being passed around and support for objects in addition to arrays, (crazy right?) the multi-signature $parallel and $series functions are versitile enough that they are all you need to use.
 
   * **$parallel** a multi-signature async swiss army knife, iteration happens in parallel, completing in unknown order.
-    * **$parallel(func1, func2, ...)** this is a a fairly useless case for parallel, much more useflu in $sequence, each argument is a function(push, index, results), each function is called in order, each finishes in unknown order.
+    * **$parallel(func1, func2, ...)** this is a a fairly useless case for parallel, much more useflu in $series, each argument is a function(push, index, results), each function is called in order, each finishes in unknown order.
     * **$parallel(tasks, callback)** an alias for $async.tasks
     * **$parallel(collection, iterator, callback)** an alias for $async.each
   * **$series** a multi-signature async swiss army knife, iteration happens in series, completing in given order.
