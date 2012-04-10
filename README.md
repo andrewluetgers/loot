@@ -51,22 +51,49 @@ see underscore.js
   * **$splice(obj, start, howMany, items)** apply splice to a string, array or arguments object, accepts multiple arguments or an array for "items" arg
 
 ### Async
-  Most of this code is derived from the excellent async.js, changes include different signatures with more information being passed around and support for objects in addition to arrays, (crazy right?) the multi-signature $parallel and $series functions are versitile enough that they are all you need to use.
+  Most of this code is derived from the excellent async.js https://github.com/caolan/async, changes include different signatures with more information being passed around and support for objects in addition to arrays, (crazy right?) the multi-signature $parallel and $series functions are versitile enough that they are all you need to use.
 
-  * **$parallel** a multi-signature async swiss army knife, iteration happens in parallel, completing in unknown order.
-    * **$parallel(func1, func2, ...)** this is a a fairly useless case for parallel, much more useflu in $series, each argument is a function(push, index, results), each function is called in order, each finishes in unknown order.
-    * **$parallel(tasks, callback)** an alias for $async.tasks
-    * **$parallel(collection, iterator, callback)** an alias for $async.each
-  * **$series** a multi-signature async swiss army knife, iteration happens in series, completing in given order.
-    * **$series(func1, func2, ...)** each argument is a function(push, index, results), each function is called in sequence one after the other as push functions are called, alternately if "results" is not used "push" can be called "next" omitting the second argument when calling it.
-    * **$series(tasks, callback)** an alias for $async.tasksSeries
-    * **$series(collection, iterator, callback)** an alias for $async.eachSeries
-  * **$async.each(collection, iterator, callback)** iteration happens as soon as possible (in parallel), completing in unknown order, fires the callback once all the done functions have been called. The first argument provided to the iterator function is a done function which accepts an error (anything that is non-falsey) which will cause iteration to halt and the callback to be fired with the error. Arguments: collection = array or object, iterator = function(done, val, key, collection), callback = function(err, collection)
+  * **$async.each(collection, iterator, callback)** iteration happens as soon as possible (in parallel), completing in unknown order, fires the callback once all the done functions have been called. The first argument provided to the iterator function is a done function which accepts an error (anything that is non-falsey) which will cause the callback to be fired with the error. Arguments: collection = array or object, iterator = function(done, val, key, collection), callback = function(err, collection)
   * **$async.eachSeries(collection, iterator, callback)** same as $async.each but iteration happens one after the other (in series), completing in given order.  Arguments: same as $async.each
   * **$async.map(collection, iterator, callback)** simmilar to $async.each, iteration happens in parallel, completing in unknown order, instead of a done function the iterator is provided a push function where the second argument gets pushed into a results array. Results are available to both iterator and callback functions. Arguments: collection = array or object, iterator = function(push, val, key, results, collection), callback = function(err, results, collection)
   * **$async.mapSeries(collection, iterator, callback)** same as $async.map but iteration happens in series, completing in given order;
   * **$async.tasks(tasks, callback)** woks like a map function calling each function in the tasks array/object, the first argument to each function must be called when the function is complete and can be used to pass along an error or push a value into results. Arguments: tasks = array of functions with the signature function(push, key, results), callback = function(err, results, tasks)
   * **$async.tasksSeries(tasks, callback)** same as $async.parallelTasks but tasks are executed in series, one after the other. Alternately if results is not used push can be called "next" omitting the second argument when calling it.
+  * **$parallel** a multi-signature async swiss army knife, iteration happens in parallel, completing in unknown order.
+    * **$parallel(func1, func2, ...)** this is a a fairly useless case for parallel, much more useflu in $series, each argument is a function(push, index, results), each function is called in order, each finishes in unknown order.
+    * **$parallel(tasks, callback)** an alias for $async.tasks
+    * **$parallel(collection, iterator, callback)** an alias for $async.map
+  * **$series** a multi-signature async swiss army knife, iteration happens in series, completing in given order.
+    * **$series(func1, func2, ...)** each argument is a function(push, index, results), each function is called in sequence one after the other as push functions are called, alternately if "results" is not used "push" can be called "next" omitting the second argument when calling it.
+
+    ``` javascript
+    // call each function one after the other
+    $series(
+      // this fires first
+      function(next) {
+        // someAsyncFunction accepts a callback that it fires when complete
+        someAsyncFunction(function() {
+          next();
+        });
+      },
+      // this fires once the above function calls next
+      function(next) {
+        // someOtherAsyncFunction accepts a callback that it fires when complete
+        someOtherAsyncFunction(function() {
+          next();
+        });
+      },
+      // this fires once the above function calls next
+      function(next) {
+        someOtherFunction();
+      },
+    );
+    ```
+
+    * **$series(tasks, callback)** an alias for $async.tasksSeries
+
+    
+    * **$series(collection, iterator, callback)** an alias for $async.mapSeries
 
 
 ### Pub/Sub
