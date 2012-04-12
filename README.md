@@ -1,5 +1,5 @@
 # Loot.js
-Loot is a bunch of useful functions in the (gasp!) global scope, prefixed with $. Dont like that? you can inject them into some namespace, but that would be lame.
+Loot is a bunch of useful functions in the (gasp!) global scope, prefixed with $. Dont like that? you can inject them into some namespace, but that would be lame. Like chaining things? Too bad don't have tons of that. Dont like using new Blah()? Me either :-)
 This is an experimental bag of tricks that is starting to look like a microframework.
 
 ## Use it
@@ -62,7 +62,60 @@ see underscore.js
   * **$parallel** a multi-signature async swiss army knife, iteration happens in parallel, completing in unknown order.
     * **$parallel(func1, func2, ...)** this is a a fairly useless case for parallel, much more useflu in $series, each argument is a function(push, index, results), each function is called in order, each finishes in unknown order.
     * **$parallel(tasks, callback)** an alias for $async.tasks
+
+    ``` javascript
+      finishOrder = 0;
+
+      var asyncFunction1 = function(push, key, results) {
+        // lets do something that is async (requires a callback)
+        setTimeout(function() {
+          var err = null; // amazing no errors!
+          push(err, "index: " + key + " Finish Order: " + finishOrder);
+          finishOrder++;
+        }, 100 * Math.random());
+      };
+
+      $parallel([asyncFunction1, asyncFunction1, asyncFunction1], function(err, results) {
+        if(err) {
+          alert("oh nohs!");
+        } else {
+          alert("functions finish out of order but values are inserted into corrcect locations:\n" + results.toString().replace(/,/g, "\n"));
+        }
+      });
+    ```
+
     * **$parallel(collection, iterator, callback)** an alias for $async.map
+
+    ``` javascript
+      var pages = {
+        google: "http://www.googl.com",
+        cnn: "http://www.cnn.com",
+        apple: "http://www.apple.com",
+        techCrunch: "http://www.techcrunch.com",
+        theVerge: "http://www.theverge.com"
+      };
+
+      var urlHasETest = function(push, url, name, results) {
+        var args = arguments;
+        setTimeout(function() {
+          push(null, !!url.match("e"));
+        }, 100*Math.random());
+      };
+
+      // collection can be objects or arrays
+
+      $parallel(pages, urlHasETest, function(err, results) {
+        if(err) {
+          alert("oh nohs!");
+        } else {
+          var winners = $keys($reject(results, function(val) {return !val}));
+          console.log(results, winners);
+          alert("finished!\n" + winners.toString().replace(/,/g, "\n"));
+        }
+      });
+
+    ```
+
   * **$series** a multi-signature async swiss army knife, iteration happens in series, completing in given order.
     * **$series(func1, func2, ...)** each argument is a function(push, index, results), each function is called in sequence one after the other as push functions are called, alternately if "results" is not used "push" can be called "next" omitting the second argument when calling it.
 
@@ -91,65 +144,78 @@ see underscore.js
       ```
 
     * **$series(tasks, callback)** an alias for $async.tasksSeries
-
-    
     * **$series(collection, iterator, callback)** an alias for $async.mapSeries
 
 
 ### Pub/Sub
   This dude is optimized to perform insanely well, compared to other frameworks with a noop it can be upto 50x faster! That said, add in some work and most cross-frameowrk event system performance differences quickly diminsh to the point of being almost meaningless. Oh well.
+  There is no priority, I've never found a use for it yet, just don't go mutiating the message all over the place when its getting sent around to multiple handlers. See item 2 for more details http://freshbrewedcode.com/jimcowart/tag/pubsub/
 
-  * **$speak(obj)** Creates a new speaker (pub/sub). Optionally provide an object to turn into a speaker.
-    * __tell(topic, message, speaker)__ tell (publish) a message to listeners (and self), topic must be an exact string.
-    * __listen(topic, responder, maxResponses)__ listnen (subscribe) to a specific message, topic = string (can be a catchall "*") messages with matching topics that get told to this speaker will fire the responder function. If max responses is provided responder will remove itselfe after that number of executions. Responder signature: function(message, topic, originalSpeaker)
-    * __ignore(ignoreable)__ stop listening with (unsubscribe) the ignorable listener. If ignorable is expressed as a type string all listeners of that type will be removed. If a funciton is passed all listeners using that funciton will be removed.
-    * __talksTo(speaker)__ messages spoken by or told to this speaker will then be relayed to the provided speaker as well
-    * __listensTo(speaker)__ messages told to the provided speaker will be relayed to this speaker as well
+  * **$speak(obj)** returns a new speaker (pub/sub). Optionally provide an object to turn into a speaker
+    * __tell(topic, message, speaker)__ tell (publish) a message to listeners (and self), topic must be an exact string
+    * __listen(topic, responder, maxResponses)__ listnen (subscribe) to a specific message, topic = string (can be a catchall "*") messages with matching topics that get told to this speaker will fire the responder function. If max responses is provided responder will remove itselfe after that number of executions. Responder signature: function(message, topic, originalSpeaker), execution scope/"this" will be the event reciever
+    * __listenUntil(topic, responder, untilCondition)__ same as listen except the untilCondition function is called first, if it returns truthy responder is not called and will be removed. The untilCondition funtion has the same signature as responder functions function(message, topic, originalSpeaker), execution scope/"this" will be the event reciever
+    * __once(topic, responder)__ semantic sugar alias of listen which uses 1 for the maxResponses argument
+    * __ignore__ remove listeners from the speaker (unsubscribe) multiple signatures
+      * __ignore()__ remove all subscribers
+      * __ignore(topic)__ remove all listeners registered to the provided topic string.
+      * __ignore(responder)__ remove all listeners using this exact responder funciton.
+      * __ignore(topic, responder)__ remove all listeners registered for the provided topic using the exact same responder function
+    * __talksTo(speaker)__ forwards messages from this speaker to the provided speaker
+    * __listensTo(speaker)__ forwards messages from the provided speaker to this speaker
+    * __listeningFor(topic, ignoreCatchall)__ returns an array of all responders that will fire for a given topic. If the optional ignoreCatchall is truthy the returned array will not include responders subscribed to the catchall "*". When non empty the returned arrays are the actual internal responder arrays, mess with them at your own risk!
 
   ``` javascript
   // create new speaker
-  var mySpeaker = $speak();
-  mySpeaker.name = "Mulder";
+  var agent = $speak();
+  agent.name = "Mulder";
 
   // subscribe to an event and alert the message
-  mySpeaker.listen("someEvent", function(msg) {
+  agent.listen("spookyEvent", function(msg) {
     alert(msg);
   });
 
   // now tell the event
-  mySpeaker.tell("someEvent", "I want to believe.");
+  agent.tell("spookyEvent", "I want to believe.");
 
   // alerts "I want to believe."
   ```
 
   ``` javascript
-  var someObject = {
+  var partner = {
     name: "Scully"
   }
 
   // add pub sub functionality to an existing object
-  $speak(someObject);
+  $speak(partner);
 
-  // lets forward all messages from mySpeaker to someObject
+  // alternatively you can combine object creation and the speak call
+
+  var partner = $speak({
+    name: "Scully"
+  });
+
+
+  // now lets forward all messages from agent to partner
   // there are two ways to do this, the folloing two calls are equivalent
-  mySpeaker.talksTo(someObject);
+  agent.talksTo(partner);
   // or
-  someObject.listensTo(mySpeaker);
+  partner.listensTo(agent);
 
 
   // lets use a catch-all to fire our handler on all events
-  someObject.listen("*", function(msg, type, originalSpeaker) {
-    // the reciever of the function is bound to this
+  partner.listen("*", function(msg, type, originalSpeaker) {
+    // the reciever of the function is bound to "this"
     alert(originalSpeaker.name + ' said: "' + msg + '" to ' + this.name + ' in a ' + type);
   });
 
-  mySpeaker.tell("random comment", "The truth is out there!");
+  agent.tell("random comment", "The truth is out there!");
 
-  // alerts 'Moulder said: "The truth is out there!" to Scully in a random comment'
+  // alerts 'Mulder said: "The truth is out there!" to Scully in a random comment'
   ```
 
-
   * **$isSpeaker(obj)** returns true if the provided object is a pub/sub speaker
+
 
 ### Models
   * **$define(type, options)** creates a schema definition (which is a speaker) with given options that will be associated with the given type string.
@@ -184,7 +250,7 @@ see underscore.js
     * __get()__ returns the entire model
     * __get(key)__ returns the value of the given key on the model
     * __get(array)__ given an array of key strings returns an obect of matching key value pairs from the model
-    * __drop()__ deletes all properties on this model instance, schema no longer references model instance, emits a "drop" event whi
+    * __drop()__ deletes all properties on this model instance, schema no longer references model instance, emits a "drop" event
   
   ``` javascript
   // referencing the person schema we defined above, we create a new intance setting some properties up front.

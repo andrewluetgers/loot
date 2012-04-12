@@ -1,5 +1,13 @@
+/*
+ * loot.js 0.1.0
+ * (c) andrew luetgers
+ * you are free to distribute loot.js under the MIT license
+ * https://github.com/andrewluetgers/loot
+ */
 
 (function() {
+
+	var version = "0.1.0";
 
 	var root = this;
 
@@ -18,6 +26,7 @@
 		};
 	}
 
+	
 	if(!String.prototype.trim) {
 		var trimRe = /^\s+|\s+$/g;
 		String.prototype.trim = function () {
@@ -68,7 +77,7 @@
 
 	// Is a given value an array?
 	// Delegates to ECMA5's native Array.isArray
-	var $isArray = Array.isArray || function $isAry(obj) {
+	var $isArray = Array.isArray || function(obj) {
 		return toString.call(obj) === '[object Array]';
 	};
 
@@ -134,7 +143,7 @@
 			i, l, key;
 
 		function each(obj, iterator, context) {
-			if (obj == null) return;
+			if (!obj) return;
 
 			if (nativeForEach && obj.forEach === nativeForEach) {
 				obj.forEach(iterator, context);
@@ -221,8 +230,8 @@
 
 	// Return all the elements for which a truth test passes.
 	function $find(obj, iterator, context) {
-		var results = [];
-		if (obj == null) return results;
+		var results = $isArray(obj) ? [] : {};
+		if (!obj) return results;
 		$each(obj, function(value, index, list) {
 			if (iterator.call(context, value, index, list)) results.push(value);
 		});
@@ -231,10 +240,10 @@
 
 	// Return all the elements for which a truth test fails.
 	function $reject(obj, iterator, context) {
-		var results = [];
-		if (obj == null) return results;
+		var results = $isArray(obj) ? [] : {};
+		if (!obj) return results;
 		$each(obj, function(value, index, list) {
-			if (!iterator.call(context, value, index, list)) results[results.length] = value;
+			if (!iterator.call(context, value, index, list)) results[index] = value;
 		});
 		return results;
 	}
@@ -414,7 +423,7 @@
 
 	var _asyncMap = function(eachfn, obj, iterator, callback) {
 		callback = callback || function() {};
-		var results = [];
+		var results = $isArray(obj) ? [] : {};
 		eachfn(obj, function(next, val, key, obj) {
 			iterator(function(err, _val) {
 				results[key] = _val;
@@ -474,6 +483,7 @@
 			_async.map(tasks, iterator, arguments[2]);
 		}
 	};
+	
 
 	// $series(func1, func2, func3)
 	// $series([func1, func2, func3], callback)
@@ -997,7 +1007,7 @@
 					selectiveHearing = this.selectiveHearing;
 
 				if (!selectiveHearing || ($isFunction(selectiveHearing) && this.selectiveHearing(message, topic, originalSpeaker)) ) {
-					topicSpecificListeners = this._listeningFor[topic] || []; //$reuse.array();
+					topicSpecificListeners = (topic !== "*") ? this._listeningFor[topic] || [] : []; //$reuse.array();
 					wildCardListeners = this._listeningFor["*"];
 
 					if (wildCardListeners) {
@@ -1029,7 +1039,7 @@
 			/** listen
 			 * @param topic (string|regex) will call the given responder if received topic === topic param
 			 * or in the case of a regex topic param if the receivedTopic.match(topicParam)
-			 * @param responder (function) having the signature function(message, topic, originalSpeaker)
+			 * @param responder (function) having the signature function(message, topic, originalSpeaker) execution scope is that of the handling speaker
 			 * @param maxResponses (number) optional - number of times the responder will be called before being removed
 			 */
 			listen: function(topic, responder, maxResponses) {
@@ -1047,7 +1057,7 @@
 
 					if (topicIsString && responderType === "function") {
 						// don't add something twice
-						var topicSpecificListeners = this._listeningFor[topic] || []; //$reuse.array();
+						var topicSpecificListeners = (topic !== "*") ? this._listeningFor[topic] || [] : []; //$reuse.array();
 						$each(topicSpecificListeners, function(listener) {
 							if(listener.responder === responder) {
 								return this;
@@ -1081,32 +1091,71 @@
 				}
 			},
 
+			once: function(topic, responder) {
+				this.listen(topic, responder, 1);
+			},
+
+			/** listenUntil
+			 * @param topic (string) will call the given responder if received topic === topic param
+			 * @param responder (function) having the signature function(message, topic, originalSpeaker) execution scope is that of the handling speaker
+			 * @param condition (function) is executed before the responder, if it returns true the responder will not be executed and will be removed.
+			 * The condition function has the same signature as teh responder function(message, topic, originalSpeaker) execution scope is that of the handling speaker
+			 */
+			listenUntil: function(topic, responder, untilCondition) {
+				function untilResponder() {
+					var args = $slice(arguments);
+					if (untilCondition.apply(this, args)) {
+						this.ignore(topic, untilResponder);
+					} else {
+						responder.apply(this, args);
+					}
+				}
+
+				this.listen(topic, untilResponder);
+			},
+
+			/** listeningFor
+			 * @param topic (string)
+			 */
+			listeningFor: function(topic, ignoreCatchall) {
+				var topicSpecificListeners = (topic !== "*") ? this._listeningFor[topic] || [] : []; //$reuse.array();
+				var wildCardListeners = this._listeningFor["*"];
+
+				if (!ignoreCatchall && wildCardListeners) {
+					topicSpecificListeners = topicSpecificListeners.concat(wildCardListeners);
+				}
+
+				return topicSpecificListeners;
+			},
+
 			/** ignore
 			 * @param ignoreable (string|function) optional - remove listeners
 			 * if a string is passed all listeners to that topic will be removed
 			 * if a function is passed all listeners using that responder will be removed
 			 * if nothing is provided all listeners will be removed
 			 */
-			ignore: function(ignoreable) {
+			ignore: function(ignoreable, responder) {
+				var test;
 				if(ignoreable) {
 					if ($isString(ignoreable)) {
-						this._listeningFor = $reject(this._listeningFor, function(listener) {
-							return (listener.topic === ignoreable);
-						});
+						// reject listeners by topic + reponder
+						if (responder && $isFunction(responder)) {
+							test = function(listener) { return ((listener.topic === ignoreable) && (listener.responder === responder))};
+						// reject listeners by topic
+						} else {
+							test = function(listener) { return (listener.topic === ignoreable)};
+						}
 					} else {
-						this._listeningFor = $reject(this._listeningFor, function(listener) {
-							return (listener.responder === ignoreable);
-						});
+						// reject listeners by responder function
+						test = function(listener) { return (listener.responder === ignoreable)};
 					}
+					this._listeningFor = $reject(this._listeningFor, test);
+
 				} else {
 					$clear(this._listeningFor); // remove all elements
 				}
-				return this;
-			},
 
-			ignoreAll: function() {
-				$clear(this._listeningFor);
-				$clear(this._audience);
+				return this;
 			},
 
 			/** talksTo
@@ -1918,6 +1967,8 @@
 		loot.fn(scope);
 	};
 
+	loot.version = version;
+
 	loot.fn = function(scope) {
 		// make our public methods enumerable
 		var returnScopedMethods = false;
@@ -1969,6 +2020,7 @@
 		$keys: $keys,
 		$map: $map,
 		$any: $any,
+		$all: $all,
 		$find: $find,
 		$reject: $reject,
 		$length: $length,
