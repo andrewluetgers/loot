@@ -137,7 +137,8 @@ see underscore.js
           });
         },
         // this fires once the above function calls next
-        function(next) {
+        function() {
+          // no need to call next, this is fired last
           someOtherFunction();
         },
       );
