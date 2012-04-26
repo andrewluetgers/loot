@@ -182,8 +182,6 @@
 				return "arguments";
 			} if (obj === Object(obj)) {
 				return "object";
-			} else {
-
 			}
 		}
 
@@ -202,7 +200,7 @@
 		return true;
 	}
 	
-	function $has			(obj, key){ return hasOwnProperty.call(obj, key); }
+	function $has (obj, key) { return hasOwnProperty.call(obj, key); }
 	
 
 	// Collection Functions (work on objects and arrays) -------------------------------------------------------
