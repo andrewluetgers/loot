@@ -688,7 +688,7 @@
 			var m = $model("testSchema2", data);
 			var html;
 
-			var testView = $view(parentNode, m, function(model, changes, view) {
+			var testView = $view(parentNode, "testSchema2", function(model, changes, view) {
 				console.log("view", arguments);
 				ok(model === m.get(), "first argument is model values object");
 				ok(typeof changes === "object", "second argument is model changes object");
@@ -697,6 +697,8 @@
 				html = "<div>all your html " + model.allYourBase + "</div>";
 				return html;
 			});
+
+			var aTestView = testView()
 //
 			testView.update();
 

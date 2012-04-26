@@ -5,6 +5,8 @@
  * https://github.com/andrewluetgers/loot
  */
 
+
+
 (function() {
 
 	var version = "0.1.0";
@@ -17,16 +19,13 @@
 	// This will use an Array-based splitting / joining approach
 	if (!("splice" in String.prototype)) {
 		String.prototype.splice = function(index, howManyToDelete, stringToInsert) {
-
 			var characterArray = this.split("");
-
 			Array.prototype.splice.apply(characterArray, arguments);
-
 			return characterArray.join("");
 		};
 	}
 
-	
+
 	if(!String.prototype.trim) {
 		var trimRe = /^\s+|\s+$/g;
 		String.prototype.trim = function () {
@@ -34,8 +33,8 @@
 		};
 	}
 
-	if (!Object.keys) {
-		Object.keys = function(o) {
+	if (!Object.prototype.keys) {
+		Object.prototype.keys = function(o) {
 			var keys=[], p;
 
 			if (o !== Object(o)) {
@@ -53,72 +52,178 @@
 	}
 
 
+	if (!Array.prototype.indexOf) {
+		Array.prototype.indexOf = function (searchElement /*, fromIndex */ ) {
+			"use strict";
+			if (this == null) {
+				throw new TypeError();
+			}
+			var t = Object(this);
+			var len = t.length >>> 0;
+			if (len === 0) {
+				return -1;
+			}
+			var n = 0;
+			if (arguments.length > 0) {
+				n = Number(arguments[1]);
+				if (n != n) { // shortcut for verifying if it's NaN
+					n = 0;
+				} else if (n != 0 && n != Infinity && n != -Infinity) {
+					n = (n > 0 || -1) * Math.floor(Math.abs(n));
+				}
+			}
+			if (n >= len) {
+				return -1;
+			}
+			var k = n >= 0 ? n : Math.max(len - Math.abs(n), 0);
+			for (; k < len; k++) {
+				if (k in t && t[k] === searchElement) {
+					return k;
+				}
+			}
+			return -1;
+		}
+	}
+
+	if (!Array.prototype.lastIndexOf) {	
+		Array.prototype.lastIndexOf = function(searchElement /*, fromIndex*/) {
+			"use strict";
+		
+			if (this == null) {
+				throw new TypeError();
+			}
+		
+			var t = Object(this);
+			var len = t.length >>> 0;
+			if (len === 0) {
+				return -1;
+			}
+		
+			var n = len;
+			if (arguments.length > 1) {
+				n = Number(arguments[1]);
+				if (n != n) {
+					n = 0;
+				} else if (n != 0 && n != (1 / 0) && n != -(1 / 0)) {
+					n = (n > 0 || -1) * Math.floor(Math.abs(n));
+				}
+			}
+		
+			var k = n >= 0 ? Math.min(n, len - 1) : len - Math.abs(n);
+		
+			for (; k >= 0; k--) {
+				if (k in t && t[k] === searchElement) return k;
+			}
+			return -1;
+		};
+	} 
+
+	// some variables that get used all over -------------------------------------------------------
+
+	// Save bytes in the minified (but not gzipped) version:
+	var ArrayProto = Array.prototype, ObjProto = Object.prototype, FuncProto = Function.prototype;
+
+	// Create quick reference variables for speed access to core prototypes.
+	var slice      = ArrayProto.slice,
+		splice      = ArrayProto.splice,
+		//unshift     = ArrayProto.unshift,
+		toString     = ObjProto.toString,
+		hasOwnProperty  = ObjProto.hasOwnProperty;
+
+	// All **ECMAScript 5** native function implementations that we hope to use
+	// are declared here.
+	var nativeForEach   = ArrayProto.forEach,
+		nativeMap     = ArrayProto.map,
+		nativeReduce    = ArrayProto.reduce,
+		//nativeReduceRight = ArrayProto.reduceRight,
+		nativeFilter    = ArrayProto.filter,
+		nativeEvery    = ArrayProto.every,
+		nativeSome     = ArrayProto.some,
+		nativeIndexOf   = ArrayProto.indexOf,
+		//nativeLastIndexOf = ArrayProto.lastIndexOf,
+		nativeIsArray   = Array.isArray,
+		//nativeKeys     = Object.keys,
+		nativeBind     = FuncProto.bind;
+
+
 	// basic types -------------------------------------------------------
 	// stolen wholesale from underscore
+	function $isNull		(obj) { 	return obj === null; }
+	function $isUndefined	(obj) { 	return obj === void 0; }
+	function $isNaN			(obj) { 	return obj !== obj; }
+	function $isElement		(obj) { 	return !!(obj && obj.nodeType == 1); }
+	function $isObject		(obj) { 	return obj === Object(obj); }
+	function $isBoolean		(obj) { 	return obj === true || obj === false || toString.call(obj) == "[object Boolean]";}
+	function $isFunction	(obj) { 	return toString.call(obj) == "[object Function]"; }
+	function $isString		(obj) { 	return toString.call(obj) == "[object String]"; }
+	function $isNumber		(obj) { 	return toString.call(obj) == "[object Number]"; }
+	function $isDate		(obj) { 	return toString.call(obj) == "[object Date]";}
+	function $isRegExp		(obj) { 	return toString.call(obj) == "[object RegExp]"; }
 
-	// Is a given value a number?
-	function $isNumber(obj) {
-		return (obj === 0 || (obj && obj.toExponential && obj.toFixed));
+	function $isArguments	(obj) { 	return toString.call(obj) == "[object Arguments]"; }
+	if (!$isArguments(arguments)) {
+		$isArguments = function(obj) { 	return !!(obj && $has(obj, "callee"));};
 	}
 
-	// Is a given array or object empty?
+	var $isArray = nativeIsArray ||
+			function(obj) { 			return toString.call(obj) == "[object Array]"; };
+
+	function $typeof (obj) {
+		var type = typeof obj;
+		
+		if(type === "object") {
+			if ($isArray(obj)) {
+				return "array";
+			} else if (obj === null) {
+				return "null";
+			} else if (toString.call(obj) === "[object RegExp]") {
+				return "regexp"
+			} else if ($isArguments(obj)) {
+				return "arguments";
+			} if (obj === Object(obj)) {
+				return "object";
+			} else {
+
+			}
+		}
+
+		if (obj !== obj) {
+			return "NaN";
+		}
+
+		return type;
+	}
+
+	// Is a given array, string, or object empty?
+	// An "empty" object has no enumerable own-properties.
 	function $isEmpty(obj) {
 		if ($isArray(obj) || $isString(obj)) return obj.length === 0;
-		for (var key in obj) if (hasOwnProperty.call(obj, key)) return false;
+		for (var key in obj) if ($has(obj, key)) return false;
 		return true;
 	}
+	
+	function $has			(obj, key){ return hasOwnProperty.call(obj, key); }
+	
 
-
-
-	// Is a given value a DOM element?
-	function $isElement(obj) {
-		return (obj && obj.nodeType == 1);
+	// Collection Functions (work on objects and arrays) -------------------------------------------------------
+	
+	// Keep the identity function around for default iterators.
+	function _identity(value) {
+		return value;
 	}
-
-	// Is a given value an array?
-	// Delegates to ECMA5's native Array.isArray
-	var $isArray = Array.isArray || function(obj) {
-		return toString.call(obj) === '[object Array]';
-	};
-
-	// Is a given value a function?
-	function $isFunction(obj) {
-		return (obj && obj.constructor && obj.call && obj.apply);
+	
+	function $keys(obj) {
+		var keys = [];
+		$each(obj, function(val, key) {
+			keys.push(key);
+		});
+		return keys;
 	}
-
-	// Is a given value a string?
-	function $isString(obj) {
-		return (obj === '' || (obj && obj.charCodeAt && obj.substr));
+	
+	function $values(obj) {
+		return $map(obj, _identity);
 	}
-
-	// Is a given value a number?
-	function $isNumber(obj) {
-		return (obj === 0 || (obj && obj.toExponential && obj.toFixed));
-	}
-
-	// Is the given value `NaN`? `NaN` happens to be the only value in JavaScript
-	// that does not equal itself.
-	function $isNaN(obj) {
-		return obj !== obj;
-	}
-
-	function $isNull(obj) {
-		return obj === null;
-	}
-
-	// Is a given value a boolean?
-	function $isBoolean(obj) {
-		return obj === true || obj === false;
-	}
-
-	// Is the given value a regular expression?
-	function $isRegExp(obj) {
-		return !!(obj && obj.test && obj.exec && (obj.ignoreCase || obj.ignoreCase === false));
-	}
-
-	// collections (objects, arrays) -------------------------------------------------------
-	var arrayProto = Array.prototype;
-
+	
 	var _clearKey;
 	function $clear(obj) {
 		if ($isArray(obj)) {
@@ -131,16 +236,17 @@
 			}
 		}
 	}
+	
 
 
-	// the underscore each function
+	// The cornerstone, an `each` implementation, aka `forEach`.
+	// Handles objects with the built-in `forEach`, arrays, and raw objects.
+	// Delegates to **ECMAScript 5**'s native `forEach` if available.
+	var breaker = "break";
 	var $each = (function() {
 
 		// switched breaker to string "break" for better self documentation when used
-		var breaker = "break",
-			nativeForEach = Array.prototype.forEach,
-			hasOwnProperty = Object.prototype.hasOwnProperty,
-			i, l, key;
+		var i, l, key;
 
 		function each(obj, iterator, context) {
 			if (!obj) return;
@@ -148,7 +254,7 @@
 			if (nativeForEach && obj.forEach === nativeForEach) {
 				obj.forEach(iterator, context);
 
-			} else if ($isNumber(obj.length)) {
+			} else if (obj.length === +obj.length) {
 				for (i = 0, l = obj.length; i < l; i++) {
 					if (iterator.call(context, obj[i], i, obj) === breaker) return;
 				}
@@ -168,42 +274,121 @@
 		return each;
 
 	}());
-
-	var $keys = function(obj) {
-		var keys = [];
-		$each(obj, function(val, key) {
-			keys.push(key);
-		});
-		return keys;
-	};
 	
-
-	var nativeMap = arrayProto.map;
-
+	
 	// Return the results of applying the iterator to each element.
 	// Delegates to **ECMAScript 5**'s native "map" if available.
 	function $map(obj, iterator, context) {
 
-		var results = $isArray(obj) ? [] : {};
+		var results = [];
 
-		if (!obj) {
-			return results;
-		}
+		if (!obj) { return results; }
 
 		if (nativeMap && obj.map === nativeMap) {
 			return obj.map(iterator, context);
 		}
-
-		$each(obj, function(value, index, list) {
-			results[index] = iterator.call(context, value, index, list);
-		});
-
+		
+		if ($isArray(obj)) {
+			$each(obj, function(value, index, list) {
+				results[results.length] = iterator.call(context, value, index, list);
+			});
+			if (obj.length === +obj.length) results.length = obj.length;
+		} else {
+			results = {};
+			$each(obj, function(value, key, list) {
+				results[key] = iterator.call(context, value, key, list);
+			});
+		}
+		
 		return results;
 	}
+	
+ // **Reduce** builds up a single result from a list of values, aka `inject`,
+	// or `foldl`. Delegates to **ECMAScript 5**'s native `reduce` if available.
+	function $reduce(obj, iterator, memo, context) {
+		var initial = arguments.length > 2;
+		if (obj == null) obj = [];
+		if (nativeReduce && obj.reduce === nativeReduce) {
+			if (context) iterator = $bind(iterator, context);
+			return initial ? obj.reduce(iterator, memo) : obj.reduce(iterator);
+		}
 
-
-	var nativeSome = Array.prototype.some;
-
+		$each(obj, function(value, index, list) {
+			if (!initial) {
+				memo = value;
+				initial = true;
+			} else {
+				memo = iterator.call(context, memo, value, index, list);
+			}
+		});
+		if (!initial) throw new TypeError('Reduce of empty array with no initial value');
+		return memo;
+	}
+	
+	
+	// Return all the elements that pass a truth test.
+	// Delegates to **ECMAScript 5**'s native `filter` if available.
+	// Aliased as `select`.
+	function $filter(obj, iterator, context) {
+		var results = [];
+		if (obj == null) return results;
+		// nativeFilter only applies to arrays
+		if (nativeFilter && obj.filter === nativeFilter) return obj.filter(iterator, context);
+		
+		if ($isArray(obj)) {
+			// array mode
+			$each(obj, function(value, index, list) {
+				if (iterator.call(context, value, index, list)) {
+					results[results.length] = value;
+				}
+			});
+		} else {
+			// object mode
+			results = {};
+			$each(obj, function(value, key, list) {
+				if (iterator.call(context, value, key, list)) {
+					results[key] = value;
+				}
+			});
+		}
+		return results;
+	}
+	
+	
+	// Return all the elements for which a truth test fails.
+	function $reject(obj, iterator, context) {
+		var results = [];
+		if (!obj) return results;
+		
+		if ($isArray(obj)) {
+			$each(obj, function(value, index, list) {
+				if (!iterator.call(context, value, index, list)) results[results.length] = value;
+			});
+		} else {
+			results = {};
+			$each(obj, function(value, key, list) {
+				if (!iterator.call(context, value, key, list)) results[key] = value;
+			});
+		}
+		
+		return results;
+	}
+	
+	
+	// Determine whether all of the elements match a truth test.
+	// Delegates to **ECMAScript 5**'s native `every` if available.
+	// Aliased as `all`.
+	function $all(obj, iterator, context) {
+		var result = true;
+		if (obj == null) return result;
+		if (nativeEvery && obj.every === nativeEvery) return obj.every(iterator, context);
+		$each(obj, function(value, index, list) {
+			if (!(result = result && iterator.call(context, value, index, list))) return breaker;
+		});
+		return result;
+	}
+	
+	
 	// Determine if at least one element in the object matches a truth test.
 	// Delegates to **ECMAScript 5**'s native "some" if available
 	function $any(obj, iterator, context) {
@@ -222,32 +407,27 @@
 
 		return !!result;
 	}
-
-	function $all(obj, iterator, context) {
-		var results = $find(obj, iterator, context);
-		return $length(obj) === results.length;
-	}
-
-	// Return all the elements for which a truth test passes.
-	function $find(obj, iterator, context) {
-		var results = $isArray(obj) ? [] : {};
-		if (!obj) return results;
-		$each(obj, function(value, index, list) {
-			if (iterator.call(context, value, index, list)) results.push(value);
+	
+	
+	// Determine if a given value is included in the array or object using `===`.
+	// Aliased as `contains`.
+	function $includes(obj, target) {
+		var found = false;
+		if (obj == null) return found;
+		if (nativeIndexOf && obj.indexOf === nativeIndexOf) return obj.indexOf(target) != -1;
+			found = $any(obj, function(value) {
+			return value === target;
 		});
-		return results;
+		return found;
 	}
-
-	// Return all the elements for which a truth test fails.
-	function $reject(obj, iterator, context) {
-		var results = $isArray(obj) ? [] : {};
-		if (!obj) return results;
-		$each(obj, function(value, index, list) {
-			if (!iterator.call(context, value, index, list)) results[index] = value;
-		});
-		return results;
+	
+	
+	// Convenience version of a common use case of `map`: fetching a property.
+	function $pluck(obj, key) {
+		return $map(obj, function(value){ return value[key]; });
 	}
-
+	
+	
 	function $length(item) {
 		var len = item && item.length;
 		if (!$isNumber(len)) {
@@ -256,19 +436,23 @@
 		}
 		return len;
 	}
+	
+	
+	// Trim out all falsy values from an array or object.
+	function $compact(obj) {
+		return $filter(obj, function(value){ return !!value; });
+	}
 
 	// flatten arrays recursively
 	function $flat() {
-		var flatArray = arrayProto.concat.apply(arrayProto, arguments);
+		var flatArray = ArrayProto.concat.apply(ArrayProto, arguments);
 		return $any(flatArray, $isArray) ? $flat.apply(this, flatArray) : flatArray;
 	}
 
-	var slice = Array.prototype.slice;
 	function $slice(obj, start, end) {
 		return slice.call(obj, start || 0, end);
 	}
 
-	var splice = Array.prototype.splice;
 	function $splice(obj, start, howMany) {
 		// slice creates garbage, lets not do that if we don't have to
 		if (arguments.length > 3 || typeof obj === "string") {
@@ -279,7 +463,11 @@
 	}
 
 
-	// async functions taken from https://github.com/caolan/async with some modifications
+
+
+
+	// async functions ------------------------------------------------------------ 
+	// taken from https://github.com/caolan/async with some modifications
 	// each and series support iterating over objects as well as arrays
 
 	var _async = {
@@ -287,9 +475,7 @@
 			var len = $length(obj), i = 0;
 			callback = callback || function() {};
 
-			if (!len) {
-				return callback();
-			}
+			if (!len) { return callback(); }
 			
 			$each(obj, function(val, key, obj) {
 				iterator(function(err) {
@@ -370,7 +556,7 @@
 					if(data.constructor !== Array) {
 						data = [data];
 					}
-					_forEach(data, function(task) {
+					_async.each(data, function(task) {
 						q.tasks.push({
 							data: task,
 							callback: typeof callback === 'function' ? callback : null
@@ -479,8 +665,8 @@
 
 		// third signature: async for each
 		} else {
-			var iterator = callback;
-			_async.map(tasks, iterator, arguments[2]);
+			//var iterator = callback;
+			_async.map(tasks, callback, arguments[2]);
 		}
 	};
 	
@@ -501,8 +687,8 @@
 
 		// third signature: async for each
 		} else {
-			var iterator = callback;
-			_async.mapSeries(tasks, iterator, arguments[2]);
+			//var iterator = callback;
+			_async.mapSeries(tasks, callback, arguments[2]);
 		}
 	};
 
@@ -606,6 +792,129 @@
 //		return {};
 //	});
 
+
+
+
+	// component-------------------------------------------------------
+
+	var $component = (function() {
+
+		var components = {};
+
+		var newComponent = function(name, proto) {
+
+			if (!components.hasOwnProperty(name)) {
+
+				var key, api = {};
+
+				// create our api facade functions
+				for (key in proto) {
+					if (key.substr(0,1) !== "_" && $isFunction(proto[key])) {
+						console.log(key);
+						api[key] = function() {
+							var compo = this._components[name][key];
+							return compo.apply(compo, $slice(arguments));
+						};
+					}
+				}
+
+				components[name] = {
+					api: api,
+					proto: proto
+				};
+			}
+		};
+
+		newComponent.attachComponent = function(obj, name) {
+
+			console.log(name, components);
+
+			if (components.hasOwnProperty(name)) {
+				var component = components[name];
+
+				if (!(name in obj._components)) {
+					var compo = components[name];
+					// add the component
+					obj._components[name] = $new(compo.proto);
+					// attach the api
+					$each(compo.api, function(fn, name) {
+						if (name in obj) {
+							throw new Error("Cannot overwrite existing property with new component api method " + name);
+						} else {
+							obj[name] = fn;
+						}
+					});
+				}
+
+			} else {
+				throw new Error("No such component " + name);
+			}
+		};
+
+
+		newComponent.dropComponent = function(obj, name) {
+			var key, compo;
+
+			// intentional assignment in if!!
+			if (obj._components && (compo = obj._components[name])) {
+				for (key in compo) {
+					if (key.substr(0,1) !== "_" && $isFunction(compo[key])) {
+						console.log(key);
+						delete obj[key];
+					}
+				}
+
+				delete obj._components[name];
+			}
+		};
+
+		return newComponent;
+
+	}());
+
+
+	// compose -------------------------------------------------------
+	function $compose(obj, deps) {
+
+		// handle new object variant
+		if(!deps && ($isString(obj) || $isArray(obj))) {
+			deps = obj;
+			obj = {};
+		}
+
+		if ($isString(deps)) {
+			deps = [deps];
+		}
+
+		if (!obj._components) {
+			obj._components = {
+				getParent: function() {
+					return obj;
+				}
+			};
+		}
+
+		$each(deps, function(dep) {
+			if (!(dep in obj._components)) {
+				console.log("attach", dep);
+				$component.attachComponent(obj, dep);
+			}
+		});
+	}
+
+	function $decompose(obj) {
+		if (obj._components) {
+			$each(obj._components, function(fn, key) {
+				if ($isFunction(fn)) {
+					$component.dropComponent(obj, key);
+				}
+			});
+
+			delete obj._components;
+		}
+	}
+
+
 	// object -------------------------------------------------------
 	
 	// use the same constructor every time to save on memory usage per
@@ -621,7 +930,7 @@
 		if(!ignoreInit && newInstance.init) {
 
 			// fix any uglyness that may have come through in the inits array
-			var inits = $find($flat(newInstance.init), $isFunction);
+			var inits = $filter($flat(newInstance.init), $isFunction);
 
 			// support single init functions or arrays of them
 			newInstance.init = (inits.length > 1) ? inits : inits[0];
@@ -640,16 +949,15 @@
 	 * @param source (object) the object to copy properties from
 	 * @param target (object) optional object to merge source's properties into
 	 * @param filter (function) optional function(key, source, target) { return boolean; }
-	 *  the filter function returns true if a property should be copied and false if it should be ignored
-	 *  filter can also be provided as the last of two arguments when omitting a target
-	 *  filter example: to deep copy only owned properties from objA to objB
-	 *  	$copy(objA, objB, function(key, source) {
-	 *  		return source.hasOwnProperty(key);
-	 *  	});
+	 * the filter function returns true if a property should be copied and false if it should be ignored
+	 * filter can also be provided as the last of two arguments when omitting a target
+	 * filter example: to deep copy only owned properties from objA to objB
+	 * 	$copy(objA, objB, function(key, source) {
+	 * 		return source.hasOwnProperty(key);
+	 * 	});
 	 */
 	function copy(source, target, filter) {
-		var key, sourceProp, targetProp,
-			targetType = typeof target;
+		var key, sourceProp, targetProp;
 
 		if ($isString(source) || $isBoolean(source) || $isNumber(source)) {
 			throw new Error("copy source must be an object");
@@ -710,6 +1018,38 @@
 			throw new Error("$merge: Optional third argument (filter) must be a function. Instead saw " + typeof filter);
 		}
 		return copy(source, target, filter);
+	}
+
+	// from underscore
+	// Reusable constructor function for prototype setting.
+	function Ctor(){}
+	// Create a function bound to a given object (assigning `this`, and arguments,
+	// optionally). Binding with arguments is also known as `curry`.
+	// Delegates to **ECMAScript 5**'s native `Function.bind` if available.
+	// We check for `func.bind` first, to fail fast when `func` is undefined.
+	function $bind(func, context) {
+		var bound, args;
+
+		if (func.bind === nativeBind && nativeBind) {
+			return nativeBind.apply(func, slice.call(arguments, 1));
+		}
+
+		if (!$isFunction(func)) {
+			throw new TypeError;
+		}
+
+		args = slice.call(arguments, 2);
+
+		return bound = function() {
+			if (!(this instanceof bound)) {
+				return func.apply(context, args.concat(slice.call(arguments)));
+			}
+			Ctor.prototype = func.prototype;
+			var self = new Ctor;
+			var result = func.apply(self, args.concat(slice.call(arguments)));
+			if (Object(result) === result) {return result;}
+			return self;
+		};
 	}
 
 	/**
@@ -799,7 +1139,7 @@
 
 			// flatten so that init can be a function or an array of functions
 			// we
-			inits = $find($flat(inits), $isFunction);
+			inits = $filter($flat(inits), $isFunction);
 
 			// makeSpeaker is any of our parts a speaker?
 			if ($isSpeaker(part)) {
@@ -891,6 +1231,9 @@
 			return date;
 		}
 
+		date = normalizeDateInput(date);
+		compareTo = normalizeDateInput(compareTo || new Date);
+
 		var lang = {
 				ago: 'Ago',
 				now: 'Just Now',
@@ -917,8 +1260,6 @@
 				[Infinity, lang.year, lang.years, 31536000] // Infinity, 1 year
 			],
 			isString = typeof date == 'string',
-			date = normalizeDateInput(date),
-			compareTo = normalizeDateInput(compareTo || new Date),
 			seconds = (compareTo - date +
 						(compareTo.getTimezoneOffset() -
 							// if we received a GMT time from a string, doesn't include time zone bias
@@ -928,7 +1269,7 @@
 					) / 1000,
 			token;
 
-		if(seconds < 0) {
+		if (seconds < 0) {
 			seconds = Math.abs(seconds);
 			token = '';
 		} else {
@@ -936,19 +1277,19 @@
 		}
 
 		/*
-		 * 0 seconds && < 60 seconds        Now
-		 * 60 seconds                       1 Minute
-		 * > 60 seconds && < 60 minutes     X Minutes
-		 * 60 minutes                       1 Hour
-		 * > 60 minutes && < 24 hours       X Hours
-		 * 24 hours                         1 Day
-		 * > 24 hours && < 7 days           X Days
-		 * 7 days                           1 Week
-		 * > 7 days && < ~ 1 Month          X Weeks
-		 * ~ 1 Month                        1 Month
-		 * > ~ 1 Month && < 1 Year          X Months
-		 * 1 Year                           1 Year
-		 * > 1 Year                         X Years
+		 * 0 seconds && < 60 seconds    Now
+		 * 60 seconds            1 Minute
+		 * > 60 seconds && < 60 minutes   X Minutes
+		 * 60 minutes            1 Hour
+		 * > 60 minutes && < 24 hours    X Hours
+		 * 24 hours             1 Day
+		 * > 24 hours && < 7 days      X Days
+		 * 7 days              1 Week
+		 * > 7 days && < ~ 1 Month     X Weeks
+		 * ~ 1 Month            1 Month
+		 * > ~ 1 Month && < 1 Year     X Months
+		 * 1 Year              1 Year
+		 * > 1 Year             X Years
 		 *
 		 * Single units are +10%. 1 Year shows first at 1 Year + 10%
 		 */
@@ -1234,7 +1575,7 @@
 
 
 	function $isSpeaker(obj) {
-		return (obj && $isFunction(obj.tell) && $isArray(obj._audience));
+		return !!(obj && $isFunction(obj.tell) && $isFunction(obj.listen));
 	}
 
 
@@ -1267,7 +1608,7 @@
 	}
 
 	function modelApiReset(modelVals, defaults) {
-		for (key in modelVals) {
+		for (var key in modelVals) {
 			if (key in defaults) {
 				modelVals[key] = defaults[key];
 			} else {
@@ -1285,7 +1626,6 @@
 			validationFailures,
 			failed;
 
-
 		// if using single item syntax convert it to multi-item syntax so we only need one implementation
 		if (typeof obj === "string") {
 			// set single item to
@@ -1299,8 +1639,6 @@
 		}
 
 		// generate our changes
-
-
 		if (!validate) {
 			// lets not check for validators if we don't have to
 			for (key in obj) {
@@ -1315,7 +1653,7 @@
 				validateFn = validate[key];
 
 				if(validateFn) {
-					validationResult = validateFn(val);
+					var validationResult = validateFn(val);
 					if (validationResult === true) {
 						changes[key] = val;
 					} else {
@@ -1343,7 +1681,7 @@
 	}
 
 	// define a type of object or data model
-	function $schema(type, options) {
+	function $schema(type, options, collection) {
 		var existingSchema = schemaBank[type],
 			instances = [];
 
@@ -1365,7 +1703,7 @@
 				});
 			}
 
-			var schema = $speak({
+			var schemaApi = $speak({
 				type: type,
 				constructor: function(vals) {
 					return this.newInstance(vals);
@@ -1387,7 +1725,7 @@
 					var _instances = instances;
 
 					if (filter) {
-						_instances = $find(instances, filter);
+						_instances = $filter(instances, filter);
 					}
 
 					$each(_instances, function(instance) {
@@ -1402,7 +1740,6 @@
 					var modelVals = $copy(options.defaults);
 					var modelProto = $speak($new(options));
 					var drop = options.drop;
-					var that = this;
 
 					if (drop && !$isFunction(drop)) {
 						throw new Error("drop must be a function");
@@ -1460,7 +1797,7 @@
 				}
 			});
 
-			schemaBank[type] = schema;
+			schemaBank[type] = collection ? $make(schemaApi, collection) : schemaApi;
 
 
 			// make models from our new schema recyclable
@@ -1589,10 +1926,11 @@
 			});
 		}
 
+		// todo jsperf with and without regex caching
 		doT.template = function(tmpl, c, def) {
 			c = c || doT.templateSettings;
 			var cstart = c.append ? "'+(" : "';out+=(", // optimal choice depends on platform/size of templates
-				cend   = c.append ? ")+'" : ");out+='";
+				cend  = c.append ? ")+'" : ");out+='";
 			var str = (c.use || c.define) ? resolveDefs(c, tmpl, def || {}) : tmpl;
 
 			str = ("var out='" +
@@ -1610,7 +1948,7 @@
 				})
 				.replace(c.conditionalStart, function(match, expression) {
 					var code = "if(" + expression + "){";
-					return "';" + code.replace(/\\'/g, "'").replace(/\\\\/g,"\\").replace(/[\r\t\n]/g, ' ')  + "out+='";
+					return "';" + code.replace(/\\'/g, "'").replace(/\\\\/g,"\\").replace(/[\r\t\n]/g, ' ') + "out+='";
 				})
 				.replace(c.evaluate, function(match, code) {
 					return "';" + code.replace(/\\'/g, "'").replace(/\\\\/g,"\\").replace(/[\r\t\n]/g, ' ') + "out+='";
@@ -1642,6 +1980,14 @@
 	// hyper-simplistic dom node api for html string building, used by $el for outputStrings mode
 	var $node = (function() {
 
+		var booleanProperties = {
+			checked: 1,
+			defaultChecked: 1,
+			disabled: 1,
+			multiple: 1,
+			selected: 1
+		};
+
 		var directProperties = {className:'class', htmlFor:'for'};
 		var selfClosing = {area:1, base:1, basefont:1, br:1, col:1, frame:1, hr:1, img:1, input:1, link:1, meta:1, param:1};
 
@@ -1661,7 +2007,7 @@
 				this.children = [];
 				this.children.toString = childrenToString;
 
-				// for compatability with $el dom builder in outputStrings mode
+				// for compatibility with $el dom builder in outputStrings mode
 				this.appendChild = this.append;
 				this.removeAttribute = this.setAttribute = this.set;
 			},
@@ -1669,7 +2015,7 @@
 			append: function(nodes) {
 				// no we don't do validation here, so sue me
 				// this will handle a single node or an array of nodes or a mixed array of nodes and arrays of nodes
-				this.children.splice.apply(this.children,  $flat(this.children.length, 0, nodes));
+				this.children.splice.apply(this.children, $flat(this.children.length, 0, nodes));
 				return this;
 			},
 			set: function(key, value) {
@@ -1686,6 +2032,13 @@
 							// add/edit attribute
 							// support alternate attribute names
 							key = directProperties[key] || key;
+							if (booleanProperties[key]) {
+								if (value)  {
+									value = key;
+								} else {
+									delete this.attr[key];
+								}
+							}
 							this.attr[key] = value;
 						} else {
 							// remove the attribute
@@ -1727,7 +2080,7 @@
 	};
 
 	// dom builder see: http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
-	// modified to support dom node ouput or string output, for server land
+	// modified to support dom node output or string output, for server land
 	var $el = (function () {
 		var root = this;
 		var doc = this.document || $doc;
@@ -1750,20 +2103,24 @@
 			selected: 1
 		};
 
-		var setProperty = function (el, key, value) {
+		function setProperty(el, key, value) {
 			var prop = directProperties[key];
+			var noValue = (!value && value !== 0);
 			if (prop) {
-				el[prop] = (value == null ? '' : '' + value);
+				el[prop] = (noValue ? '' : '' + value);
 			} else if (booleanProperties[key]) {
-				el[key] = !!value;
-			} else if ( value == null ) {
+				// set the attribute if true or do not add it at all
+				if (value) {
+					el.setAttribute(key, key);
+				}
+			} else if (noValue) {
 				el.removeAttribute(key);
 			} else {
 				el.setAttribute(key, '' + value);
 			}
-		};
+		}
 
-		var appendChildren = function (el, children) {
+		function appendChildren(el, children) {
 			$each(children, function(node) {
 				if (node) {
 					if ($isArray(node)) {
@@ -1776,7 +2133,7 @@
 					}
 				}
 			});
-		};
+		}
 
 		var splitter = /(#|\.)/;
 
@@ -1843,6 +2200,226 @@
 	}());
 
 
+
+
+
+	/* $dom
+		dom instructions
+		array == generic container for dom instructions
+		object == attributes
+		string == dom selector or innerHTML
+
+		dom instruction patterns:
+
+			[selector (String)]
+			selectors begin with an html tag name optionally followed by #someId and zero or more .someClass
+			a selector can be followed by any instruction another selector, an object, an array, innerHTML string
+
+			[selector (String), innerHTML (String)]
+			any string that does not look like a selector is treated as innerHTML,
+			if your strings will look like a selector you can add non selector characters like so...
+			invalid as innerHTML: "strong", "menu", "footer"
+			valid as innerHTML: "<span>strong</span>", "menu "
+			innerHTML can only be followed by a selector string
+
+			[selector (String), children (Array)]
+			an array can only be followed by a selector string
+
+			[selector (String), attributes (Object)]
+			attributes eg. {title: "my title", value: 2}
+			an object can be followed by an array or a string (selector or innerHTML)
+
+			[selector (String), attributes (Object), children (Array)]
+
+			eg.
+
+			var dom = [
+				["div", {className: "todo " + data.done ? "done" : ""},[
+					"div.display", [
+						"input.check", {type: "checkbox", checked: data.done},
+						"label.todo-content", data.content,
+						"span.todo-destroy"
+					],
+
+					"div.edit", [
+						"input.todo-input", {type: "text", value: data.content}
+					],
+					"ul", $map(data.items, $value)
+				]
+			];
+	*/
+
+	var $isSelector = (function() {
+		var one = 1,
+			maxLength = 0,
+			tags = {},
+			splitter = /(#|\.)/,
+			whitespace = /\s+/,
+			validTags = "a abbr acronym address applet area article aside audio b base basefont bdi bdo big\
+						blockquote body br button canvas caption center cite code col colgroup command datalist\
+						dd del details dfn dir div dl dt em embed fieldset figcaption figure font footer\
+						form frame frameset h1 head header hgroup hr html i iframe img input ins keygen kbd\
+						label legend li link map mark menu meta meter nav noframes noscript object ol optgroup\
+						option output p param pre progress q rp rt ruby s samp script section select small source\
+						span strike strong style sub summary sup table tbody td textarea tfoot th thead time title\
+						tr track tt u ul var video wbr";
+						// tags list derived from http://www.w3schools.com/html5/html5_reference.asp
+
+		$each(validTags.split(whitespace), function(str) {
+			maxLength = Math.max(maxLength, str.length);
+			tags[str] = one;
+		});
+
+		// its not perfect but should get the job done
+		function $isSelector(string) {
+			// spaces are not valid in selectors, must be content, this should cover 90% of content
+			// a common case for content is innerHTML with tags so test for that if no space
+			if ((string.indexOf(" ") > -1) || (string.indexOf("<") > -1)) {
+				return false;
+			}
+
+			var parts = string.split(splitter),
+				tag = parts[0],
+				partsLen = parts.length,
+				id = "", className = "",
+				i, j, l, name, type;
+
+			// is it longer than any of the valid tags or is it not a valid tag?
+			if ( (tag.length > maxLength) || !(tag in tags)) {
+				return false;
+			}
+
+			if (partsLen > 2) {
+				for (i=1, j=2, l=partsLen; j<l; i+=2, j+=2) {
+					name = parts[j];
+					type = parts[i];
+					if (type === "#") {
+						id = name;
+					} else {
+						className = className ? className + " " + name : name;
+					}
+				}
+			}
+
+			return [tag, id, className];
+		}
+
+		$isSelector.addTag = function(str) {
+			maxLength = Math.max(maxLength, str.length);
+			tags[str] = one;
+		};
+
+		return $isSelector;
+	}());
+
+	var $dom = (function() {
+
+		function $dom(domInstructions, preProcessedSelector) {
+
+			if ($typeof(domInstructions) !== "array") {
+				throw new Error("Unexpected type, expected array but saw " + $typeof(domInstructions));
+			}
+
+			var returnNodes = [],
+				tag, attributes, childNodes, childNode,
+				selector, arg, type, lastArgIsSelecor, firstArgIsSelector,
+				id, className, step = 1, i, len = domInstructions.length;
+
+			for (i=0; i<len; i++) {
+				arg = domInstructions[i];
+
+				switch(step) {
+
+					case 1:
+						// first arg should always be a selector
+						selector = preProcessedSelector || lastArgIsSelecor || $isSelector(arg);
+
+						if (!selector) {
+							throw new Error("Expected string but saw " + $typeof(arg));
+						}
+
+						tag = selector[0];
+						id = selector[1];
+						className = selector[2];
+						selector = preProcessedSelector = lastArgIsSelecor = null;
+						step++;
+						attributes = {};
+						id && (attributes.id = id);
+						className && (attributes.className = className); // remember we app
+
+						if (i === len-1) {
+							returnNodes.push($el(tag, attributes));
+						}
+						continue;
+
+					case 2:
+						type = $typeof(arg);
+						if (type === "object") {
+							attributes = $mixin({}, arg);
+							step++;
+							id && (attributes.id = id);
+							if (className) {
+								attributes.className = (attributes.className) ? (className + " " + attributes.className) : className;  // remember we appended a space in $isSelector
+							}
+							// add attributes from the selector for final case
+							if (i === len-1) {
+								returnNodes.push($el(tag, attributes));
+							}
+							continue;
+						}
+				}
+
+				// final step, prepare to start over
+				step = 1;
+				type = $typeof(arg);
+
+				// we expect an optional object array or string (innerHTML or nextSelector) here
+				switch(type) {
+
+					case "string":
+
+						lastArgIsSelecor = $isSelector(arg);
+						if (lastArgIsSelecor) { // this is the beginning of the next node
+							// loop back over it now that step=1;
+							i--;
+							returnNodes.push($el(tag, attributes));
+						} else { // last arg is innerHTML
+							returnNodes.push($el(tag, attributes, arg));
+						}
+						break; // new dom node start from the top
+
+					case "array": // child nodes
+						childNode = arg[0];
+						firstArgIsSelector = $isSelector(childNode);
+						if (firstArgIsSelector) {
+							// this is where we do our recursion
+							childNodes = $dom(arg, firstArgIsSelector);
+						} else if (typeof childNode === "string") {
+							// looks like an array of innerHTML
+							childNodes = arg.join("\n");
+						} else if ($isElement(childNode)) {
+							// assume its already an array of nodes
+							childNodes = arg;
+						} else {
+							throw new Error("Unexpected initial element, saw " + $typeof(arg) + ". Must be a selector, innerHTML string, or DOM node.");
+						}
+						returnNodes.push($el(tag, attributes, childNodes));
+						continue;
+
+					default:
+						throw new Error("Unexpected type, saw " + $typeof(arg));
+				}
+			}
+
+			attributes = null;
+			return returnNodes;
+		}
+
+		return $dom;
+
+	}());
+
+
 	// escapeHTML -------------------------------------------------------
 	// from backbone.js
 	var $escapeHTML = (function() {
@@ -1861,7 +2438,18 @@
 		};
 	}());
 
+	// from backbone.js
+	// Generate a unique integer id (unique within the entire client session).
+	// Useful for temporary DOM ids.
+	var idCounter = 0;
+	function $uniqueId(prefix) {
+		var id = idCounter++;
+		return prefix ? prefix + id : id;
+	}
 
+	// from backbone.js
+	// Cached regex to split keys for `delegate`.
+	var eventSplitter = /^(\S+)\s*(.*)$/;
 
 	/**
 	 *
@@ -1871,86 +2459,185 @@
 	 * @description single argument signature
 	 *
 	 */
-	var $view = function(node, model, templateOrRenderFn) {
+	var viewConstructorBank = {};
+	var $view = function(type, node, model, templateOrRenderFn, events) {
 
-		var view = $speak(),
-			renderer, update, drop;
+		var existing = viewConstructorBank[type],
+			instances = [];
 
-		if (node && arguments.length === 1) {
-			var spec = arguments[0];
-			node = spec.node;
-			model = spec.model;
-			drop = spec.drop;
-			templateOrRenderFn = spec.template || spec.render;
+		// schema getter
+		if (type && arguments.length === 1 && existing) {
+			return existing;
 
-			$extend(view, spec);
-		}
+		// init a new view instance of the given, existing type
+		// passing the provided model data object in the 2nd argument
+		} else if (type && arguments.length === 2 && existing) {
+			var modelData = node;
+			if (modelData.defaults || modelData.node || modelData.model) {
+				throw new Error("Invalid Arguments!");
+			}
+			return existing(modelData);
 
-		if(!$isElement(node)) {
-			throw new Error("$view: parent must be a DOM node");
-		}
+		// return a view constructor
+		} else if (type && $isString(type) && !existing) {
+			var constructor = function(modelData) {
+				var renderer, update, drop;
+				var view = $speak({
+					drop: function() {
+						model.ignore(update); 					// unsubscribe our model
+						drop && $isFunction(drop) && drop(); 	// call the custom drop method if it exists
+						$(this.node).remove(); 					// this will unbind event handlers
+						this.tell("drop");						// emit our drop event
+						$clear(this);							// final house cleaning
+					},
+					update: function() {
+						update({}, "update", this.model);
+					}
+				});
 
-		if(!model || !$isModel(model)) {
-			throw new Error("$view: model argument must be a product of $model");
-		}
+				if (node && arguments.length === 2) {
+					var spec = arguments[1];
+					events = spec.events;
+					node = spec.node;
+					model = spec.model;
+					drop = spec.drop;
+					templateOrRenderFn = spec.template || spec.render;
+					$extend(view, spec);
+				}
 
-		view.node = node;
-		view.model = model;
+				if ($isString(node)) { node = $el(node); }
 
-		// define our renderer and render functions
-		if ($isString(templateOrRenderFn)) {
-			// in the case of a template we use extra param for template settings
-			renderer = $tmpl(templateOrRenderFn);
+				if ($isString(model)) { model = $model(model, modelData); }
 
-			update = function(changes, type, rmodel) {
-				view.node.innerHTML = renderer(rmodel.get());
-				return view.node;
-			};
+				if(!$isElement(node)) {
+					throw new Error("$view: parent must be a DOM node");
+				}
 
-		} else if ($isFunction(templateOrRenderFn)) {
-			var oldContent;
-			update = function(changes, type, rmodel) {
-				var content = templateOrRenderFn(rmodel.get(), changes, view);
+				if(!model || !$isModel(model)) {
+					throw new Error("$view: model argument must be a product of $model");
+				}
 
-				if (content) {
-					if ($isElement(content)) {
-						if (oldContent) {
-							node.replaceChild(content, oldContent);
-						} else {
-							node.appendChild(content);
+				view.type = type;
+				view.id = $uniqueId(type+"View");
+				view.node = node;
+				view.model = model;
+
+				// define our renderer and render functions
+				if ($isString(templateOrRenderFn)) {
+					// in the case of a template we use extra param for template settings
+					renderer = $tmpl(templateOrRenderFn);
+
+					update = function(changes, type, rmodel) {
+						view.node.innerHTML = renderer(rmodel.get());
+						return view.node;
+					};
+
+				} else if ($isFunction(templateOrRenderFn)) {
+					var oldContent;
+					update = function(changes, type, rmodel) {
+						var content = templateOrRenderFn(rmodel.get(), changes, view);
+
+						if (content) {
+							if ($isElement(content)) {
+								if (oldContent) {
+									node.replaceChild(content, oldContent);
+								} else {
+									node.appendChild(content);
+								}
+								oldContent = content;
+
+							} else {
+								view.node.innerHTML = content;
+							}
 						}
-						oldContent = content;
 
-					} else {
-						view.node.innerHTML = content;
+						return view.node;
+					};
+
+				} else {
+					throw new Error("$view: template must be a template string or render function");
+				}
+
+				model.listen("change", update);
+
+				view.init && $isFunction(view.init) && view.init();
+
+				// from backbone.js
+				// Set callbacks, where `this.callbacks` is a hash of
+				//
+				// *{"event selector": "callback"}*
+				//
+				//   {
+				//    'mousedown .title': 'edit',
+				//    'click .button':   'save'
+				//   }
+				//
+				// pairs. Callbacks will be bound to the view, with `this` set properly.
+				// Uses event delegation for efficiency.
+				// Omitting the selector binds the event to `this.el`.
+				// This only works for delegate-able events: not `focus`, `blur`, and
+				// not `change`, `submit`, and `reset` in Internet Explorer.
+				//view.delegateEvents = function(events) {
+				if (events) {
+					$(view.node).unbind('.delegateEvents' + view.id);
+					for (var key in events) {
+						var methodName = events[key];
+						var match = key.match(eventSplitter);
+						var eventName = match[1], selector = match[2];
+						var method = function() {view[methodName]();};
+						eventName += '.delegateEvents' + view.id;
+						if (selector === '') {
+							$(view.node).bind(eventName, method);
+						} else {
+							$(view.node).delegate(selector, eventName, method);
+						}
 					}
 				}
-				
-				return view.node;
+
+				instances.push(view);
+
+				return view;
 			};
 
+			$mixin(constructor, {
+				drop: function() {
+					this.dropInstances();
+					instances = existing = null;
+					delete viewConstructorBank[type];
+					$clear(this);
+					$view.tell("drop", {constructor: type});
+				},
+
+				getInstances: function() {
+					// return a copy of the instances array not the real thing
+					return instances;
+				},
+
+				dropInstances: function(filter) {
+					var _instances = instances;
+
+					if (filter) {
+						_instances = $filter(instances, filter);
+					}
+
+					$each(_instances, function(instance) {
+						instance.drop();
+					});
+
+					return this;
+				}
+			});
+
+			viewConstructorBank[type] = constructor;
+
 		} else {
-			throw new Error("$view: template must be a template string or render function");
+			throw new Error("Invalid Arguments!");
 		}
-
-		view.drop = function() {
-			model.ignore(update);
-			drop && $isFunction(drop) && drop();
-			this.tell("drop");
-			$clear(this);
-		};
-
-
-		view.update = function() {
-			update({}, "update", this.model);
-		};
-
-		model.listen("change", update);
-
-		view.init && $isFunction(view.init) && view.init();
-
-		return view;
 	};
+
+	function $views(type) {
+		return $view(type).getInstances();
+	}
 
 	var $isView = function(view) {
 		return view && view.drop && $isFunction(view.drop) && view.node && view.model;
@@ -2001,29 +2688,39 @@
 	};
 
 	loot.exports = {
-
-		// types
-		$isNumber: $isNumber,
-		$isEmpty: $isEmpty,
+		// basic types
+		$isNull: $isNull,
+		$isUndefined: $isUndefined,
+		$isNaN: $isNaN,
 		$isElement: $isElement,
-		$isArray: $isArray,
+		$isObject: $isObject,
 		$isFunction: $isFunction,
 		$isString: $isString,
-		$isNaN: $isNaN,
-		$isNull: $isNull,
+		$isNumber: $isNumber,
 		$isBoolean: $isBoolean,
+		$isDate: $isDate,
 		$isRegExp: $isRegExp,
+		$isArguments: $isArguments,
+		$isArray: $isArray,
+		$typeof: $typeof,
+		$isEmpty: $isEmpty,
+		$has: $has,
 
 		// collections
 		$clear: $clear,
 		$each: $each,
 		$keys: $keys,
+		$values: $values,
 		$map: $map,
+		$reduce: $reduce,
 		$any: $any,
 		$all: $all,
-		$find: $find,
+		$filter: $filter,
 		$reject: $reject,
+		$includes: $includes,
+		$pluck: $pluck,
 		$length: $length,
+		$compact: $compact,
 		$flat: $flat,
 		$slice: $slice,
 		$splice: $splice,
@@ -2041,6 +2738,9 @@
 		$mixin: $mixin,
 		$make: $make,
 
+		// functions
+		$bind: $bind,
+
 		// time
 		$now: $now,
 		$timeAgo: $timeAgo,
@@ -2054,29 +2754,39 @@
 		$recyclable: $recyclable,
 		$recycle: $recycle,
 		$reuse: $reuse,
+		
+		// traits
+		$component: $component,
+		$compose: $compose,
+		$decompose: $decompose,
 
 		// models
-		$define: $schema,
 		$schema: $schema,
+		$define: $schema,
 		$model: $model,
 		$models: $models,
 		$isSchema: $isSchema,
 		$isModel: $isModel,
 
+		// views
+		$view: $view,
+		$views: $views,
+		$isView: $isView,
+
 		// string
 		$trim: $trim,
+
+		// misc
+		$uniqueId: $uniqueId,
 
 		// html
 		$id: $id,
 		$tmpl: $tmpl,
 		$node: $node,
 		$el: $el,
-		$escapeHTML: $escapeHTML,
-
-		// views
-		$view: $view,
-		$isView: $isView
-
+		$isSelector: $isSelector,
+		$dom: $dom,
+		$escapeHTML: $escapeHTML
 	};
 
 	loot.addExport = function(name, obj) {
@@ -2103,7 +2813,7 @@
 		// handle multiple plugins if first arg is object
 		} else if (arguments.length == 1 && typeof arguments[0] == "object") {
 			obj = arguments[0];
-			for (name in  obj) {
+			for (name in obj) {
 				this.addExport(name, obj);
 			}
 		}

@@ -159,7 +159,6 @@ var N = 100;
 (function() {
 
 	$define("box", {
-		manageInstances: true,
 		defaults: {
 			count: 0,
 			top: 0,
@@ -192,36 +191,26 @@ var N = 100;
 		};
 
 	var lootInit = function() {
-
 		boxViews = [];
-
-		var x = N,
-			aBoxParentNode = $el("div.box-view"),
-			aBoxNode = $el("div.box"),
-			render = function(data, changes, view) {
-
+		var x = N;
+		var boxView = $view({
+			init: function() {
+				boxViews.push(this);
+				$id("grid").appendChild(this.node);
+			},
+			node:   $el("div.box-view"),
+			model:  "box",
+			render: function(data, changes, view) {
 				var el = view.el, newEl;
-
-				if (!el) {
-					newEl = el = view.el = aBoxNode.cloneNode();
-				}
-
+				if (!el) { newEl = el = view.el = $el("div.box");}
 				el.style.cssText = 'top: ' + data.top + 'px; left: ' +  data.left +'px; background: rgb(0,0,' + data.color + ');';
 				el.innerHTML = data.content;
-
 				return newEl; // returns undefined after first run
-			};
+			}
+		});
 
 		while (x--) {
-			$view({
-				init: function() {
-					boxViews.push(this);
-					$id("grid").appendChild(this.node);
-				},
-				node:   aBoxParentNode.cloneNode(),
-				model:  $model("box", {number:x}),
-				render: render
-			});
+			boxView({number: x});
 		}
 	};
 
