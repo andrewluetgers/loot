@@ -33,24 +33,6 @@
 		};
 	}
 
-	if (!Object.prototype.keys) {
-		Object.prototype.keys = function(o) {
-			var keys=[], p;
-
-			if (o !== Object(o)) {
-				throw new TypeError('Object.keys called on non-object');
-			}
-
-			for(p in o) {
-				if(Object.prototype.hasOwnProperty.call(o,p)) {
-					keys.push(p);
-				}
-			}
-
-			return keys;
-		};
-	}
-
 
 	if (!Array.prototype.indexOf) {
 		Array.prototype.indexOf = function (searchElement /*, fromIndex */ ) {
@@ -85,108 +67,89 @@
 		}
 	}
 
-	if (!Array.prototype.lastIndexOf) {	
-		Array.prototype.lastIndexOf = function(searchElement /*, fromIndex*/) {
-			"use strict";
-		
-			if (this == null) {
-				throw new TypeError();
-			}
-		
-			var t = Object(this);
-			var len = t.length >>> 0;
-			if (len === 0) {
-				return -1;
-			}
-		
-			var n = len;
-			if (arguments.length > 1) {
-				n = Number(arguments[1]);
-				if (n != n) {
-					n = 0;
-				} else if (n != 0 && n != (1 / 0) && n != -(1 / 0)) {
-					n = (n > 0 || -1) * Math.floor(Math.abs(n));
-				}
-			}
-		
-			var k = n >= 0 ? Math.min(n, len - 1) : len - Math.abs(n);
-		
-			for (; k >= 0; k--) {
-				if (k in t && t[k] === searchElement) return k;
-			}
-			return -1;
-		};
-	} 
-
 	// some variables that get used all over -------------------------------------------------------
 
 	// Save bytes in the minified (but not gzipped) version:
 	var ArrayProto = Array.prototype, ObjProto = Object.prototype, FuncProto = Function.prototype;
 
 	// Create quick reference variables for speed access to core prototypes.
-	var slice      = ArrayProto.slice,
-		splice      = ArrayProto.splice,
-		//unshift     = ArrayProto.unshift,
-		toString     = ObjProto.toString,
-		hasOwnProperty  = ObjProto.hasOwnProperty;
+	var slice 					= ArrayProto.slice,
+		splice 					= ArrayProto.splice,
+		//unshift 				= ArrayProto.unshift,
+		toString 				= ObjProto.toString,
+		hasOwnProperty 			= ObjProto.hasOwnProperty;
 
 	// All **ECMAScript 5** native function implementations that we hope to use
 	// are declared here.
-	var nativeForEach   = ArrayProto.forEach,
-		nativeMap     = ArrayProto.map,
-		nativeReduce    = ArrayProto.reduce,
-		//nativeReduceRight = ArrayProto.reduceRight,
-		nativeFilter    = ArrayProto.filter,
-		nativeEvery    = ArrayProto.every,
-		nativeSome     = ArrayProto.some,
-		nativeIndexOf   = ArrayProto.indexOf,
-		//nativeLastIndexOf = ArrayProto.lastIndexOf,
-		nativeIsArray   = Array.isArray,
-		//nativeKeys     = Object.keys,
-		nativeBind     = FuncProto.bind;
+	var nativeForEach 			= ArrayProto.forEach,
+		nativeMap  				= ArrayProto.map,
+		nativeReduce 			= ArrayProto.reduce,
+		//nativeReduceRight 	= ArrayProto.reduceRight,
+		nativeFilter 			= ArrayProto.filter,
+		nativeEvery 			= ArrayProto.every,
+		nativeSome 				= ArrayProto.some,
+		nativeIndexOf 			= ArrayProto.indexOf,
+		nativeIsArray 			= Array.isArray,
+		nativeKeys 				= Object.keys,
+		nativeBind 				= FuncProto.bind;
 
+	// commonly used strings, this can help mitigate a bit of garbage generation
+	var funType = "function", undType = "undefined", strType = "string",
+		arrType = "array", regType = "regexp", argType = "arguments",
+		eleType = "element", objType = "object", numType = "number",
+		nanType = "NaN", nulType = "null",
+		booStr = "[object Boolean]", numStr = "[object Number]",
+		datStr = "[object Date]", regStr = "[object RegExp]",
+		argStr = "[object Arguments]", aryStr = "[object Array]",
+		calleeS = "callee";
 
 	// basic types -------------------------------------------------------
 	// stolen wholesale from underscore
-	function $isNull		(obj) { 	return obj === null; }
-	function $isUndefined	(obj) { 	return obj === void 0; }
-	function $isNaN			(obj) { 	return obj !== obj; }
-	function $isElement		(obj) { 	return !!(obj && obj.nodeType == 1); }
+	function $isNull		(obj) { 	return obj === null;}
+	function $isNaN			(obj) { 	return obj !== obj;}
+	function $isElement		(obj) { 	return !!(obj && obj.nodeType == 1);}
 	function $isObject		(obj) { 	return obj === Object(obj); }
-	function $isBoolean		(obj) { 	return obj === true || obj === false || toString.call(obj) == "[object Boolean]";}
-	function $isFunction	(obj) { 	return toString.call(obj) == "[object Function]"; }
-	function $isString		(obj) { 	return toString.call(obj) == "[object String]"; }
-	function $isNumber		(obj) { 	return toString.call(obj) == "[object Number]"; }
-	function $isDate		(obj) { 	return toString.call(obj) == "[object Date]";}
-	function $isRegExp		(obj) { 	return toString.call(obj) == "[object RegExp]"; }
+	function $isBoolean		(obj) { 	return obj === true || obj === false || toString.call(obj) == booStr;}
+	function $isUndefined	(obj) { 	return typeof obj === undType;}
+	function $isFunction	(obj) { 	return typeof obj === funType;}
+	function $isString		(obj) { 	return typeof obj === strType;}
+	function $isNumber		(obj) { 	return toString.call(obj) == numStr;}
+	function $isDate		(obj) { 	return toString.call(obj) == datStr;}
+	function $isRegExp		(obj) { 	return toString.call(obj) == regStr;}
 
-	function $isArguments	(obj) { 	return toString.call(obj) == "[object Arguments]"; }
+	function $isArguments	(obj) { 	return toString.call(obj) == argStr;}
 	if (!$isArguments(arguments)) {
-		$isArguments = function(obj) { 	return !!(obj && $has(obj, "callee"));};
+		$isArguments = function(obj) { 	return !!(obj && $has(obj, calleeStr));};
 	}
 
 	var $isArray = nativeIsArray ||
-			function(obj) { 			return toString.call(obj) == "[object Array]"; };
+			function(obj) { 			return toString.call(obj) == aryStr;};
 
 	function $typeof (obj) {
 		var type = typeof obj;
-		
-		if(type === "object") {
-			if ($isArray(obj)) {
-				return "array";
-			} else if (obj === null) {
-				return "null";
-			} else if (toString.call(obj) === "[object RegExp]") {
-				return "regexp"
-			} else if ($isArguments(obj)) {
-				return "arguments";
-			} if (obj === Object(obj)) {
-				return "object";
-			}
-		}
 
-		if (obj !== obj) {
-			return "NaN";
+		switch(type) {
+			case objType:
+				if (obj === null) {
+					return nulType;
+				} else if ($isArray(obj)) { // this must be before the obj = Object(obj)
+					return arrayType;
+				} else if (toString.call(obj) === regStr) {
+					return regType;
+				} else if ($isArguments(obj)) {
+					return argType;
+				} else if (!!(obj && obj.nodeType == 1)) {
+					return eleType;
+				} else { // this should be last
+					return objType;
+				}
+				break;
+
+			case numType:
+				if (obj !== obj) {
+					return nanType;
+				}
+				break;
 		}
 
 		return type;
@@ -201,41 +164,17 @@
 	}
 	
 	function $has (obj, key) { return hasOwnProperty.call(obj, key); }
-	
+
+
+	// object functions
+	var $keys = nativeKeys || function(obj) {
+		if (obj !== Object(obj)) throw new TypeError('Invalid object');
+		var keys = [];
+		for (var key in obj) if ($has(obj, key)) keys[keys.length] = key;
+		return keys;
+	};
 
 	// Collection Functions (work on objects and arrays) -------------------------------------------------------
-	
-	// Keep the identity function around for default iterators.
-	function _identity(value) {
-		return value;
-	}
-	
-	function $keys(obj) {
-		var keys = [];
-		$each(obj, function(val, key) {
-			keys.push(key);
-		});
-		return keys;
-	}
-	
-	function $values(obj) {
-		return $map(obj, _identity);
-	}
-	
-	var _clearKey;
-	function $clear(obj) {
-		if ($isArray(obj)) {
-			obj.length = 0;
-		}
-
-		for (_clearKey in obj) {
-			if (obj.hasOwnProperty(_clearKey)) {
-				delete obj[_clearKey];
-			}
-		}
-	}
-	
-
 
 	// The cornerstone, an `each` implementation, aka `forEach`.
 	// Handles objects with the built-in `forEach`, arrays, and raw objects.
@@ -248,7 +187,14 @@
 
 		function each(obj, iterator, context) {
 			if (!obj) return;
-
+			if (typeof obj === numType) {
+				console.log("number");
+				var arr = [];
+				for (i = 0, l = parseInt(obj); i < l; i++) {
+					arr[i] = i;
+					if (iterator.call(context, i, i, arr) === breaker) return;
+				}
+			}
 			if (nativeForEach && obj.forEach === nativeForEach) {
 				obj.forEach(iterator, context);
 
@@ -285,8 +231,8 @@
 		if (nativeMap && obj.map === nativeMap) {
 			return obj.map(iterator, context);
 		}
-		
-		if ($isArray(obj)) {
+
+		if ($isArray(obj) || $isNumber(obj)) {
 			$each(obj, function(value, index, list) {
 				results[results.length] = iterator.call(context, value, index, list);
 			});
@@ -355,10 +301,11 @@
 	
 	// Return all the elements for which a truth test fails.
 	function $reject(obj, iterator, context) {
-		var results = [];
+		var results;
 		if (!obj) return results;
 		
 		if ($isArray(obj)) {
+			results = [];
 			$each(obj, function(value, index, list) {
 				if (!iterator.call(context, value, index, list)) results[results.length] = value;
 			});
@@ -453,11 +400,34 @@
 
 	function $splice(obj, start, howMany) {
 		// slice creates garbage, lets not do that if we don't have to
-		if (arguments.length > 3 || typeof obj === "string") {
+		if (arguments.length > 3 || typeof obj === strType) {
 			return splice.apply(obj, $flat($slice(arguments, 1)));
 		} else {
 			return splice.call(obj, start, howMany);
 		}
+	}
+
+	// Retrieve the values of an object's properties.
+	function $values(obj) {
+		return $map(obj, $identity);
+	}
+
+	var _clearKey;
+	function $clear(obj) {
+		if ($isArray(obj)) {
+			obj.length = 0;
+		}
+
+		for (_clearKey in obj) {
+			if (obj.hasOwnProperty(_clearKey)) {
+				delete obj[_clearKey];
+			}
+		}
+	}
+
+	// map iterator functions ------------------------------------
+	function $value(val) {
+		return val;
 	}
 
 
@@ -490,7 +460,7 @@
 		},
 
 		eachSeries: function(obj, iterator, callback) {
-			var next, keys = $keys(obj),
+			var next, keys = $map(obj, function(v, k) {return k;}), // not using keys here bc we want array indexes as numbers, each gives us that
 				i = 0, len = keys.length,
 				key;
 
@@ -517,7 +487,7 @@
 
 		// nextTick implementation with browser-compatible fallback
 		nextTick: (function() {
-			if (typeof process === 'undefined' || !(process.nextTick)) {
+			if (typeof process === undType || !(process.nextTick)) {
 				return function(fn) { setTimeout(fn, 0); };
 			} else {
 				return process.nextTick;
@@ -557,7 +527,7 @@
 					_async.each(data, function(task) {
 						q.tasks.push({
 							data: task,
-							callback: typeof callback === 'function' ? callback : null
+							callback: typeof callback === funType ? callback : null
 						});
 						if (q.saturated && q.tasks.length == concurrency) {
 							q.saturated();
@@ -988,7 +958,7 @@
 				continue;
 			}
 
-			if (typeof sourceProp === 'object' && !$isNull(sourceProp)) {
+			if (typeof sourceProp === objType && !$isNull(sourceProp)) {
 				targetProp = $isArray(sourceProp) ? [] : {};
 				target[key] = copy(sourceProp, targetProp, filter);
 
@@ -1201,6 +1171,8 @@
 	 * Javascript Humane Dates
 	 * Copyright (c) 2008 Dean Landolt (deanlandolt.com)
 	 * Re-write by Zach Leatherman (zachleat.com)
+	 * RE-RE-write by andrew luetgers
+	 * 		to accept timestamps and remove init work from each call
 	 *
 	 * Adopted from the John Resig's pretty.js
 	 * at http://ejohn.org/blog/javascript-pretty-date
@@ -1210,27 +1182,9 @@
 	 * Licensed under the MIT license.
 	 */
 
-	// modified by andrew luetgers to accept timestamps
+	//
 
-	function $timeAgo(date, compareTo) {
-
-		function normalizeDateInput(date) {
-			switch (typeof date) {
-
-				case "string":
-					date = new Date(('' + date).replace(/-/g,"/").replace(/[TZ]/g," "));
-					break;
-
-				case "number":
-					date = new Date(date);
-					break;
-			}
-
-			return date;
-		}
-
-		date = normalizeDateInput(date);
-		compareTo = normalizeDateInput(compareTo || new Date);
+	var $timeAgo = (function() {
 
 		var lang = {
 				ago: 'Ago',
@@ -1257,22 +1211,9 @@
 				[31536000, lang.month, lang.months, 2628000], // 1 year, ~1 month
 				[Infinity, lang.year, lang.years, 31536000] // Infinity, 1 year
 			],
-			isString = typeof date == 'string',
-			seconds = (compareTo - date +
-						(compareTo.getTimezoneOffset() -
-							// if we received a GMT time from a string, doesn't include time zone bias
-							// if we got a date object, the time zone is built in, we need to remove it.
-							(isString ? 0 : date.getTimezoneOffset())
-						) * 60000
-					) / 1000,
-			token;
-
-		if (seconds < 0) {
-			seconds = Math.abs(seconds);
-			token = '';
-		} else {
-			token = ' ' + lang.ago;
-		}
+			minusRe = /-/g,
+			tzRe = /[TZ]/g,
+			margin = 0.1;
 
 		/*
 		 * 0 seconds && < 60 seconds    Now
@@ -1291,30 +1232,67 @@
 		 *
 		 * Single units are +10%. 1 Year shows first at 1 Year + 10%
 		 */
-
 		function normalize(val, single) {
-			var margin = 0.1;
 			if(val >= single && val <= single * (1+margin)) {
 				return single;
 			}
 			return val;
 		}
 
-		for(var i = 0, format = formats[0]; formats[i]; format = formats[++i]) {
-			if(seconds < format[0]) {
-				if(i === 0) {
-					// Now
-					return format[1];
-				}
+		function normalizeDateInput(date) {
+			switch (typeof date) {
 
-				var val = Math.ceil(normalize(seconds, format[3]) / (format[3]));
-				return val +
-						' ' +
-						(val != 1 ? format[2] : format[1]) +
-						(i > 0 ? token : '');
+				case strType:
+					date = new Date(('' + date).replace(minusRe, "/").replace(tzRe, " "));
+					break;
+
+				case numType:
+					date = new Date(date);
+					break;
+			}
+
+			return date;
+		}
+
+		function _timeago(date, compareTo) {
+
+			date = normalizeDateInput(date);
+			compareTo = normalizeDateInput(compareTo || new Date);
+
+			var token,
+				isString = typeof date === strType,
+				seconds = (compareTo - date +
+							(compareTo.getTimezoneOffset() -
+								// if we received a GMT time from a string, doesn't include time zone bias
+								// if we got a date object, the time zone is built in, we need to remove it.
+								(isString ? 0 : date.getTimezoneOffset())
+							) * 60000
+						) / 1000;
+
+			if (seconds < 0) {
+				seconds = Math.abs(seconds);
+				token = '';
+			} else {
+				token = ' ' + lang.ago;
+			}
+			for(var i = 0, format = formats[0]; formats[i]; format = formats[++i]) {
+				if(seconds < format[0]) {
+					if(i === 0) {
+						// Now
+						return format[1];
+					}
+
+					var val = Math.ceil(normalize(seconds, format[3]) / (format[3]));
+					return val +
+							' ' +
+							(val != 1 ? format[2] : format[1]) +
+							(i > 0 ? token : '');
+				}
 			}
 		}
-	}
+
+		return _timeago;
+	}());
 
 
 
@@ -1385,7 +1363,7 @@
 
 				var that = this,
 					topicType = typeof topic,
-					topicIsString = (topicType == "string"),
+					topicIsString = (topicType == strType),
 					responderType = typeof responder;
 
 				if (arguments.length > 1) {
@@ -1419,7 +1397,7 @@
 					}
 
 				// handle listen({event:handler}) signature
-				} else if (typeof topic === "object") {
+				} else if (typeof topic === objType) {
 					// call self for each function if given a map of callbacks instead of a single function
 					$each(topic, function(listener, topic) {
 						if ($isFunction(listener)) {
@@ -1625,7 +1603,7 @@
 			failed;
 
 		// if using single item syntax convert it to multi-item syntax so we only need one implementation
-		if (typeof obj === "string") {
+		if (typeof obj === strType) {
 			// set single item to
 			if (_val === undefined) {
 				modelVals[_key] = _val;
@@ -1753,6 +1731,7 @@
 							if (arguments.length) {
 								return modelApiGet.apply(this, $flat(modelVals, $slice(arguments))); // todo can we do this in a better way
 							} else {
+								console.log(arguments.length);
 								return modelVals;
 							}
 						},
@@ -1865,6 +1844,163 @@
 			return str;
 		}
 	}
+
+
+
+
+
+	// cache -------------------------------------------------------
+	$cache = $speak({
+
+		types: {
+			// add our default cache type for io requests without a typeId
+			io: {
+				bins: {}
+			}
+		},
+
+		// for 1 args the cacheKey is just the url, eg. "/contents"
+		// for 2 args a key is generated with the url and the req ,
+		// 		if the url was /user and post or get values were {name:"jim",age:25}
+		// 		then the key would be /user[name:jim,age:25]
+		getKey: function(url, req) {
+			if (!req) {
+				return url;
+			}
+
+			var cacheKey = [],
+				keys = [],
+				keyStrings = {};
+
+			$each(req, function(val, key) {
+				keys.push(key);
+				var str = ($isString(val) || $isNumber(val)) ? val : val.toString();
+				keyStrings[key] = key + ":" + str;
+			});
+
+			$each(keys.sort(), function(val) {
+				cacheKey.push(keyStrings[val]);
+			});
+
+			return url + "[" + cacheKey.join(",") + "]";
+		},
+
+		get: function(typeId, reqType, url, req) {
+			var len = arguments.length;
+
+			if (!len) {
+				return this.types;
+
+			} else if (typeId) {
+				var type = this.types[typeId];
+
+				if (len === 1) {
+					return type;
+
+				} else if (url){
+					var cacheKey = this.getKey(url, req),
+						bins = type.bins;
+
+					if(!(cacheKey in bins)) {
+						bins[cacheKey] = {
+							typeId: typeId,
+							key: cacheKey,
+							url: url,
+							req: req,
+							val: null,
+							setAt: new Date().getTime()
+						};
+					}
+					return bins[cacheKey];
+				}
+			}
+
+			throw new Error("$cache.get: invalid arguments");
+		},
+
+		// provide a typeId and a function with the signature
+		// function(bin, cacheKey) return true if the bin should be evicted
+		// an eviction notice will be told to the cache so others can listen in and respond as needed
+		// @return object - stats on how how many were evicted from how many and what remains
+		evict: function(typeId, evictionTest) {
+			var evicted = 0;
+				total = 0,
+				that = this;
+
+			$each(this.types[typeId].bins, function(bin, cacheKey) {
+				total++;
+				if (!evictionTest || evictionTest === true || ($isFunction(evictionTest) && evictionTest(bin, cacheKey)) ) {
+					// yup evict that mofo
+					evicted++;
+					that.tell(typeId + ":evict:" + cacheKey, bin);
+					delete that.types[typeId].bins[cacheKey];
+				}
+			});
+
+			return {
+				evicted: evicted,
+				total: total,
+				remain: total - evicted
+			};
+		},
+
+		set: function(typeId, url, req, val, metaData) {
+			var cacheKey = this.getKey(url, req),
+				bin = this.get(typeId, cacheKey);
+
+			$extend(bin, {
+				typeId: typeId,
+				key: cacheKey,
+				url: url,
+				req: req,
+				val: val,
+				setAt: $now()
+			}, metaData);
+
+			this.tell(typeId + ":set:" + cacheKey, bin);
+
+			return bin;
+		},
+
+		newType: function(typeId, customType) {
+			if(!this.types[typeId]) {
+				customType = customType || {};
+				customType.bins = {};
+				this.types[typeId] = customType;
+			}
+		},
+
+		newRemoteType: function(typeId, spec) {
+			spec.sync = function(req, handlers, forceRefresh) {
+				var bin = $cache.get(this.typeId, this.baseUrl, req);
+				if (forceRefresh || bin.val === null || (bin.ttl && ($now()-bin.set > this.ttl)) ) {
+					$io.call(this, baseUrl, req, this.dataType, this.reqType, handlers);
+				}
+				return bin;
+			};
+
+			spec.typeId = typeId;
+
+			var remoteType = $speak(spec);
+
+			this.newType(typeId, remoteType);
+
+			return remoteType;
+		}
+
+	});
+
+
+	function $isCache(obj) {
+		return (obj && obj.bins && obj.get && obj.set);
+	}
+
+
+
+
+
+
+
 
 
 	// dom -------------------------------------------------------
@@ -2072,7 +2208,7 @@
 	// for compatibility with $el dom builder in outputStrings mode
 	var $doc = {
 		createTextNode: function(str) {
-			return str;
+			return str + "";
 		},
 		createElement: $node
 	};
@@ -2120,11 +2256,11 @@
 
 		function appendChildren(el, children) {
 			$each(children, function(node) {
-				if (node) {
+				if (node || node === 0) {
 					if ($isArray(node)) {
 						appendChildren(el, node);
 					} else {
-						if ($isString(node)) {
+						if (!$isElement(node)) {
 							node = doc.createTextNode(node);
 						}
 						el.appendChild(node);
@@ -2199,8 +2335,6 @@
 
 
 
-
-
 	/* $dom
 		dom instructions
 		array == generic container for dom instructions
@@ -2231,20 +2365,19 @@
 
 			eg.
 
-			var dom = [
-				["div", {className: "todo " + data.done ? "done" : ""},[
-					"div.display", [
-						"input.check", {type: "checkbox", checked: data.done},
-						"label.todo-content", data.content,
-						"span.todo-destroy"
-					],
+var dom = [
+	"div", {className: "todo " + data.done ? "done" : ""},[
+		"div.display", [
+			"input.check", {type: "checkbox", checked: data.done},
+			"label.todo-content", data.content,
+			"span.todo-destroy"
+		],
 
-					"div.edit", [
-						"input.todo-input", {type: "text", value: data.content}
-					],
-					"ul", $map(data.items, $value)
-				]
-			];
+		"div.edit", [
+			"input.todo-input", {type: "text", value: data.content}
+		],
+		"ul", $map(data.items, $value)
+	];
 	*/
 
 	var $isSelector = (function() {
@@ -2314,7 +2447,7 @@
 
 		function $dom(domInstructions, preProcessedSelector) {
 
-			if ($typeof(domInstructions) !== "array") {
+			if ($typeof(domInstructions) !== arrType) {
 				throw new Error("Unexpected type, expected array but saw " + $typeof(domInstructions));
 			}
 
@@ -2352,7 +2485,7 @@
 
 					case 2:
 						type = $typeof(arg);
-						if (type === "object") {
+						if (type === objType) {
 							attributes = $mixin({}, arg);
 							step++;
 							id && (attributes.id = id);
@@ -2374,7 +2507,7 @@
 				// we expect an optional object array or string (innerHTML or nextSelector) here
 				switch(type) {
 
-					case "string":
+					case strType:
 
 						lastArgIsSelecor = $isSelector(arg);
 						if (lastArgIsSelecor) { // this is the beginning of the next node
@@ -2386,13 +2519,13 @@
 						}
 						break; // new dom node start from the top
 
-					case "array": // child nodes
+					case arrType: // child nodes
 						childNode = arg[0];
 						firstArgIsSelector = $isSelector(childNode);
 						if (firstArgIsSelector) {
 							// this is where we do our recursion
 							childNodes = $dom(arg, firstArgIsSelector);
-						} else if (typeof childNode === "string") {
+						} else if (typeof childNode === strType) {
 							// looks like an array of innerHTML
 							childNodes = arg.join("\n");
 						} else if ($isElement(childNode)) {
@@ -2422,17 +2555,17 @@
 	// from backbone.js
 	var $escapeHTML = (function() {
 
-		// create the regexes only once
-		var amp = 		/&(?!\w+;|#\d+;|#x[\da-f]+;)/gi,
-			lt = 		/</g,
-			gt = 		/>/g,
-			quot = 		/"/g,
-			squot = 	/'/g,
-			fslash = 	/\//g;
+		// create the regexes and strings only once
+		var amp = 		/&(?!\w+;|#\d+;|#x[\da-f]+;)/gi, ampStr = '&amp;',
+			lt = 		/</g, ltStr = '&lt;',
+			gt = 		/>/g, gtStr = '&gt;',
+			quot = 		/"/g, quotStr = '&quot;',
+			squot = 	/'/g, squotStr = '&#x27;',
+			fslash = 	/\//g, fslashStr = '&#x2F;';
 
 		// the escape function
 		return function(string) {
-			return string.replace(amp, '&amp;').replace(lt, '&lt;').replace(gt, '&gt;').replace(quot, '&quot;').replace(squot, '&#x27;').replace(fslash,'&#x2F;');
+			return string.replace(amp, ampStr).replace(lt, ltStr).replace(gt, gtStr).replace(quot, quotStr).replace(squot, squotStr).replace(fslash, fslashStr);
 		};
 	}());
 
@@ -2450,20 +2583,20 @@
 	var eventSplitter = /^(\S+)\s*(.*)$/;
 
 	/**
-	 *
+	 * @param name - (string) the name of the view
 	 * @param parent - a DOM node
 	 * @param model - a product of $schema
 	 * @param templateOrRenderFn - a doT template string or a render function(data, changes, view) which must return a dom node, the results of which will be appended to the parent node
-	 * @description single argument signature
+	 * @description getter = single argument signature pass just the type string and get the view constructor
 	 *
 	 */
 	var viewConstructorBank = {};
 	var $view = function(type, node, model, templateOrRenderFn, events) {
 
 		var existing = viewConstructorBank[type],
-			instances = [];
+			ctorArgs = arguments, instances = [];
 
-		// schema getter
+		// constructor getter
 		if (type && arguments.length === 1 && existing) {
 			return existing;
 
@@ -2471,7 +2604,7 @@
 		// passing the provided model data object in the 2nd argument
 		} else if (type && arguments.length === 2 && existing) {
 			var modelData = node;
-			if (modelData.defaults || modelData.node || modelData.model) {
+			if (modelData.defaults || modelData.node || modelData.model || modelData.events) {
 				throw new Error("Invalid Arguments!");
 			}
 			return existing(modelData);
@@ -2493,10 +2626,11 @@
 					}
 				});
 
-				if (node && arguments.length === 2) {
-					var spec = arguments[1];
+				if (node && ctorArgs.length === 2) {
+					var spec = ctorArgs[1];
 					events = spec.events;
 					node = spec.node;
+					console.log(spec.node, node);
 					model = spec.model;
 					drop = spec.drop;
 					templateOrRenderFn = spec.template || spec.render;
@@ -2507,11 +2641,12 @@
 
 				if ($isString(model)) { model = $model(model, modelData); }
 
-				if(!$isElement(node)) {
+				if (!$isElement(node)) {
+					console.log(node);
 					throw new Error("$view: parent must be a DOM node");
 				}
 
-				if(!model || !$isModel(model)) {
+				if (!model || !$isModel(model)) {
 					throw new Error("$view: model argument must be a product of $model");
 				}
 
@@ -2628,13 +2763,19 @@
 
 			viewConstructorBank[type] = constructor;
 
+			return constructor;
+
 		} else {
 			throw new Error("Invalid Arguments!");
 		}
 	};
 
 	function $views(type) {
-		return $view(type).getInstances();
+		if (type && type in viewConstructorBank) {
+			return viewConstructorBank[type];
+		} else {
+			return viewConstructorBank;
+		}
 	}
 
 	var $isView = function(view) {
@@ -2688,14 +2829,14 @@
 	loot.exports = {
 		// basic types
 		$isNull: $isNull,
-		$isUndefined: $isUndefined,
 		$isNaN: $isNaN,
 		$isElement: $isElement,
 		$isObject: $isObject,
+		$isBoolean: $isBoolean,
+		$isUndefined: $isUndefined,
 		$isFunction: $isFunction,
 		$isString: $isString,
 		$isNumber: $isNumber,
-		$isBoolean: $isBoolean,
 		$isDate: $isDate,
 		$isRegExp: $isRegExp,
 		$isArguments: $isArguments,
@@ -2705,16 +2846,16 @@
 		$has: $has,
 
 		// collections
-		$clear: $clear,
 		$each: $each,
+		$for: $each,
 		$keys: $keys,
-		$values: $values,
 		$map: $map,
+		$collect: $map,
 		$reduce: $reduce,
-		$any: $any,
-		$all: $all,
 		$filter: $filter,
 		$reject: $reject,
+		$all: $all,
+		$any: $any,
 		$includes: $includes,
 		$pluck: $pluck,
 		$length: $length,
@@ -2722,6 +2863,11 @@
 		$flat: $flat,
 		$slice: $slice,
 		$splice: $splice,
+		$values: $values,
+		$clear: $clear,
+
+		// map iterator functions
+		$value: $value,
 
 		// async
 		$async: _async,
@@ -2824,3 +2970,70 @@
 	this.loot = loot;
 	loot(this);
 }());
+
+
+loot.extend("$io", loot.exports.$speak(function(url, req, dataType, reqType) {
+
+	var key = $cache.getKey(url, req),
+		parent = $isSpeaker(this) ? this : $io,
+		typeId = parent.typeId || "io",
+		lastArg = arguments[arguments.length-1],
+		handlers = (!lastArg || $isString(lastArg) || $isBoolean(lastArg)) ? {} : lastArg,
+		startH = handlers.start,
+		successH = handlers.success,
+		errorH = handlers.error,
+		useCache = (typeId === "io") ? false : true,
+		bin = useCache ? $cache.get(typeId, url, req) : null;
+
+	var xhr = $.ajax({
+			dataType: 	$isString(dataType) ? dataType : "json",
+			type: 		$isString(reqType) ? reqType : "post",
+			url: 		url,
+			data: 		req,
+
+			success: function(val, textStatus, xhr) {
+				var msg = useCache ?
+							$cache.set(typeId, url, req, val, {xhr: xhr}) :
+							{val: val, xhr: xhr, url: url, req: req};
+
+				if ($isFunction(successH)) {
+					successH.call(parent, msg, typeId + ":success:" + url);
+				}
+
+				parent.tell(typeId + ":success:" + url, msg);
+			},
+
+			error: function(xhr, textStatus, error) {
+				var err = {
+					status: textStatus,
+					key: key,
+					error: error,
+					req: req,
+					xhr: xhr
+				};
+
+				if (useCache) {
+					err.bin = bin;
+					err.key = key;
+				}
+
+				if ($isFunction(errorH)) {
+					errorH.call(parent, err, typeId + ":error:" + url);
+				}
+
+				parent.tell(typeId + ":error:" + url, err);
+			}
+		});
+
+	if (useCache) {
+		bin.xhr = xhr;
+	}
+
+	if ($isFunction(startH)) {
+		startH.call(parent, bin, typeId + ":start:" + url);
+	}
+
+	parent.tell(typeId + ":start:" + url, bin);
+
+	return bin;
+}));

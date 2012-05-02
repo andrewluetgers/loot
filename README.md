@@ -11,21 +11,28 @@ Just load up the js file/s and call the global methods. Init process will protec
 ### Type Checking
 see underscore.js
 
-  * **$isNumber**
-  * **$isEmpty**
+  * **$isNull**
+  * **$isNaN**
   * **$isElement**
-  * **$isArray**
+  * **$isObject**
+  * **$isBoolean**
+  * **$isUndefined**
   * **$isFunction**
   * **$isString**
-  * **$isNaN**
-  * **$isNull**
-  * **$isBoolean**
+  * **$isNumber**
+  * **$isDate**
   * **$isRegExp**
+  * **$isArguments**
+  * **$isArray**
+  * **$typof(any)** returns a string similar to that of the typeof keyword but behaves as you would expect.
+  * **$isEmpty**
+  * **$has**
 
 ### Objects
   * **$new(prototype)** optionally provide a prototype object for a new object instance. If an "init" function or an array of init functions exist it/they will be called.
   * **$copy(source, filter)** returns a deep copy of source. Optional filter(key, source, target) is called for every property traversed, if it returns true the property is copied over, if it returns false the property is ignored.
   * **$merge(target, source, filter)** returns a deep copy of source applied to target. Optional filter(key, source, target) is called for every property, if it returns true the property is copied over, if it returns false the property is ignored.
+  * **$$bind** see underscore.js
   * **$extend(obj)** obj will gain shallow copies of *all* properties of all other provided objects. This allows for building objects that share properties through composition vs prototype. This can save on memory and provide information sharing.
   * **$mixin(obj)** obj will gain deep copies of 'owned' properties of all other provided objects. The 'hasOwnProperty' test is applied to all properties during the deep copy.
   * **$make(prototype, extender, mixin)** All args are optional, extender and mixin may each be single objects or arrays of objects. $make calls $new on the prototype then extends it with extender and mixes in the mixin. "init" functions can exist as properties on any or all of the provided objects and will get called at the end with the new object as the "this". If any of the arguments is a speaker then the new object will also be a speaker. Also see tests and source for advanced message sharing capabilities.
@@ -39,16 +46,25 @@ see underscore.js
   * **$recycleBin(name)** returns an object pool by name or all pools if no name is provided.
 
 ### Collections (objects, arrays)
-  * **$clear(obj)** deletes all properties also removes all items if obj is an array, if you want to be anal about deleting things here you go
+
+  * **$for** alias of each
   * **$each** see underscore.js
   * **$map** see underscore.js
-  * **$any** see underscore.js (a modifid implemntation but basically the same thing)
-  * **$find** see underscore.js
+  * **$collect** alias of map
+  * **$reduce** see underscore.js
+  * **$filter** see underscore.js
   * **$reject** see underscore.js
+  * **$all** see underscore.js
+  * **$any** see underscore.js (a modifid implemntation but basically the same thing)
+  * **$includes** see underscore.js
+  * **$pluck** see underscore.js
   * **$length** see underscore.js
+  * **$compact** see underscore.js
   * **$flat** flatten arrays recursively. Accepts any number of items. Returns an array of all values, any nested arrays are concated down to the one array.
   * **$slice(obj, start, end)** apply slice to a string, array or arguments object with optional start and end indexes
   * **$splice(obj, start, howMany, items)** apply splice to a string, array or arguments object, accepts multiple arguments or an array for "items" arg
+  * **$values** Retrieve the values of an object's properties.
+  * **$clear(obj)** deletes all properties also removes all items if obj is an array, if you want to be anal about deleting things here you go
 
 ### Async
   Most of this code is derived from the excellent async.js https://github.com/caolan/async, changes include different signatures with more information being passed around and support for objects in addition to arrays, (crazy right?) the multi-signature $parallel and $series functions are versitile enough that they are all you need to use.
@@ -64,55 +80,57 @@ see underscore.js
     * **$parallel(tasks, callback)** an alias for $async.tasks
 
     ``` javascript
-      finishOrder = 0;
 
-      var asyncFunction1 = function(push, key, results) {
-        // lets do something that is async (requires a callback)
-        setTimeout(function() {
-          var err = null; // amazing no errors!
-          push(err, "index: " + key + " Finish Order: " + finishOrder);
-          finishOrder++;
-        }, 100 * Math.random());
-      };
+        finishOrder = 0;
 
-      $parallel([asyncFunction1, asyncFunction1, asyncFunction1], function(err, results) {
-        if(err) {
-          alert("oh nohs!");
-        } else {
-          alert("functions finish out of order but values are inserted into corrcect locations:\n" + results.toString().replace(/,/g, "\n"));
-        }
-      });
+        var asyncFunction1 = function(push, key, results) {
+          // lets do something that is async (requires a callback)
+          setTimeout(function() {
+            var err = null; // amazing no errors!
+            push(err, "index: " + key + " Finish Order: " + finishOrder);
+            finishOrder++;
+          }, 100 * Math.random());
+        };
+
+        $parallel([asyncFunction1, asyncFunction1, asyncFunction1], function(err, results) {
+          if(err) {
+            alert("oh nohs!");
+          } else {
+            alert("functions finish out of order but values are inserted into corrcect locations:\n" + results.toString().replace(/,/g, "\n"));
+          }
+        });
     ```
 
     * **$parallel(collection, iterator, callback)** an alias for $async.map
 
     ``` javascript
-      var pages = {
-        google: "http://www.googl.com",
-        cnn: "http://www.cnn.com",
-        apple: "http://www.apple.com",
-        techCrunch: "http://www.techcrunch.com",
-        theVerge: "http://www.theverge.com"
-      };
 
-      var urlHasETest = function(push, url, name, results) {
-        var args = arguments;
-        setTimeout(function() {
-          push(null, !!url.match("e"));
-        }, 100*Math.random());
-      };
+        var pages = {
+          google: "http://www.googl.com",
+          cnn: "http://www.cnn.com",
+          apple: "http://www.apple.com",
+          techCrunch: "http://www.techcrunch.com",
+          theVerge: "http://www.theverge.com"
+        };
 
-      // collection can be objects or arrays
+        var urlHasETest = function(push, url, name, results) {
+          var args = arguments;
+          setTimeout(function() {
+            push(null, !!url.match("e"));
+          }, 100*Math.random());
+        };
 
-      $parallel(pages, urlHasETest, function(err, results) {
-        if(err) {
-          alert("oh nohs!");
-        } else {
-          var winners = $keys($reject(results, function(val) {return !val}));
-          console.log(results, winners);
-          alert("finished!\n" + winners.toString().replace(/,/g, "\n"));
-        }
-      });
+        // collection can be objects or arrays
+
+        $parallel(pages, urlHasETest, function(err, results) {
+          if(err) {
+            alert("oh nohs!");
+          } else {
+            var winners = $keys($reject(results, function(val) {return !val}));
+            console.log(results, winners);
+            alert("finished!\n" + winners.toString().replace(/,/g, "\n"));
+          }
+        });
 
     ```
 
@@ -167,52 +185,54 @@ see underscore.js
     * __listeningFor(topic, ignoreCatchall)__ returns an array of all responders that will fire for a given topic. If the optional ignoreCatchall is truthy the returned array will not include responders subscribed to the catchall "*". When non empty the returned arrays are the actual internal responder arrays, mess with them at your own risk!
 
   ``` javascript
-  // create new speaker
-  var agent = $speak();
-  agent.name = "Mulder";
 
-  // subscribe to an event and alert the message
-  agent.listen("spookyEvent", function(msg) {
-    alert(msg);
-  });
+    // create new speaker
+    var agent = $speak();
+    agent.name = "Mulder";
 
-  // now tell the event
-  agent.tell("spookyEvent", "I want to believe.");
+    // subscribe to an event and alert the message
+    agent.listen("spookyEvent", function(msg) {
+      alert(msg);
+    });
 
-  // alerts "I want to believe."
+    // now tell the event
+    agent.tell("spookyEvent", "I want to believe.");
+
+    // alerts "I want to believe."
   ```
 
   ``` javascript
-  var partner = {
-    name: "Scully"
-  }
 
-  // add pub sub functionality to an existing object
-  $speak(partner);
+    var partner = {
+      name: "Scully"
+    }
 
-  // alternatively you can combine object creation and the speak call
+    // add pub sub functionality to an existing object
+    $speak(partner);
 
-  var partner = $speak({
-    name: "Scully"
-  });
+    // alternatively you can combine object creation and the speak call
 
-
-  // now lets forward all messages from agent to partner
-  // there are two ways to do this, the folloing two calls are equivalent
-  agent.talksTo(partner);
-  // or
-  partner.listensTo(agent);
+    var partner = $speak({
+      name: "Scully"
+    });
 
 
-  // lets use a catch-all to fire our handler on all events
-  partner.listen("*", function(msg, type, originalSpeaker) {
-    // the reciever of the function is bound to "this"
-    alert(originalSpeaker.name + ' said: "' + msg + '" to ' + this.name + ' in a ' + type);
-  });
+    // now lets forward all messages from agent to partner
+    // there are two ways to do this, the folloing two calls are equivalent
+    agent.talksTo(partner);
+    // or
+    partner.listensTo(agent);
 
-  agent.tell("random comment", "The truth is out there!");
 
-  // alerts 'Mulder said: "The truth is out there!" to Scully in a random comment'
+    // lets use a catch-all to fire our handler on all events
+    partner.listen("*", function(msg, type, originalSpeaker) {
+      // the reciever of the function is bound to "this"
+      alert(originalSpeaker.name + ' said: "' + msg + '" to ' + this.name + ' in a ' + type);
+    });
+
+    agent.tell("random comment", "The truth is out there!");
+
+    // alerts 'Mulder said: "The truth is out there!" to Scully in a random comment'
   ```
 
   * **$isSpeaker(obj)** returns true if the provided object is a pub/sub speaker
@@ -252,37 +272,39 @@ see underscore.js
     * __get(key)__ returns the value of the given key on the model
     * __get(array)__ given an array of key strings returns an obect of matching key value pairs from the model
     * __drop()__ deletes all properties on this model instance, schema no longer references model instance, emits a "drop" event
-  
+
   ``` javascript
-  // referencing the person schema we defined above, we create a new intance setting some properties up front.
-  var jim = $model("person", {
-    first: "Jim",
-    last: "Hipster"
-  });
 
-  // lets listen for a change in jim's age and alert that
-  var alertAgeChange = function(changes, topic, originalSpeaker) {
-    if ("age" in changes) {
-      // lets grab all the values from the model
-      var values = originalSpeaker.get();
-      alert(values.first + "'s age set to " + changes.age);
-    }
-  };
-  
-  jim.listen("change", alertAgeChange);
-  
-  // all model instances talk to their schema so we can also listen for changes that happen to any person model by adding a change listener like so...
-  $schema("person").listen("change", alertAgeChange);
+    // referencing the person schema we defined above, we create a new intance setting some properties up front.
+    var jim = $model("person", {
+      first: "Jim",
+      last: "Hipster"
+    });
 
-  // the following will alert twice "Jim's age set to 25", firing first from the model then from the schema
-  jim.set({
-    first: "Jim",
-    last: "Hipster",
-    age: 25,
-    height: "5'8\""
-  });
+    // lets listen for a change in jim's age and alert that
+    var alertAgeChange = function(changes, topic, originalSpeaker) {
+      if ("age" in changes) {
+        // lets grab all the values from the model
+        var values = originalSpeaker.get();
+        alert(values.first + "'s age set to " + changes.age);
+      }
+    };
+  
+    jim.listen("change", alertAgeChange);
+  
+    // all model instances talk to their schema so we can also listen for changes that happen to any person model by adding a change listener like so...
+    $schema("person").listen("change", alertAgeChange);
+
+    // the following will alert twice "Jim's age set to 25", firing first from the model then from the schema
+    jim.set({
+      first: "Jim",
+      last: "Hipster",
+      age: 25,
+      height: "5'8\""
+    });
 
   ```
+
   * **$models(type)** an alias of $schema(type).getModelInstances();
   * **$isSchema(obj)** returns true if obj is a product of $define or $schema constructors
   * **$isModel(obj)** returns true if obj is a product of $model constructor
@@ -292,6 +314,55 @@ see underscore.js
   * **$tpl** using the super-fast doT see https://github.com/olado/doT
   * **$el(selector, attributes, children) or (selector, children) or (selector)** a handy node builder / html string builder for those times you dont want to write a template or use the dom directly. eg. $el("button#buy.bigButton", {type:"submit"}, ["Buy It Now"]), will return a dom structure unless you call $el.outputStrings(true), then it will output an html string instead.  Makes uses of http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
   * **$escapeHTML(html)** see backbone
+  * **$dom(domSyntaxArray)** build dom structures or html using a simplified json syntax of nested arrays with selectors defining dom nodes, followed by an optional attributes object then an aray of children or a string of inner html. Syntax guide follows:
+
+
+    **dom instruction syntax:**
+
+      * array  == generic container for dom instructions
+      * string == dom selector or innerHTML (see patterns below)
+      * object == attributes
+
+    **dom instruction patterns:**
+
+    * __[selector (String)]__
+    selectors begin with an html tag name optionally followed by #someId and zero or more .someClass
+    a selector can be followed by any instruction another selector, an object, an array, innerHTML string
+
+    * __[selector (String), innerHTML (String)]__
+    any string that does not look like a selector is treated as innerHTML,
+    if your strings will look like a selector you can add non selector characters like so...
+    invalid as innerHTML: "strong", "menu", "footer"
+    valid as innerHTML: "<span>strong</span>", "menu "
+    innerHTML can only be followed by a selector string
+
+    * __[selector (String), children (Array)]__
+    an array can only be followed by a selector string
+
+    * __[selector (String), attributes (Object)]__
+    attributes eg. {title: "my title", value: 2}
+    an object can be followed by an array or a string (selector or innerHTML)
+
+    * __[selector (String), attributes (Object), children (Array)]__
+
+  ``` javascript
+
+    var dom = $dom([
+        "div", {className: "todo " + data.done ? "done" : ""},[
+            "div.display", [
+                "input.check", {type: "checkbox", checked: data.done},
+                "label.todo-content", data.content,
+                "span.todo-destroy"
+            ],
+    
+            "div.edit", [
+                "input.todo-input", {type: "text", value: data.content}
+            ],
+            "ul", $map(data.items, $value)
+        ]);
+  ```
+  * **$isSelector(string)** returns true if the provided string is a valid selector in the above dom syntax
+
 
 ### Views
   * **$view(node, model, templateOrRenderFn)** create a view that renders when a model is updated

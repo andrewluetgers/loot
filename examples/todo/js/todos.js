@@ -13,7 +13,7 @@
 
 	// define our view
 	$view("todoItem", {
-		node: "li",		// accepts nodes or first arg to $el()
+		node: "li",		// accepts nodes or selector string as first arg to $el()
 		model: "todo", 	// the type of model we will be using
 
 		// render functions return an html string or a dom node

@@ -448,18 +448,17 @@
 
 		test("$el", function() {
 
-			expect(1);
+			expect(0);
 
 			var div = $el("div");
 			div.id = "testdiv";
 
 			console.log(typeof div, div, div.toString());
-			console.log(document.body);
 			document.body.appendChild(div);
 
 			var str ="This is just plain text.";
 
-			var items = [ 1, 2, 3, 4 ];
+			var items = [ 1, 2, 3, 4];
 			var div2 = $el('div#message', [
 							$el('a.biglink', {href: 'http://www.google.com'}, [
 								'A link to Google'
@@ -491,11 +490,16 @@
 							str
 						]);
 
-			console.log(typeof div3, div3, div3.toString());
+			console.log(typeof div3, div3, div3.toString(), div.innerHTML);
+			console.log(div3.toString());
+			console.log(div.innerHTML);
 
 			same(div.innerHTML, div3.toString(), "string mode and dom mode html output is the same");
 
 			$id("testdiv").innerHTML = "";
+
+
+
 		});
 
 		
@@ -602,7 +606,7 @@
 			ok(x.get == undefined, "methods no longer exist on model after drop");
 
 			ok(m2.length == 1 && m2[0] === m, "the killed instance is removed from the instances array");
-			
+
 			// todo, drop, various events, validators, computed values, error conditions
 			var itemsKilled = 0;
 			m.listen("drop", function() {
@@ -673,10 +677,11 @@
 			$el.outputStrings(false);
 			var parentNode = $el("div#parentNode");
 
-			console.log(parentNode);
+
+			console.log(parentNode, $isElement(parentNode));
 			document.body.appendChild(parentNode);
 
-			var data = {
+			var mData = {
 				test: 1,
 				foo: "bar",
 				allYourBase: "are belong to us"
@@ -685,22 +690,31 @@
 			$define("testSchema2");
 
 			// start with blank model
-			var m = $model("testSchema2", data);
+			var m = $model("testSchema2", mData);
 			var html;
-
-			var testView = $view(parentNode, "testSchema2", function(model, changes, view) {
-				console.log("view", arguments);
-				ok(model === m.get(), "first argument is model values object");
+			var renderFn = function(data, changes, view) {
+				console.log("view renderFn", arguments);
+				ok(data === m.get(), "first argument is model values object");
 				ok(typeof changes === "object", "second argument is model changes object");
 				ok(view === testView, "third argument is the view");
 				ok(true, "view was rendered");
-				html = "<div>all your html " + model.allYourBase + "</div>";
+				html = "<div>all your html " + data.allYourBase + "</div>";
 				return html;
+			};
+
+			var testView = $view("testSchema2", {
+				node: parentNode,
+				model: "testSchema2",
+				render: renderFn
 			});
 
-			var aTestView = testView()
+			console.log(testView);
+
+			var aTestView = testView(mData);
+
+			console.log(aTestView);
 //
-			testView.update();
+			aTestView.update();
 
 			ok(parentNode.innerHTML === html, "view node was properly updated");
 		});
