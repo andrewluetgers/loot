@@ -321,20 +321,26 @@ see underscore.js
 
       // by default $el outputs dom nodes
       console.log(dom, dom.toString());
+      //prints: <div id=?"message">?É?</div>, [object HTMLDivElement]
   ```
 
-  * **$el.outputString(boolean)** sets the output type, defaults to false, if set to true the returned object wil masquerated as a dom object for the purposes of appending children and adding attributes. It will have a toString method that will return the html. This is useful in node.js when you don't want to use the more bulky js dom package.
+  * **$el.outputStrings(boolean)** sets the output type, defaults to false, if set to true the returned object wil masquerated as a dom object for the purposes of appending children and adding attributes. It will have a toString method that will return the html. This is useful in node.js when you don't want to use the more bulky js dom package.
 
   ``` javascript
 
-      $el.outputStrings(true);
-      var list = $el("ul", {style: "background:red"},
-          $el("li", "one"),
-          $el("li", "two"),
-          $el("li", "three")
-      );
+		$el.outputStrings(true);
+		var items = [ 1, 2, 3, 4];
+		var div2 = $el('div#message', [
+			$el('a.biglink', {href: 'http://www.google.com'}, 'A link to Google'),
+			$el('ul', $map(items, function(item) {
+					return $el('li.item', item + '. Item');
+				})
+			)
+		]);
 
-      console.log(list, list.toString());
+		// with outputStrings  == true, toString will output the html
+		console.log(list, list.toString());
+		//prints: Object, <div id="message"><a href="http://www.google.com" class="biglink">A link to Google</a><ul><li class="item">1. Item</li><li class="item">2. Item</li><li class="item">3. Item</li><li class="item">4. Item</li></ul></div>
   ```
 
   * **$dom(domSyntaxArray)** build dom structures or html using a simplified json syntax of nested arrays with selectors defining dom nodes, followed by an optional attributes object then an aray of children or a string of inner html. Makes use of $el so will output dom nodes or html strings depending on $el.outputStirngs(bool), Syntax guide follows:
