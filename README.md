@@ -324,7 +324,7 @@ see underscore.js
       //prints: <div id="message">...</div>, [object HTMLDivElement]
   ```
 
-  * **$el.outputStrings(boolean)** sets the output type, defaults to false, if set to true the returned object wil masquerated as a dom object for the purposes of appending children and adding attributes. It will have a toString method that will return the html. This is useful in node.js when you don't want to use the more bulky js dom package.
+  * **$el.outputStrings(boolean)** sets the output type, defaults to false, if set to true the returned object will be a micro-dom api object which is used for the purposes of appending children and adding attributes. It will have a toString method that will return the html. This is useful in node.js when you don't want to use the more bulky js dom package.
 
   ``` javascript
 
