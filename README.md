@@ -355,7 +355,8 @@ see underscore.js
     **dom instruction patterns:**
 
     * __[selector (String)]__
-    selectors begin with an html tag name optionally followed by #someId and zero or more .someClass
+    selectors begin with a valid html tag name optionally followed by #someId and zero or more .someClass
+    see $isSelector below for details
     a selector can be followed by any instruction another selector, an object, an array, innerHTML string
     * __[selector (String), innerHTML (String)]__
     any string that does not look like a selector is treated as innerHTML,
@@ -449,7 +450,20 @@ see underscore.js
       var dom = $map(newsItems, $partials("newsItems"));
   ```
 
-  * **$isSelector(string)** returns true if the provided string is a valid selector in the above dom syntax
+  * **$isSelector(string)** returns true if the provided string is a valid selector in the above dom syntax. leading tag must be of the following set.
+
+    * validTags = "a abbr acronym address applet area article aside audio b base basefont bdi bdo big
+  						blockquote body br button canvas caption center cite code col colgroup command datalist
+  						dd del details dfn dir div dl dt em embed fieldset figcaption figure font footer
+  						form frame frameset h1 head header hgroup hr html i iframe img input ins keygen kbd
+  						label legend li link map mark menu meta meter nav noframes noscript object ol optgroup
+  						option output p param pre progress q rp rt ruby s samp script section select small source
+  						span strike strong style sub summary sup table tbody td textarea tfoot th thead time title
+  						tr track tt u ul var video wbr";
+
+    * tags list derived from http://www.w3schools.com/html5/html5_reference.asp
+
+  * **$isSelector.addTag(string)** The tag you wnt to use not in the list above? Add it to the list with this function.
 
 
 ### Views
