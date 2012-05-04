@@ -5,6 +5,9 @@ This is an experimental bag of tricks that is starting to look like a microframe
 ## Use it
 Just load up the js file/s and call the global methods. Init process will protect existing globals by making backups under loot.oldValues. See loot.sauce.js for extending with custom methods.
 
+## Not ready for production
+This is experimental and minimally tested code, it also changes frequently.
+
 ## Methods
 
 
@@ -385,11 +388,15 @@ see underscore.js
          ]
      ]);
 
+     // with outputStrings  == true, toString will output the html
      console.log(dom.toString());
      // prints <div class="newsItem"><h3>Life discovered on Mars!</h3><p>Lorem ipsum dolor sit amet.</p></div>
   ```
 
   * **$part(string, function)** creates a named partial to be used with collection methods, function should accept a data object for first argument and return the output of $el or $dom or $part("somePartial", string|object|array)
+  * **$part(string, function, true)** replaces an existing partial function
+  * **$part(string)** get a previously defined partial function
+  * **$part(string, string|object|array)** invoke a predefined partial passing the second argument as the data parameter
 
   ``` javascript
 
@@ -424,15 +431,15 @@ see underscore.js
 			"ul.todos", $map(todoItems, $part("todoItem"))
 		]);
 
+		// with outputStrings  == true, toString will output the html
 		console.log(todoListDom.toString());
-		// outputs
+		// with outputStrings == true, prints: <ul class="todos"><div class="done"><div class="display"><input type="checkbox" checked="false" class="check"/><label class="todo-content">walk dog</label><span class="todo-destroy"></span></div><div class="edit"><input type="text" value="walk dog" class="todo-input"/></div></div><div class="done"><div class="display"><input type="checkbox" checked="checked" class="check"/><label class="todo-content">get milk</label><span class="todo-destroy"></span></div><div class="edit"><input type="text" value="get milk" class="todo-input"/></div></div><div class="done"><div class="display"><input type="checkbox" checked="false" class="check"/><label class="todo-content">find better things to do than make yet another todo application</label><span class="todo-destroy"></span></div><div class="edit"><input type="text" value="find better things to do than make yet another todo application" class="todo-input"/></div></div></ul>
   ```
 
-  * **$part(string, function, true)** replaces an existing partial function
-  * **$part(string)** get a previously defined partial function
-  * **$part(string, string|object|array)** invoke a predefined partial passing the second argument as the data parameter
   * **$parts()** return the parts container
+  * **$parts(string)** return a previously defined partial function
   * **$parts.drop(string)** delete a previously defined partial function
+  * **$parts.dropAll()** delete all previously defined partial functions
 
   ``` javascript
 
