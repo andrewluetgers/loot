@@ -450,44 +450,32 @@
 
 			expect(0);
 
+			$el.outputStrings(false);
 			var div = $el("div");
 			div.id = "testdiv";
 
 			console.log(typeof div, div, div.toString());
 			document.body.appendChild(div);
 
-			var str ="This is just plain text.";
-
 			var items = [ 1, 2, 3, 4];
 			var div2 = $el('div#message', [
-							$el('a.biglink', {href: 'http://www.google.com'}, [
-								'A link to Google'
-							]),
-							$el('ul', [
-								$map(items, function(item) {
-									return $el('li.item', [item + '. Item']);
+							$el('a.biglink', {href: 'http://www.google.com'}, 'A link to Google'),
+							$el('ul', $map(items, function(item) {
+									return $el('li.item', item + '. Item');
 								})
-							]),
-							str
+							)
 						]);
 
 			div.appendChild(div2);
 			console.log(typeof div2, div2, div.innerHTML);
 
 			$el.outputStrings(true);
-
-			var nodes = $map(items, function(item) {
-					return $el('li.item', [item + '. Item']);
-				});
-
-			console.log("nodes", nodes);
-
 			var div3 = $el('div#message', [
 							$el('a.biglink', {href: 'http://www.google.com'}, ['A link to Google']),
 							$el('ul', $map(items, function(item) {
-								return $el('li.item', [item + '. Item']);
-							})),
-							str
+									return $el('li.item', [item + '. Item']);
+								})
+							)
 						]);
 
 			console.log(typeof div3, div3, div3.toString(), div.innerHTML);
@@ -497,9 +485,6 @@
 			same(div.innerHTML, div3.toString(), "string mode and dom mode html output is the same");
 
 			$id("testdiv").innerHTML = "";
-
-
-
 		});
 
 		

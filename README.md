@@ -131,7 +131,6 @@ see underscore.js
             alert("finished!\n" + winners.toString().replace(/,/g, "\n"));
           }
         });
-
     ```
 
   * **$series** a multi-signature async swiss army knife, iteration happens in series, completing in given order.
@@ -302,7 +301,6 @@ see underscore.js
       age: 25,
       height: "5'8\""
     });
-
   ```
 
   * **$models(type)** an alias of $schema(type).getModelInstances();
@@ -312,9 +310,34 @@ see underscore.js
 ### DOM
   * **$id** shortcut to document.getElementById
   * **$tpl** using the super-fast doT see https://github.com/olado/doT
-  * **$el(selector, attributes, children) or (selector, children) or (selector)** a handy node builder / html string builder for those times you dont want to write a template or use the dom directly. eg. $el("button#buy.bigButton", {type:"submit"}, ["Buy It Now"]), will return a dom structure unless you call $el.outputStrings(true), then it will output an html string instead.  Makes uses of http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
   * **$escapeHTML(html)** see backbone
-  * **$dom(domSyntaxArray)** build dom structures or html using a simplified json syntax of nested arrays with selectors defining dom nodes, followed by an optional attributes object then an aray of children or a string of inner html. Syntax guide follows:
+  * **$el(selector, attributes, innerHTML|element)** a handy node builder / html string builder for those times you dont want to write a template or use the dom directly. Will return a dom structure unless you call $el.outputStrings(true), then it will output an html string instead. See "dom instruction patterns" below for parameter definitions. Makes uses of http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
+  * **$el(selector, innerHTML|element)** same as above without attributes
+  * **$el(selector)** creates an empty dom node
+
+  ``` javascript
+
+      var dom = $el("div.myDiv", "this is my div!");
+
+      // by default $el outputs dom nodes
+      console.log(dom, dom.toString());
+  ```
+
+  * **$el.outputString(boolean)** sets the output type, defaults to false, if set to true the returned object wil masquerated as a dom object for the purposes of appending children and adding attributes. It will have a toString method that will return the html. This is useful in node.js when you don't want to use the more bulky js dom package.
+
+  ``` javascript
+
+      $el.outputStrings(true);
+      var list = $el("ul", {style: "background:red"},
+          $el("li", "one"),
+          $el("li", "two"),
+          $el("li", "three")
+      );
+
+      console.log(list, list.toString());
+  ```
+
+  * **$dom(domSyntaxArray)** build dom structures or html using a simplified json syntax of nested arrays with selectors defining dom nodes, followed by an optional attributes object then an aray of children or a string of inner html. Makes use of $el so will output dom nodes or html strings depending on $el.outputStirngs(bool), Syntax guide follows:
 
 
     **dom instruction syntax:**
@@ -328,39 +351,98 @@ see underscore.js
     * __[selector (String)]__
     selectors begin with an html tag name optionally followed by #someId and zero or more .someClass
     a selector can be followed by any instruction another selector, an object, an array, innerHTML string
-
     * __[selector (String), innerHTML (String)]__
     any string that does not look like a selector is treated as innerHTML,
     if your strings will look like a selector you can add non selector characters like so...
     invalid as innerHTML: "strong", "menu", "footer"
     valid as innerHTML: "<span>strong</span>", "menu "
     innerHTML can only be followed by a selector string
-
     * __[selector (String), children (Array)]__
     an array can only be followed by a selector string
-
     * __[selector (String), attributes (Object)]__
     attributes eg. {title: "my title", value: 2}
     an object can be followed by an array or a string (selector or innerHTML)
-
     * __[selector (String), attributes (Object), children (Array)]__
 
   ``` javascript
 
-    var dom = $dom([
-        "div", {className: "todo " + data.done ? "done" : ""},[
-            "div.display", [
-                "input.check", {type: "checkbox", checked: data.done},
-                "label.todo-content", data.content,
-                "span.todo-destroy"
-            ],
-    
-            "div.edit", [
-                "input.todo-input", {type: "text", value: data.content}
-            ],
-            "ul", $map(data.items, $value)
-        ]);
+     var newsItem = {
+         title: "Life discovered on Mars!",
+         content: "Lorem ipsum dolor sit amet."
+     };
+
+     var dom = $dom([
+         "div.newsItem", [
+             "h3", newsItem.title,
+             "p", newsItem.content
+         ]
+     ]);
+
+     console.log(dom.toString());
+     // prints <div class="newsItem"><h3>Life discovered on Mars!</h3><p>Lorem ipsum dolor sit amet.</p></div>
   ```
+
+  * **$part(string, function)** creates a named partial to be used with collection methods, function should accept a data object for first argument and return the output of $el or $dom or $part("somePartial", string|object|array)
+
+  ``` javascript
+
+		// first lets define a partial
+		$part("todoItem", function(data) {
+			return $dom([
+				"div", {className: "todo " + data.done ? "done" : ""},[
+					"div.display", [
+						"input.check", {type: "checkbox", checked: data.done},
+						"label.todo-content", data.content,
+						"span.todo-destroy"
+					],
+					"div.edit", [
+						"input.todo-input", {type: "text", value: data.content}
+					]
+				]
+			]);
+		});
+
+		var todoItems = [{
+			content: "walk dog",
+			done: false
+		}, {
+			content: "get milk",
+			done: true
+		},{
+			content: "find better things to do than make yet another todo application",
+			done: false
+		}];
+
+		var todoListDom = $dom([
+			"ul.todos", $map(todoItems, $part("todoItem"))
+		]);
+
+		console.log(todoListDom.toString());
+		// outputs
+  ```
+
+  * **$part(string, function, true)** replaces an existing partial function
+  * **$part(string)** get a previously defined partial function
+  * **$part(string, string|object|array)** invoke a predefined partial passing the second argument as the data parameter
+  * **$parts()** return the parts container
+  * **$parts.drop(string)** delete a previously defined partial function
+
+  ``` javascript
+
+      // first lets define a partial
+      $partial("newsItem", function(data) {
+          return $dom([
+              "div.newsItem", [
+                  "h3", data.title,
+                  "p", data.content
+              ]
+          ]);
+      });
+
+      //now lets build our news list dom using map and our new partial as the iterator
+      var dom = $map(newsItems, $partials("newsItems"));
+  ```
+
   * **$isSelector(string)** returns true if the provided string is a valid selector in the above dom syntax
 
 
@@ -379,8 +461,7 @@ see underscore.js
   * **String.splice(index, howManyToDelete, stringToInsert)** adds splice functionality for strings
   * **Object.keys()** adds ES5 Object.keys functionality to retrograde js engines
 
-# loot.sauce.js
-## $cache
+### $cache
   * **types** the in-memory storage location for typed/cached data
   * **getKey(url, req)** returns a cache key. for 1 args the cacheKey is just the url, eg. "/contents" for 2 args a key is generated with the url and the req , if the url was /user and post or get values were {name:"jim",age:25} then the key would be /user\[name:jim,age:25]
   * **get(typeId, url, req)** if given just a typeId returns that type object. Otherwise returns an existing item from the cache or creates a new bin corresponding to the provided typeId, url and optional request params.
@@ -389,7 +470,5 @@ see underscore.js
   * **newType(typeId, customType)** provide a typeId string and optional typeObject to create a new type group in the cache.
   * **newRemoteType(typeId, spec)** an advanced cache type that abstracts away async io thorugh a sync mehod.
 
-## $sauce
-as-yet untested :-(
-
+### $io
   * **io(url, req, dataType, reqType)** abstracting away async io, currently depends on jquery

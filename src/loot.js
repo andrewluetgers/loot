@@ -97,7 +97,7 @@
 	var funType = "function", undType = "undefined", strType = "string",
 		arrType = "array", regType = "regexp", argType = "arguments",
 		eleType = "element", objType = "object", numType = "number",
-		nanType = "NaN", nulType = "null",
+		nanType = "NaN", nulType = "null", booType = "boolean",
 		booStr = "[object Boolean]", numStr = "[object Number]",
 		datStr = "[object Date]", regStr = "[object RegExp]",
 		argStr = "[object Arguments]", aryStr = "[object Array]",
@@ -133,7 +133,7 @@
 				if (obj === null) {
 					return nulType;
 				} else if ($isArray(obj)) { // this must be before the obj = Object(obj)
-					return arrayType;
+					return arrType;
 				} else if (toString.call(obj) === regStr) {
 					return regType;
 				} else if ($isArguments(obj)) {
@@ -2250,6 +2250,7 @@
 			} else if (noValue) {
 				el.removeAttribute(key);
 			} else {
+				console.log(key, value);
 				el.setAttribute(key, '' + value);
 			}
 		}
@@ -2278,7 +2279,11 @@
 			var parts, name, len, el, i, j, l;
 
 			// support (tag, children) signature
-			if ($isArray(props)) {
+			if (typeof props === strType) {
+				children = [props];
+				props = {};
+
+			} else if ($isArray(props)) {
 				children = props;
 				props = {};
 			}
@@ -2288,7 +2293,6 @@
 			len = parts.length;
 
 			if (len > 2) {
-
 				for (i=1, j=2, l=len; j<l; i+=2, j+=2) {
 					name = parts[j];
 					if (parts[i] === '#') {
@@ -2311,6 +2315,7 @@
 				});
 				children && appendChildren(el, children);
 			}
+			console.log("done");
 			return el;
 		}
 
@@ -2403,6 +2408,11 @@ var dom = [
 
 		// its not perfect but should get the job done
 		function $isSelector(string) {
+
+			if (typeof string !== strType) {
+				return false;
+			}
+
 			// spaces are not valid in selectors, must be content, this should cover 90% of content
 			// a common case for content is innerHTML with tags so test for that if no space
 			if ((string.indexOf(" ") > -1) || (string.indexOf("<") > -1)) {
@@ -2410,15 +2420,16 @@ var dom = [
 			}
 
 			var parts = string.split(splitter),
-				tag = parts[0],
-				partsLen = parts.length,
-				id = "", className = "",
-				i, j, l, name, type;
+				tag = parts[0];
 
 			// is it longer than any of the valid tags or is it not a valid tag?
 			if ( (tag.length > maxLength) || !(tag in tags)) {
 				return false;
 			}
+
+			var partsLen = parts.length,
+				id = "", className = "",
+				i, j, l, name, type;
 
 			if (partsLen > 2) {
 				for (i=1, j=2, l=partsLen; j<l; i+=2, j+=2) {
@@ -2507,6 +2518,10 @@ var dom = [
 				// we expect an optional object array or string (innerHTML or nextSelector) here
 				switch(type) {
 
+					case booType:
+					case numType:
+						arg = arg + "";
+						// intentional fallthrough
 					case strType:
 
 						lastArgIsSelecor = $isSelector(arg);
@@ -2543,12 +2558,57 @@ var dom = [
 			}
 
 			attributes = null;
-			return returnNodes;
+
+			if (returnNodes.length === 1) {
+				return returnNodes[0];
+			} else {
+				return returnNodes;
+			}
 		}
 
 		return $dom;
 
 	}());
+
+	var parts = {};
+	function $part(name, generator, overwrite) {
+		if (!$isString(name)) {
+			throw new TypeError("Expected string");
+		}
+
+		if (name in parts) {
+			if (generator === undefined) {
+				return parts[name];					// get
+			} else if (!$isFunction(generator)) {
+				return parts[name](generator);		// call, generator is data
+			} else if (overwrite) {
+				return parts[name] = generator;		// update
+			} else {
+				throw new Error("Partial already defined for " + name);
+			}
+		} else if ($isFunction(generator)) {
+			return parts[name] = generator;			// set
+		} else {
+			throw new Error("Expected a function");
+		}
+	}
+
+	function $parts(name) {
+		if (!name) {
+			return parts;
+		} else {
+			return parts[name];
+		}
+	}
+
+	$parts.drop = $part.drop = function(name) {
+		delete parts[name];
+	};
+
+	$parts.dropAll = function(name) {
+		parts = {};
+	};
+
 
 
 	// escapeHTML -------------------------------------------------------
@@ -2930,6 +2990,8 @@ var dom = [
 		$el: $el,
 		$isSelector: $isSelector,
 		$dom: $dom,
+		$part: $part,
+		$parts: $parts,
 		$escapeHTML: $escapeHTML
 	};
 
