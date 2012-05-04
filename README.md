@@ -311,7 +311,7 @@ see underscore.js
   * **$id** shortcut to document.getElementById
   * **$tpl** using the super-fast doT see https://github.com/olado/doT
   * **$escapeHTML(html)** see backbone
-  * **$el(selector, attributes, children (Array|String|Element))** a handy node builder / html string builder for those times you dont want to write a template or use the dom directly. Will return a dom structure unless you call $el.outputStrings(true), then it will output an html string instead. See "dom instruction patterns" below for parameter definitions. Makes uses of http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
+  * **$el(selector, attributes, children (Array|String|Element))** a handy node builder / html string builder for those times you dont want to write a template or use the dom directly. Will return a dom structure unless you call $el.outputStrings(true), then it will output a micro-dom api object instead. Calling toString on this object will return the html. See "dom instruction patterns" below for parameter definitions. Makes uses of http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
   * **$el(selector, children (Array|String|Element))** same as above without attributes
   * **$el(selector)** creates an empty dom node
 
