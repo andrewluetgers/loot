@@ -28,10 +28,14 @@ see underscore.js
   * **$isArguments**
   * **$isArray**
   * **$typof(any)** returns a string similar to that of the typeof keyword but behaves as you would expect.
-  * **$isEmpty**
-  * **$has**
+
 
 ### Objects
+  * **$isEmpty**
+  * **$has**
+  * **$pick**
+  * **$keys**
+  * **$values** Retrieve the values of an object's properties.
   * **$new(prototype)** optionally provide a prototype object for a new object instance. If an "init" function or an array of init functions exist it/they will be called.
   * **$copy(source, filter)** returns a deep copy of source. Optional filter(key, source, target) is called for every property traversed, if it returns true the property is copied over, if it returns false the property is ignored.
   * **$merge(target, source, filter)** returns a deep copy of source applied to target. Optional filter(key, source, target) is called for every property, if it returns true the property is copied over, if it returns false the property is ignored.
@@ -40,43 +44,45 @@ see underscore.js
   * **$mixin(obj)** obj will gain deep copies of 'owned' properties of all other provided objects. The 'hasOwnProperty' test is applied to all properties during the deep copy.
   * **$make(prototype, extender, mixin)** All args are optional, extender and mixin may each be single objects or arrays of objects. $make calls $new on the prototype then extends it with extender and mixes in the mixin. "init" functions can exist as properties on any or all of the provided objects and will get called at the end with the new object as the "this". If any of the arguments is a speaker then the new object will also be a speaker. Also see tests and source for advanced message sharing capabilities.
 
-### Object Pools
-  Why use this? It is an experimental performance enhancement, ideally an object pool will limit the total ammount of work performed, memory used and garbage produced. Tests and benchmarks yet to be written, memory use and GC analysis yet to be performed.
-
-  * **$recyclable(name, constructor, reducer, maxItems)** create an object pool, Arguments: name = string identifier for the pool, constructor = function that returns a new instance of the object (NOT called with new), reducer = function(obj) returns the object instance back to a reusable state. This is optional as there is a defalut which will call a reduce method on the object and if that does not exist will clear the object viea $clear, maxItems = number, defaults to 100, limits the maximum number of items that can be managed by the pool.
-  * **$reuse(name)** creates a new object instance by calling the pool's construcor method or if one is available pulls an item from the pool and calls a "renew" method on the object if one exists.
-  * **$recycle(obj)** calls the pool's reducer method passing in the provided object, all references to this object should be broken at this point. Arguments: obj = an object that was returned by the $reuse function.
-  * **$recycleBin(name)** returns an object pool by name or all pools if no name is provided.
-
 ### Collections (objects, arrays)
 
-  * **$for** alias of each
   * **$each** see underscore.js
+  * **$for** alias of each
   * **$map** see underscore.js
   * **$collect** alias of map
   * **$reduce** see underscore.js
+  * **$find** see underscore.js
   * **$filter** see underscore.js
   * **$reject** see underscore.js
   * **$all** see underscore.js
+  * **$every** alias of all
   * **$any** see underscore.js (a modifid implemntation but basically the same thing)
   * **$includes** see underscore.js
-  * **$pluck** see underscore.js
-  * **$length** see underscore.js
+  * **$contains** alias of includes
+  * **$invoke** see underscore.js
+  * **$max** see underscore.js
+  * **$min** see underscore.js
+  * **$shuffle** see underscore.js
+  * **$sortBy** see underscore.js
+  * **$groupBy** see underscore.js
+  * **$sortedIndex** see underscore.js
+  * **$size** see underscore.js
+  * **$length** alias of size
   * **$compact** see underscore.js
   * **$flat** flatten arrays recursively. Accepts any number of items. Returns an array of all values, any nested arrays are concated down to the one array.
   * **$slice(obj, start, end)** apply slice to a string, array or arguments object with optional start and end indexes
   * **$splice(obj, start, howMany, items)** apply splice to a string, array or arguments object, accepts multiple arguments or an array for "items" arg
-  * **$values** Retrieve the values of an object's properties.
   * **$clear(obj)** deletes all properties also removes all items if obj is an array, if you want to be anal about deleting things here you go
 
 ### Async
   Most of this code is derived from the excellent async.js https://github.com/caolan/async, changes include different signatures with more information being passed around and support for objects in addition to arrays, (crazy right?) the multi-signature $parallel and $series functions are versitile enough that they are all you need to use.
 
   * **$async.each(collection, iterator, callback)** iteration happens as soon as possible (in parallel), completing in unknown order, fires the callback once all the done functions have been called. The first argument provided to the iterator function is a done function which accepts an error (anything that is non-falsey) which will cause the callback to be fired with the error. Arguments: collection = array or object, iterator = function(done, val, key, collection), callback = function(err, collection)
+  * **$async.eachLimit(collection, limit, iterator, callback)** same as above except the added limit argument (number) defines the maximum number of parallel tasks that will happen at the same time
   * **$async.eachSeries(collection, iterator, callback)** same as $async.each but iteration happens one after the other (in series), completing in given order.  Arguments: same as $async.each
   * **$async.map(collection, iterator, callback)** simmilar to $async.each, iteration happens in parallel, completing in unknown order, instead of a done function the iterator is provided a push function where the second argument gets pushed into a results array. Results are available to both iterator and callback functions. Arguments: collection = array or object, iterator = function(push, val, key, results, collection), callback = function(err, results, collection)
   * **$async.mapSeries(collection, iterator, callback)** same as $async.map but iteration happens in series, completing in given order;
-  * **$async.tasks(tasks, callback)** woks like a map function calling each function in the tasks array/object, the first argument to each function must be called when the function is complete and can be used to pass along an error or push a value into results. Arguments: tasks = array of functions with the signature function(push, key, results), callback = function(err, results, tasks)
+  * **$async.tasks(tasks, callback)** works like a map function calling each function in the tasks array/object, the first argument to each function must be called when the function is complete and can be used to pass along an error or push a value into results. Arguments: tasks = array of functions with the signature function(push, key, results), callback = function(err, results, tasks)
   * **$async.tasksSeries(tasks, callback)** same as $async.parallelTasks but tasks are executed in series, one after the other. Alternately if results is not used push can be called "next" omitting the second argument when calling it.
   * **$parallel** a multi-signature async swiss army knife, iteration happens in parallel, completing in unknown order.
     * **$parallel(func1, func2, ...)** this is a a fairly useless case for parallel, much more useflu in $series, each argument is a function(push, index, results), each function is called in order, each finishes in unknown order.
@@ -104,7 +110,7 @@ see underscore.js
         });
     ```
 
-    * **$parallel(collection, iterator, callback)** an alias for $async.map
+    * **$parallel(collection, iterator, callback)** an alias for $async.each
 
     ``` javascript
 
@@ -136,10 +142,14 @@ see underscore.js
         });
     ```
 
+    * **$parallel(collection, limit, iterator, callback)** an alias of $async.eachLimit
+
+
   * **$series** a multi-signature async swiss army knife, iteration happens in series, completing in given order.
     * **$series(func1, func2, ...)** each argument is a function(push, index, results), each function is called in sequence one after the other as push functions are called, alternately if "results" is not used "push" can be called "next" omitting the second argument when calling it.
 
       ``` javascript
+
       // call each function one after the other
       $series(
         // this fires first
@@ -165,7 +175,7 @@ see underscore.js
       ```
 
     * **$series(tasks, callback)** an alias for $async.tasksSeries
-    * **$series(collection, iterator, callback)** an alias for $async.mapSeries
+    * **$series(collection, iterator, callback)** an alias for $async.eachSeries
 
 
 ### Pub/Sub
@@ -244,6 +254,7 @@ see underscore.js
   * **$define(type, options)** creates a schema definition (which is a speaker) with given options that will be associated with the given type string.
 
   ``` javascript
+
   // define a schema
   $define("person", {
     defaults: {
@@ -262,6 +273,7 @@ see underscore.js
     * __drop__ calls drop on all model instances for this schema and then removes the schema from the list of defined schemas
 
   ``` javascript
+
   // to delete a schema
   $schema("person").drop();
   ```
@@ -483,10 +495,19 @@ see underscore.js
 
 ### String
   * **$trim** type agnostic string trim, just returns the original val if its not a string
+  * **String.splice(index, howManyToDelete, stringToInsert)** adds splice functionality for strings
 
 ### Language Shims
-  * **String.splice(index, howManyToDelete, stringToInsert)** adds splice functionality for strings
   * **Object.keys()** adds ES5 Object.keys functionality to retrograde js engines
+  * **Array.indexOf()** adds indexOf array method to retrograde js engines
+
+### Object Pools
+  Why use this? It is an experimental performance enhancement, ideally an object pool will limit the total ammount of work performed, memory used and garbage produced. Tests and benchmarks yet to be written, memory use and GC analysis yet to be performed.
+
+  * **$recyclable(name, constructor, reducer, maxItems)** create an object pool, Arguments: name = string identifier for the pool, constructor = function that returns a new instance of the object (NOT called with new), reducer = function(obj) returns the object instance back to a reusable state. This is optional as there is a defalut which will call a reduce method on the object and if that does not exist will clear the object viea $clear, maxItems = number, defaults to 100, limits the maximum number of items that can be managed by the pool.
+  * **$reuse(name)** creates a new object instance by calling the pool's construcor method or if one is available pulls an item from the pool and calls a "renew" method on the object if one exists.
+  * **$recycle(obj)** calls the pool's reducer method passing in the provided object, all references to this object should be broken at this point. Arguments: obj = an object that was returned by the $reuse function.
+  * **$recycleBin(name)** returns an object pool by name or all pools if no name is provided.
 
 ### $cache
   * **types** the in-memory storage location for typed/cached data
