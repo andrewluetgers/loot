@@ -1,5 +1,5 @@
 /*
- * loot.js 0.1.0
+ * loot.js 0.2.0
  * (c) andrew luetgers
  * you are free to distribute loot.js under the MIT license
  * https://github.com/andrewluetgers/loot
@@ -9,7 +9,7 @@
 
 (function() {
 
-	var version = "0.2.0";
+	var version = "0.2.1";
 
 	var root = this;
 
@@ -17,7 +17,7 @@
 
 	// Extend the String prototype to include a splice method.
 	// This will use an Array-based splitting / joining approach
-	if (!("splice" in String.prototype)) {
+	if (!String.prototype.splice) {
 		String.prototype.splice = function(index, howManyToDelete, stringToInsert) {
 			var characterArray = this.split("");
 			Array.prototype.splice.apply(characterArray, arguments);
@@ -75,7 +75,7 @@
 	// Create quick reference variables for speed access to core prototypes.
 	var slice 					= ArrayProto.slice,
 		splice 					= ArrayProto.splice,
-		//unshift 				= ArrayProto.unshift,
+		unshift 				= ArrayProto.unshift,
 		toString 				= ObjProto.toString,
 		hasOwnProperty 			= ObjProto.hasOwnProperty;
 
@@ -84,7 +84,7 @@
 	var nativeForEach 			= ArrayProto.forEach,
 		nativeMap  				= ArrayProto.map,
 		nativeReduce 			= ArrayProto.reduce,
-		//nativeReduceRight 	= ArrayProto.reduceRight,
+		nativeReduceRight 		= ArrayProto.reduceRight,
 		nativeFilter 			= ArrayProto.filter,
 		nativeEvery 			= ArrayProto.every,
 		nativeSome 				= ArrayProto.some,
@@ -93,14 +93,14 @@
 		nativeKeys 				= Object.keys,
 		nativeBind 				= FuncProto.bind;
 
-	// commonly used strings, this can help mitigate a bit of garbage generation
-	var funType = "function", undType = "undefined", strType = "string",
-		arrType = "array", regType = "regexp", argType = "arguments",
-		eleType = "element", objType = "object", numType = "number",
-		nanType = "NaN", nulType = "null", booType = "boolean",
-		booStr = "[object Boolean]", numStr = "[object Number]",
-		datStr = "[object Date]", regStr = "[object RegExp]",
-		argStr = "[object Arguments]", aryStr = "[object Array]",
+	// commonly used strings, this can help mitigate a tiny bit of garbage generation
+	var funType = "function", 			undType = "undefined", 	strType = "string",
+		arrType = "array", 				regType = "regexp", 	argType = "arguments",
+		eleType = "element", 			objType = "object", 	numType = "number",
+		nanType = "NaN", 				nulType = "null", 		booType = "boolean",
+		booStr = "[object Boolean]", 	numStr = "[object Number]",
+		datStr = "[object Date]", 		regStr = "[object RegExp]",
+		argStr = "[object Arguments]", 	aryStr = "[object Array]",
 		calleeS = "callee";
 
 	// basic types -------------------------------------------------------
@@ -113,26 +113,60 @@
 	function $isUndefined	(obj) { 	return typeof obj === undType;}
 	function $isFunction	(obj) { 	return typeof obj === funType;}
 	function $isString		(obj) { 	return typeof obj === strType;}
-	function $isNumber		(obj) { 	return toString.call(obj) == numStr;}
-	function $isDate		(obj) { 	return toString.call(obj) == datStr;}
-	function $isRegExp		(obj) { 	return toString.call(obj) == regStr;}
+	function $isNumber		(obj) { 	return toString.call(obj) === numStr;}
+	function $isDate		(obj) { 	return toString.call(obj) === datStr;}
+	function $isRegExp		(obj) { 	return toString.call(obj) === regStr;}
 
-	function $isArguments	(obj) { 	return toString.call(obj) == argStr;}
+	function $isArguments	(obj) { 	return toString.call(obj) === argStr;}
 	if (!$isArguments(arguments)) {
-		$isArguments = function(obj) { 	return !!(obj && $has(obj, calleeStr));};
+		$isArguments = function(obj) { 	return !!(obj && $has(obj, calleeS));};
 	}
 
 	var $isArray = nativeIsArray ||
 			function(obj) { 			return toString.call(obj) == aryStr;};
 
-	function $typeof (obj) {
+	// from jQuery
+	function $isPlainObject( obj ) {
+		// Must be an Object.
+		// Because of IE, we also have to check the presence of the constructor property.
+		// Make sure that null, DOM nodes and window objects don't pass through, as well
+		if (!obj || typeof obj !== "object" || obj.nodeType || root === obj) {
+			return false;
+		}
+
+		try {
+			// Not own constructor property must be Object
+			if (obj.constructor &&
+				!hasOwnProperty.call(obj, "constructor") &&
+				!hasOwnProperty.call(obj.constructor.prototype, "isPrototypeOf")) {
+				return false;
+			}
+		} catch ( e ) {
+			// IE8,9 Will throw exceptions on certain host objects #9897
+			return false;
+		}
+
+		// Own properties are enumerated firstly, so to speed up,
+		// if last one is own, then all properties are own.
+		var key;
+		for (key in obj) {}
+
+		return key === undefined || hasOwnProperty.call(obj, key);
+	}
+
+	function $isEmptyObject(obj) {
+		for (var name in obj) {return false;}
+		return true;
+	}
+
+	function $typeof(obj) {
 		var type = typeof obj;
 
 		switch(type) {
 			case objType:
 				if (obj === null) {
 					return nulType;
-				} else if ($isArray(obj)) { // this must be before the obj = Object(obj)
+				} else if ($isArray(obj)) {
 					return arrType;
 				} else if (toString.call(obj) === regStr) {
 					return regType;
@@ -150,29 +184,53 @@
 					return nanType;
 				}
 				break;
-		}
 
-		return type;
+			default:
+				return type;
+		}
 	}
 
 	// Is a given array, string, or object empty?
 	// An "empty" object has no enumerable own-properties.
 	function $isEmpty(obj) {
-		if ($isArray(obj) || $isString(obj)) return obj.length === 0;
-		for (var key in obj) if ($has(obj, key)) return false;
+		if ($isArray(obj) || $isString(obj)) {
+			return obj.length === 0;
+		}
+
+		for (var key in obj) {
+			if ($has(obj, key)) {
+				return false;
+			}
+		}
 		return true;
 	}
 	
 	function $has (obj, key) { return hasOwnProperty.call(obj, key); }
 
 
-	// object functions
+	// Return a copy of the object only containing the whitelisted properties.
+	function $pick(obj) {
+		var result = {};
+		each(_.flatten(slice.call(arguments, 1)), function(key) {
+			if (key in obj) result[key] = obj[key];
+		});
+		return result;
+	}
+
 	var $keys = nativeKeys || function(obj) {
 		if (obj !== Object(obj)) throw new TypeError('Invalid object');
 		var keys = [];
 		for (var key in obj) if ($has(obj, key)) keys[keys.length] = key;
 		return keys;
 	};
+
+	// Retrieve the values of an object's properties.
+	function $values(obj) {
+		if (obj !== Object(obj)) throw new TypeError('Invalid object');
+		var vals = [];
+		for (var key in obj) if ($has(obj, key)) vals[vals.length] = obj[key];
+		return vals;
+	}
 
 	// Collection Functions (work on objects and arrays) -------------------------------------------------------
 
@@ -183,12 +241,10 @@
 	var $each = (function() {
 
 		// switched breaker to string "break" for better self documentation when used
-		var i, l, key;
-
 		function each(obj, iterator, context) {
+			var i, l, key;
 			if (!obj) return;
 			if (typeof obj === numType) {
-				console.log("number");
 				var arr = [];
 				for (i = 0, l = parseInt(obj); i < l; i++) {
 					arr[i] = i;
@@ -246,7 +302,9 @@
 		
 		return results;
 	}
-	
+
+	function $value(val) {return val;}
+
  // **Reduce** builds up a single result from a list of values, aka `inject`,
 	// or `foldl`. Delegates to **ECMAScript 5**'s native `reduce` if available.
 	function $reduce(obj, iterator, memo, context) {
@@ -268,7 +326,19 @@
 		if (!initial) throw new TypeError('Reduce of empty array with no initial value');
 		return memo;
 	}
-	
+
+
+	// Return the first value which passes a truth test. Aliased as `detect`.
+	function $find(obj, iterator, context) {
+		var result;
+		$any(obj, function(value, index, list) {
+			if (iterator.call(context, value, index, list)) {
+				result = value;
+				return true;
+			}
+		});
+		return result;
+	};
 	
 	// Return all the elements that pass a truth test.
 	// Delegates to **ECMAScript 5**'s native `filter` if available.
@@ -355,7 +425,7 @@
 	
 	
 	// Determine if a given value is included in the array or object using `===`.
-	// Aliased as `contains`.
+	// Aliased as `$contains`.
 	function $includes(obj, target) {
 		var found = false;
 		if (obj == null) return found;
@@ -365,13 +435,96 @@
 		});
 		return found;
 	}
-	
-	
+
+
+	// Invoke a method (with arguments) on every item in a collection.
+	function $invoke(obj, method) {
+	var args = $slice(arguments, 2);
+		return $map(obj, function(value) {
+			return ($isFunction(method) ? method || value : value[method]).apply(value, args);
+		});
+	}
+
 	// Convenience version of a common use case of `map`: fetching a property.
 	function $pluck(obj, key) {
 		return $map(obj, function(value){ return value[key]; });
 	}
-	
+
+	// Return the maximum element or (element-based computation).
+	function $max(obj, iterator, context) {
+	if (!iterator && $isArray(obj) && obj[0] === +obj[0]) return Math.max.apply(Math, obj);
+		if (!iterator && $isEmpty(obj)) return -Infinity;
+		var result = {computed : -Infinity};
+		$each(obj, function(value, index, list) {
+			var computed = iterator ? iterator.call(context, value, index, list) : value;
+			computed >= result.computed && (result = {value : value, computed : computed});
+		});
+		return result.value;
+	}
+
+	// Return the minimum element (or element-based computation).
+	function $min(obj, iterator, context) {
+		if (!iterator && $isArray(obj) && obj[0] === +obj[0]) return Math.min.apply(Math, obj);
+		if (!iterator && $isEmpty(obj)) return Infinity;
+		var result = {computed : Infinity};
+		$each(obj, function(value, index, list) {
+			var computed = iterator ? iterator.call(context, value, index, list) : value;
+			computed < result.computed && (result = {value : value, computed : computed});
+		});
+		return result.value;
+	}
+
+	// Shuffle an array.
+	function $shuffle(obj) {
+		var shuffled = [], rand;
+		$each(obj, function(value, index, list) {
+			rand = Math.floor(Math.random() * (index + 1));
+			shuffled[index] = shuffled[rand];
+			shuffled[rand] = value;
+		});
+		return shuffled;
+	}
+
+	// Sort the object's values by a criterion produced by an iterator.
+	function $sortBy(obj, val, context) {
+		var iterator = $isFunction(val) ? val : function(obj) { return obj[val]; };
+		return $pluck($map(obj, function(value, index, list) {
+			return {
+				value : value,
+				criteria : iterator.call(context, value, index, list)
+			};
+		}).sort(function(left, right) {
+			var a = left.criteria, b = right.criteria;
+			if (a === void 0) return 1;
+			if (b === void 0) return -1;
+			return a < b ? -1 : a > b ? 1 : 0;
+		}), 'value');
+	}
+
+	// Groups the object's values by a criterion. Pass either a string attribute
+	// to group by, or a function that returns the criterion.
+	function $groupBy(obj, val) {
+		var result = {};
+		var iterator = $isFunction(val) ? val : function(obj) { return obj[val]; };
+		$each(obj, function(value, index) {
+			var key = iterator(value, index);
+			(result[key] || (result[key] = [])).push(value);
+		});
+		return result;
+	}
+
+	// Use a comparator function to figure out at what index an object should
+	// be inserted so as to maintain order. Uses binary search.
+	function $sortedIndex(array, obj, iterator) {
+		iterator || (iterator = $identity);
+		var low = 0, high = array.length;
+		while (low < high) {
+			var mid = (low + high) >> 1;
+			iterator(array[mid]) < iterator(obj) ? low = mid + 1 : high = mid;
+		}
+		return low;
+	}
+
 	
 	function $length(item) {
 		var len = item && item.length;
@@ -407,11 +560,6 @@
 		}
 	}
 
-	// Retrieve the values of an object's properties.
-	function $values(obj) {
-		return $map(obj, $identity);
-	}
-
 	var _clearKey;
 	function $clear(obj) {
 		if ($isArray(obj)) {
@@ -425,13 +573,6 @@
 		}
 	}
 
-	// map iterator functions ------------------------------------
-	function $value(val) {
-		return val;
-	}
-
-
-
 
 
 	// async functions ------------------------------------------------------------ 
@@ -440,7 +581,7 @@
 
 	var _async = {
 		each: function(obj, iterator, callback) {
-			var len = $length(obj), i = 0;
+			var len = $length(obj), i = 0 ;
 			callback = callback || function() {};
 
 			if (!len) { return callback(); }
@@ -485,6 +626,41 @@
 			next();
 		},
 
+		eachLimit: function (arr, limit, iterator, callback) {
+			callback = callback || function () {};
+			if (!arr.length || limit <= 0) {
+				return callback();
+			}
+			var completed = 0;
+			var started = 0;
+			var running = 0;
+
+			(function replenish() {
+				if (completed === arr.length) {
+					return callback();
+				}
+
+				while (running < limit && started < arr.length) {
+					iterator(arr[started], function (err) {
+						if (err) {
+							callback(err);
+							callback = function() {};
+						} else {
+							completed += 1;
+							running -= 1;
+							if (completed === arr.length) {
+								callback();
+							} else {
+								replenish();
+							}
+						}
+					});
+					started += 1;
+					running += 1;
+				}
+			})();
+		},
+
 		// nextTick implementation with browser-compatible fallback
 		nextTick: (function() {
 			if (typeof process === undType || !(process.nextTick)) {
@@ -509,56 +685,6 @@
 			};
 
 			return makeCallback(0);
-		},
-
-		// to be ued for async.limit and async.limitSeries
-		queue: function(worker, concurrency) {
-			var workers = 0;
-			var q = {
-				tasks: [],
-				concurrency: concurrency,
-				saturated: null,
-				empty: null,
-				drain: null,
-				push: function(data, callback) {
-					if(data.constructor !== Array) {
-						data = [data];
-					}
-					_async.each(data, function(task) {
-						q.tasks.push({
-							data: task,
-							callback: typeof callback === funType ? callback : null
-						});
-						if (q.saturated && q.tasks.length == concurrency) {
-							q.saturated();
-						}
-						_async.nextTick(q.process);
-					});
-				},
-				process: function() {
-					if (workers < q.concurrency && q.tasks.length) {
-						var task = q.tasks.shift();
-						if(q.empty && q.tasks.length == 0) q.empty();
-						workers += 1;
-						worker(task.data, function () {
-							workers -= 1;
-							if (task.callback) {
-								task.callback.apply(task, arguments);
-							}
-							if(q.drain && q.tasks.length + workers == 0) q.drain();
-							q.process();
-						});
-					}
-				},
-				length: function() {
-					return q.tasks.length;
-				},
-				running: function() {
-					return workers;
-				}
-			};
-			
-			return q;
 		}
 	};
 
@@ -620,7 +746,11 @@
 	// $parallel(func1, func2, func3)
 	// $parallel([func1, func2, func3], callback)
 	// $parallel(objectOrArray, iterator, callback)
+	// $parallel(objectOrArray, limit, iterator, callback)
 	var $parallel = function(tasks, callback) {
+		var len = arguments.length,
+			type = typeof callback;
+
 		// first signature: a set of async functions to call, is converted to second signature format, no final callback is used
 		if ($isFunction(tasks)) {
 			tasks = $slice(arguments);
@@ -632,9 +762,20 @@
 			_async.tasks(tasks, callback);
 
 		// third signature: async for each
+		} else if (type === funType) {
+			var iterator = callback;
+			callback = arguments[2];
+			_async.each(tasks, iterator, callback);
+
+		// fourth signature: async for each limit
+		} else if (len === 4 && type === numType) {
+			var limit = callback;
+			var iterator = arguments[2];
+			callback = arguments[3];
+			_async.eachLimit(tasks, limit, iterator, callback);
+
 		} else {
-			//var iterator = callback;
-			_async.map(tasks, callback, arguments[2]);
+			throw new TypeError();
 		}
 	};
 	
@@ -656,7 +797,7 @@
 		// third signature: async for each
 		} else {
 			//var iterator = callback;
-			_async.mapSeries(tasks, callback, arguments[2]);
+			_async.eachSeries(tasks, callback, arguments[2]);
 		}
 	};
 
@@ -743,7 +884,6 @@
 			} else {
 				_recyclable = _recycleBin.constructor();
 			}
-
 			return _recyclable;
 
 		} else {
@@ -778,7 +918,6 @@
 				// create our api facade functions
 				for (key in proto) {
 					if (key.substr(0,1) !== "_" && $isFunction(proto[key])) {
-						console.log(key);
 						api[key] = function() {
 							var compo = this._components[name][key];
 							return compo.apply(compo, $slice(arguments));
@@ -794,8 +933,6 @@
 		};
 
 		newComponent.attachComponent = function(obj, name) {
-
-			console.log(name, components);
 
 			if (components.hasOwnProperty(name)) {
 				var component = components[name];
@@ -827,7 +964,6 @@
 			if (obj._components && (compo = obj._components[name])) {
 				for (key in compo) {
 					if (key.substr(0,1) !== "_" && $isFunction(compo[key])) {
-						console.log(key);
 						delete obj[key];
 					}
 				}
@@ -864,7 +1000,6 @@
 
 		$each(deps, function(dep) {
 			if (!(dep in obj._components)) {
-				console.log("attach", dep);
 				$component.attachComponent(obj, dep);
 			}
 		});
@@ -913,7 +1048,7 @@
 	}
 
 	/**
-	 * serves as a utility method for deepCopy and deepMerge
+	 * serves as a utility method for $copy and $merge
 	 * @param source (object) the object to copy properties from
 	 * @param target (object) optional object to merge source's properties into
 	 * @param filter (function) optional function(key, source, target) { return boolean; }
@@ -958,6 +1093,7 @@
 				continue;
 			}
 
+			// todo make the more specific for various types
 			if (typeof sourceProp === objType && !$isNull(sourceProp)) {
 				targetProp = $isArray(sourceProp) ? [] : {};
 				target[key] = copy(sourceProp, targetProp, filter);
@@ -1254,13 +1390,13 @@
 			return date;
 		}
 
-		function _timeago(date, compareTo) {
+		function timeAgo(date, compareTo) {
 
 			date = normalizeDateInput(date);
 			compareTo = normalizeDateInput(compareTo || new Date);
 
 			var token,
-				isString = typeof date === strType,
+				isString = (typeof date === strType),
 				seconds = (compareTo - date +
 							(compareTo.getTimezoneOffset() -
 								// if we received a GMT time from a string, doesn't include time zone bias
@@ -1291,7 +1427,56 @@
 			}
 		}
 
-		return _timeago;
+		return timeAgo;
+	}());
+
+
+	var $timer = (function() {
+		var epoch = new Date(1970, 1, 1, 0, 0, 0, 0).valueOf();
+		var timerApi = {
+			parent: null,
+			interval: null,
+			started: 0,
+			elapsed: 0,
+			start: function() {
+				var that = this;
+				this.started = $now();
+				this.interval = setInterval(function() {
+					that.update();
+				}, 1000);
+			},
+			stop: function() {
+				clearInterval(this.interval);
+				this.reset();
+			},
+			pause: function() {
+				clearInterval(this.interval);
+			},
+			reset: function() {
+				this.started = $now();
+				this.update();
+			},
+			update: function() {
+				this.elapsed = $now() - this.started;
+				this.parent.innerHTML = this.format(this.elapsed + $now() - this.started);
+			},
+			format: function(ms) {
+//				console.log(ms, $now() - ms, new Date(ms - $now()).toString());
+				var d = new Date(ms + epoch).toString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, '$1');
+				var x = (ms % 1000) + "";
+				while (x.length < 3) {
+					x = "0" + x;
+				}
+				d += "." + x;
+				return d.substr(0, d.length - 4);
+			}
+		};
+
+		return function(parent) {
+			var timer = $new(timerApi);
+			timer.parent = parent;
+			return timer;
+		}
 	}());
 
 
@@ -1731,7 +1916,6 @@
 							if (arguments.length) {
 								return modelApiGet.apply(this, $flat(modelVals, $slice(arguments))); // todo can we do this in a better way
 							} else {
-								console.log(arguments.length);
 								return modelVals;
 							}
 						},
@@ -2112,6 +2296,7 @@
 
 
 	// hyper-simplistic dom node api for html string building, used by $el for outputStrings mode
+	// EXPOSED FOR TESTING ONLY, DON'T USE THIS DIRECTLY, DOES NOT ESCAPE HTML IN STRINGS
 	var $node = (function() {
 
 		var booleanProperties = {
@@ -2122,6 +2307,11 @@
 			selected: 1
 		};
 
+		var lt  = "<",  gt  = ">",
+			lts = "</", gts = "/>" ,
+			space = " ", equo = '="',
+			quo = '"';
+
 		var directProperties = {className:'class', htmlFor:'for'};
 		var selfClosing = {area:1, base:1, basefont:1, br:1, col:1, frame:1, hr:1, img:1, input:1, link:1, meta:1, param:1};
 
@@ -2129,45 +2319,74 @@
 		var childrenToString = function() {
 			var str = "";
 			$each(this, function(val) {
-				str += $isString(val) ? $escapeHTML(val) : val;
+				if (val || val === 0) {
+					str += $isString(val) ? $escapeHTML(val) : val;
+				}
 			});
 			return str;
 		};
 
 		var node = {
 			init: function() {
-				this.type = "div";
+				this.type = "";
 				this.attr = {};
 				this.children = [];
 				this.children.toString = childrenToString;
-
+//				this.children.toString = function() {
+//					return this.join("");
+//				};
 				// for compatibility with $el dom builder in outputStrings mode
 				this.appendChild = this.append;
 				this.removeAttribute = this.setAttribute = this.set;
 			},
-			nodeType: 1, // so we can pass the $isNode test
+			nodeType: 1, // so we can pass the $isElement test
 			append: function(nodes) {
 				// no we don't do validation here, so sue me
 				// this will handle a single node or an array of nodes or a mixed array of nodes and arrays of nodes
 				this.children.splice.apply(this.children, $flat(this.children.length, 0, nodes));
 				return this;
 			},
+//			append: function(el) {
+//				if (!$isString(el) && !$isElement(el)) {
+//					console.log(el);
+//					if ($isArray(el)) {
+//						var that = this;
+//						$each(el, function(val) {that.append(val);});
+//					} else
+//					throw new TypeError("expected string or element saw " + $typeof(el));
+//				}
+//				// this will handle a single node or an array of nodes or a mixed array of nodes and arrays of nodes
+//				this.children.push(el);
+//				return this;
+//			},
 			set: function(key, value) {
 				if (key) {
 					if (!$isString(key)) {
+						var spec = key;
+							that = this;
 						// assume key is a hash of key value pairs to be added in to existing attr hash
-						var spec = key, that = this;
+						if (spec.id) {
+							this.set("id", spec.id);
+							delete spec.id;
+						}
+
+						if (spec.className) {
+							this.set("className", spec["className"]);
+							delete spec["className"];
+						}
+
 						$each(spec, function(val, theKey) {
 							that.set(theKey, val);
 						});
+
 					} else {
 						// simple key value assignment
-						if (value !== null && value !== undefined && value !== "") {
+						if (value) {
 							// add/edit attribute
 							// support alternate attribute names
 							key = directProperties[key] || key;
 							if (booleanProperties[key]) {
-								if (value)  {
+								if (value) {
 									value = key;
 								} else {
 									delete this.attr[key];
@@ -2182,16 +2401,23 @@
 				}
 				return this;
 			},
+
 			toString: function() {
-				var str = "<" + this.type;
+				// DONT CONSOLE.log "this" in here or do anything that will call toString on this
+				// it will create an infinite loop of tostring calling tostring in firefox, others??
+				var str = lt + this.type;
 				$each(this.attr, function(val, key) {
-					str += ' ' + key + '="' + val + '"';
+					if (val) {
+						str += space + key + equo + val + quo;
+					}
 				});
 
 				if (selfClosing[this.type]) {
-					return str + "/>";
+					// todo support self-closing tags with and without fslash depending on a flag
+					return str + gt;
 				} else {
-					return str + ">" + this.children + "</" + this.type + ">";
+//					console.log("children tostring", this.children,  str + gt + this.children + lts + this.type + gt);
+					return str + gt + this.children + lts + this.type + gt;
 				}
 			}
 		};
@@ -2206,26 +2432,52 @@
 	}());
 
 	// for compatibility with $el dom builder in outputStrings mode
+	var hasDocument = ("document" in root),
+		useDocument = false,
+		emptyString = "";
+
+	// create nodes in real DOM or microDom from one api
 	var $doc = {
-		createTextNode: function(str) {
-			return str + "";
+		hasRealDom: function() {
+			return hasDocument;
 		},
-		createElement: $node
+		usesRealDom: function() {
+			return useDocument;
+		},
+		useRealDom: function(bool) {
+			useDocument = hasDocument ? bool : false;
+			return useDocument;
+		},
+		createTextNode: function(str) {
+			if (useDocument) {
+				return document.createTextNode(str);
+			} else {
+				return $escapeHTML(str + emptyString);
+			}
+		},
+		createElement: function(tag) {
+			if (useDocument) {
+				return document.createElement(tag);
+			} else {
+				return $node(tag);
+			}
+		}
 	};
 
-	// dom builder see: http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
-	// modified to support dom node output or string output, for server land
-	var $el = (function () {
+	var $el = (function() {
+		// dom builder see: http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
+		// modified to support dom node output or string output, for server land
 		var root = this;
-		var doc = this.document || $doc;
 
 		var directProperties = {
 			'class': 		'className',
 			className: 		'className',
 			defaultValue: 	'defaultValue',
 			'for': 			'htmlFor',
-			html: 			'innerHTML',
-			text: 			'textContent',
+//			html: 			'innerHTML', // these work on real dom but not on fakeDom
+//			innerHTML: 		'innerHTML',
+//			text: 			'textContent',
+//			textContent: 	'textContent',
 			value: 			'value'
 		};
 
@@ -2234,37 +2486,42 @@
 			defaultChecked: 1,
 			disabled: 1,
 			multiple: 1,
-			selected: 1
+			selected: 1,
+			autoplay: 1,
+			controls: 1,
+			loop: 1
 		};
 
-		function setProperty(el, key, value) {
-			var prop = directProperties[key];
+		function setProperty(node, key, value) {
+			var directProp = directProperties[key];
 			var noValue = (!value && value !== 0);
-			if (prop) {
-				el[prop] = (noValue ? '' : '' + value);
+			if (directProp && !noValue) {
+				node[directProp] = (noValue ? '' : '' + value);
 			} else if (booleanProperties[key]) {
 				// set the attribute if true or do not add it at all
 				if (value) {
-					el.setAttribute(key, key);
+					node.setAttribute(key, key);
 				}
 			} else if (noValue) {
-				el.removeAttribute(key);
+				node.removeAttribute(key);
 			} else {
-				console.log(key, value);
-				el.setAttribute(key, '' + value);
+				node.setAttribute(key, '' + value);
 			}
 		}
 
-		function appendChildren(el, children) {
-			$each(children, function(node) {
-				if (node || node === 0) {
-					if ($isArray(node)) {
-						appendChildren(el, node);
+		function appendChildren(node, children) {
+			if (!$isArray(children)) {
+				children = [children];
+			}
+			$each(children, function(child, key) {
+				if (child || child === 0) {
+					if ($isArray(child)) {
+						appendChildren(node, child);
 					} else {
-						if (!$isElement(node)) {
-							node = doc.createTextNode(node);
+						if (!$isElement(child)) {
+							child = $doc.createTextNode(child);
 						}
-						el.appendChild(node);
+						node.appendChild(child);
 					}
 				}
 			});
@@ -2272,117 +2529,75 @@
 
 		var splitter = /(#|\.)/;
 
-		function create(tag, props, children) {
+		function create(selector, props, children) {
+			// this function is currently ugly and repeats code from elsewhere but
+			// it is also the fastest I have been able to achieve by 30-100%
+			if (!selector) {
+				throw new Error("selector required");
+			}
 
-			props = props || {};
+			var outProps,
+				parts, name, len, node, i, j, l,
+				tag, id, className;
 
-			var parts, name, len, el, i, j, l;
-
+			// support (selector, children) signature'
 			// support (tag, children) signature
-			if (typeof props === strType) {
-				children = [props];
-				props = {};
-
-			} else if ($isArray(props)) {
+			if (typeof props === strType || $isArray(props)) {
 				children = props;
 				props = {};
 			}
 
-			parts = tag.split(splitter);
+			// parse the selector and merge props
+			parts = selector.split(splitter);
 			tag = parts[0];
 			len = parts.length;
 
 			if (len > 2) {
+
+				outProps = {};
 				for (i=1, j=2, l=len; j<l; i+=2, j+=2) {
 					name = parts[j];
 					if (parts[i] === '#') {
-						props.id = name;
+						id = name;
 					} else {
-						props.className = props.className ? props.className + ' ' + name : name;
+						className = className ? (className + " " + name) : name;
 					}
+				}
+
+				if (id || className) {
+					// properties from selector override or append to those in props
+					if (props) 		{$mixin(outProps, props)}
+					if (id) 		{outProps.id = id;}
+					if (className) 	{outProps.className = (props && props.className) ? (className + " " + props.className) : className;} // append multiple classes
+					props = outProps;
 				}
 			}
 
-			el = doc.createElement(tag);
+			id = className = null;
 
-			if (_outputStrings) {
-				props && el.set(props);
-				children && el.append(children);
+			// create the node
+			node = $doc.createElement(tag);
+			if (!useDocument) {
+				props && node.set(props);
+				children && node.append(children);
 
 			} else {
-				props && $each(props, function(val, key) {
-					setProperty(el, key, val);
-				});
-				children && appendChildren(el, children);
+				if (props) {
+
+					props.id && setProperty(node, "id", props.id);
+					props.className && setProperty(node, "class", props.className);
+					$each(props, function(val, key) {
+						setProperty(node, key, val);
+					});
+				}
+				children && appendChildren(node, children);
 			}
-			return el;
+			return node;
 		}
 
-		var _outputStrings = false;
-
-		create.outputStrings = function(outputStrings) {
-			_outputStrings = outputStrings;
-			if (!outputStrings) {
-				doc = root.document || $doc;
-			} else {
-				doc = $doc;
-			}
-		};
-
-		create.outputMode = function() {
-			return _outputStrings ? "string" : "DOM";
-		};
-
 		return create;
-
 	}());
 
-
-
-	/* $dom
-		dom instructions
-		array == generic container for dom instructions
-		object == attributes
-		string == dom selector or innerHTML
-
-		dom instruction patterns:
-
-			[selector (String)]
-			selectors begin with an html tag name optionally followed by #someId and zero or more .someClass
-			a selector can be followed by any instruction another selector, an object, an array, innerHTML string
-
-			[selector (String), innerHTML (String)]
-			any string that does not look like a selector is treated as innerHTML,
-			if your strings will look like a selector you can add non selector characters like so...
-			invalid as innerHTML: "strong", "menu", "footer"
-			valid as innerHTML: "<span>strong</span>", "menu "
-			innerHTML can only be followed by a selector string
-
-			[selector (String), children (Array)]
-			an array can only be followed by a selector string
-
-			[selector (String), attributes (Object)]
-			attributes eg. {title: "my title", value: 2}
-			an object can be followed by an array or a string (selector or innerHTML)
-
-			[selector (String), attributes (Object), children (Array)]
-
-			eg.
-
-var dom = [
-	"div", {className: "todo " + data.done ? "done" : ""},[
-		"div.display", [
-			"input.check", {type: "checkbox", checked: data.done},
-			"label.todo-content", data.content,
-			"span.todo-destroy"
-		],
-
-		"div.edit", [
-			"input.todo-input", {type: "text", value: data.content}
-		],
-		"ul", $map(data.items, $value)
-	];
-	*/
 
 	var $isSelector = (function() {
 		var one = 1,
@@ -2422,7 +2637,7 @@ var dom = [
 				tag = parts[0];
 
 			// is it longer than any of the valid tags or is it not a valid tag?
-			if ( (tag.length > maxLength) || !(tag in tags)) {
+			if ((tag.length > maxLength) || !(tag in tags)) {
 				return false;
 			}
 
@@ -2442,7 +2657,12 @@ var dom = [
 				}
 			}
 
-			return [tag, id, className];
+//			return [tag, id, className];
+			return {
+				tag: tag,
+				id: id,
+				className: className
+			};
 		}
 
 		$isSelector.addTag = function(str) {
@@ -2453,6 +2673,51 @@ var dom = [
 		return $isSelector;
 	}());
 
+	/* $dom
+		dom instructions
+		array == generic container for dom instructions
+		object == attributes
+		string == dom selector or innerHTML
+
+		dom instruction patterns:
+
+			[selector (String)]
+			selectors begin with an html tag name optionally followed by #someId and zero or more .someClass
+			a selector can be followed by any instruction another selector, an object, an array, innerHTML string
+
+			[selector (String), innerHTML (String)]
+			any string that does not look like a selector is treated as innerHTML,
+			if your strings will look like a selector you can add non selector characters like so...
+			invalid as innerHTML: "strong", "menu", "footer"
+			valid as innerHTML: "<span>strong</span>", "menu "
+			innerHTML can only be followed by a selector string
+
+			[selector (String), children (Array)]
+			an array can only be followed by a selector string
+
+			[selector (String), attributes (Object)]
+			attributes eg. {title: "my title", value: 2}
+			an object can be followed by an array or a string (selector or innerHTML)
+
+			[selector (String), attributes (Object), children (Array)]
+
+			eg.
+
+	var dom = [
+		"div", {className: "todo " + data.done ? "done" : ""},[
+			"div.display", [
+				"input.check", {type: "checkbox", checked: data.done},
+				"label.todo-content", data.content,
+				"span.todo-destroy"
+			],
+
+			"div.edit", [
+				"input.todo-input", {type: "text", value: data.content}
+			],
+			"ul", $map(data.items, $value)
+		];
+	*/
+
 	var $dom = (function() {
 
 		function $dom(domInstructions, preProcessedSelector) {
@@ -2462,107 +2727,139 @@ var dom = [
 			}
 
 			var returnNodes = [],
-				tag, attributes, childNodes, childNode,
-				selector, arg, type, lastArgIsSelecor, firstArgIsSelector,
-				id, className, step = 1, i, len = domInstructions.length;
+				tag, attributes, childNodes,
+				selector, arg, type,
+				id, className, step = 1, prevStep, thisStep,
+				i, len = domInstructions.length;
 
 			for (i=0; i<len; i++) {
 				arg = domInstructions[i];
 
-				switch(step) {
+				prevStep = thisStep;
+				thisStep = step + "-" + $typeof(arg);
 
-					case 1:
-						// first arg should always be a selector
-						selector = preProcessedSelector || lastArgIsSelecor || $isSelector(arg);
+				switch(thisStep) {
 
-						if (!selector) {
-							throw new Error("Expected string but saw " + $typeof(arg));
-						}
-
-						tag = selector[0];
-						id = selector[1];
-						className = selector[2];
-						selector = preProcessedSelector = lastArgIsSelecor = null;
-						step++;
-						attributes = {};
-						id && (attributes.id = id);
-						className && (attributes.className = className); // remember we app
-
-						if (i === len-1) {
-							returnNodes.push($el(tag, attributes));
-						}
-						continue;
-
-					case 2:
-						type = $typeof(arg);
-						if (type === objType) {
-							attributes = $mixin({}, arg);
-							step++;
+					// new sibling node via selector or new sibling text -------------------------------------------
+					case "1-string":
+						selector = preProcessedSelector || $isSelector(arg);
+						if (selector) {
+							tag = selector.tag;
+							id = selector.id;
+							className = selector.className;
+							selector = preProcessedSelector = null;
+							attributes = {};
 							id && (attributes.id = id);
-							if (className) {
-								attributes.className = (attributes.className) ? (className + " " + attributes.className) : className;  // remember we appended a space in $isSelector
-							}
-							// add attributes from the selector for final case
+							className && (attributes.className = className);
+
+							// create node with attributes now if final iteration
 							if (i === len-1) {
 								returnNodes.push($el(tag, attributes));
 							}
-							continue;
+
+							// we may have properties or children to add so move to step 2 for next arg
+							step = 2;
+
+
+						} else {
+							returnNodes.push(arg + " ");
+							// stay on step 1 for next arg
 						}
-				}
+						continue;
 
-				// final step, prepare to start over
-				step = 1;
-				type = $typeof(arg);
+					case "1-element":
+						returnNodes.push(arg);
+						// stay on step one for next arg
+						continue;
 
-				// we expect an optional object array or string (innerHTML or nextSelector) here
-				switch(type) {
+					// new sibling node/s via partial --------------------------------------------------------------
+					case "1-function":
+						returnNodes = returnNodes.concat(arg());
+						// stay on step one for next arg
+						continue;
 
-					case booType:
-					case numType:
-						arg = arg + "";
-						// intentional fallthrough
-					case strType:
-
-						lastArgIsSelecor = $isSelector(arg);
-						if (lastArgIsSelecor) { // this is the beginning of the next node
-							// loop back over it now that step=1;
-							i--;
+					// add/merge attributes ------------------------------------------------------------------------
+					case "2-object":
+//							attributes = $mixin(attributes, arg);
+						$each(arg, function(val, key) {
+							attributes[key] = val;
+						});
+						id && (attributes.id = id);
+						if (className) {
+							attributes.className = arg.className ? (className + " " + arg.className) : className;  // remember we appended a space in $isSelector
+						}
+						// create node with attributes now if final iteration
+						if (i === len-1) {
 							returnNodes.push($el(tag, attributes));
-						} else { // last arg is innerHTML
+						}
+
+						id = className = null;
+
+						// we may have a children to add so move to step 3 for next arg
+						step = 3;
+						continue;
+
+					// next sibling node via selector or child string ------------------------------------------------------------------
+					case "2-string":
+					case "3-string":
+						selector = preProcessedSelector || $isSelector(arg);
+
+						// starting a new object
+						if (selector) {
+							// finish the previous object
+							returnNodes.push($el(tag, attributes));
+
+							// about to start over on step 1 lets save some work,
+							// no need to parse the selector string again
+							preProcessedSelector = selector;
+							i--; // iterate over this arg again
+
+						// child text
+						} else {
+							//create node with child text
 							returnNodes.push($el(tag, attributes, arg));
 						}
-						break; // new dom node start from the top
 
-					case arrType: // child nodes
-						childNode = arg[0];
-						firstArgIsSelector = $isSelector(childNode);
-						if (firstArgIsSelector) {
-							// this is where we do our recursion
-							childNodes = $dom(arg, firstArgIsSelector);
-						} else if (typeof childNode === strType) {
-							// looks like an array of innerHTML
-							childNodes = arg.join("\n");
-						} else if ($isElement(childNode)) {
-							// assume its already an array of nodes
-							childNodes = arg;
-						} else {
-							throw new Error("Unexpected initial element, saw " + $typeof(arg) + ". Must be a selector, innerHTML string, or DOM node.");
-						}
+						// both cases are final possible step so start back on 1 for next arg
+						step = 1;
+						continue;
+
+					// recursive child array -----------------------------------------------------------------------
+					case "2-array":
+					case "3-array":
+						// this is where we do our recursion
+						childNodes = $dom(arg);
+						// and push the result back into the final output
 						returnNodes.push($el(tag, attributes, childNodes));
+						// final possible step so start back on 1 for next arg
+						step = 1;
+						continue;
+
+					case "3-function":
+						// this is where we do our recursion
+//							childNodes = arg();
+						// and push the result back into the final output
+						returnNodes.push($el(tag, attributes));
+						// functions in third position are treated as siblings
+						// to produce children functions can be wrapped in an array
+						returnNodes = returnNodes.concat(arg());
+						// final possible step so start back on 1 for next arg
+						step = 1;
 						continue;
 
 					default:
-						throw new Error("Unexpected type, saw " + $typeof(arg));
+						throw new TypeError("No such step + type combination: " + thisStep + " - previous was " + prevStep);
 				}
+
 			}
 
-			attributes = null;
+			childNodes = attributes = null;
 
-			if (returnNodes.length === 1) {
-				return returnNodes[0];
-			} else {
-				return returnNodes;
-			}
+			// we do this down here bc for function types we do a concat which overwrites returnNodes
+			returnNodes.toString = function() {
+				return this.join("");
+			};
+			return returnNodes;
 		}
 
 		return $dom;
@@ -2570,45 +2867,59 @@ var dom = [
 	}());
 
 	var parts = {};
-	function $part(name, generator, overwrite) {
-		if (!$isString(name)) {
-			throw new TypeError("Expected string");
+
+	/**
+	 *
+	 * @param name			string,
+	 * @param arg			function or object
+	 * @param overwrite		bool
+	 * @description this function serves as a constructor, getter, setter and collection interface to partials
+	 * there are multiple signatures and a plural alias that makes more sense depending on what you want to do
+	 * $part("name", function(data){...}) returns undefined, saves the function under the given name so that it can be used via the following signatures
+	 * $parts() returns and object that contains all the partials by name
+	 * $parts("myPartial") returns a partial function(data) which if called returns a minidom
+	 * $parts("myPartial", dataObject)
+	 */
+	function $part(name, arg, overwrite) {
+		if (arguments.length === 0) {
+			return parts;							// get all
+		} else if (!$isString(name)) {
+			throw new TypeError("Expected string for name but saw " + $typeof(name));
 		}
 
 		if (name in parts) {
-			if (generator === undefined) {
+			if (!arg) {
 				return parts[name];					// get
-			} else if (!$isFunction(generator)) {
-				return parts[name](generator);		// call, generator is data
-			} else if (overwrite) {
-				return parts[name] = generator;		// update
-			} else {
-				throw new Error("Partial already defined for " + name);
-			}
-		} else if ($isFunction(generator)) {
-			return parts[name] = generator;			// set
+
+			} else if ($isFunction(arg)) {
+				if (overwrite) {
+					return parts[name] = arg;		// update
+				} else {
+					throw new Error("Partial already defined for " + name + ". use overwrite flag to update");
+				}
+			}	else if ($isObject(arg)) {
+				return function(data) {				// get instance with predefined default data object (great for nesting partials)
+					return parts[name](data || arg);
+				}
+			}	
+
+		} else if ($isFunction(arg)) {
+			return parts[name] = arg;				// set
 		} else {
-			throw new Error("Expected a function");
+			throw new Error("No such partial '"+name+"', expected a function but saw " + $typeof(arg));
 		}
 	}
 
-	function $parts(name) {
-		if (!name) {
-			return parts;
-		} else {
-			return parts[name];
-		}
-	}
-
-	$parts.drop = $part.drop = function(name) {
+	$part.drop = function(name) {
 		delete parts[name];
 	};
 
-	$parts.dropAll = function(name) {
+	$part.dropAll = function(name) {
 		parts = {};
 	};
 
-
+	// plural alias nice for collection methods
+	var $parts = $part;
 
 	// escapeHTML -------------------------------------------------------
 	// from backbone.js
@@ -2624,7 +2935,11 @@ var dom = [
 
 		// the escape function
 		return function(string) {
-			return string.replace(amp, ampStr).replace(lt, ltStr).replace(gt, gtStr).replace(quot, quotStr).replace(squot, squotStr).replace(fslash, fslashStr);
+			if (typeof string == strType) {
+				return string.replace(amp, ampStr).replace(lt, ltStr).replace(gt, gtStr).replace(quot, quotStr).replace(squot, squotStr); //.replace(fslash, fslashStr);
+			} else {
+				return string;
+			}
 		};
 	}());
 
@@ -2689,7 +3004,6 @@ var dom = [
 					var spec = ctorArgs[1];
 					events = spec.events;
 					node = spec.node;
-					console.log(spec.node, node);
 					model = spec.model;
 					drop = spec.drop;
 					templateOrRenderFn = spec.template || spec.render;
@@ -2701,7 +3015,6 @@ var dom = [
 				if ($isString(model)) { model = $model(model, modelData); }
 
 				if (!$isElement(node)) {
-					console.log(node);
 					throw new Error("$view: parent must be a DOM node");
 				}
 
@@ -2842,6 +3155,57 @@ var dom = [
 	};
 
 
+	// ------------------------------- exports -------------------------------
+
+	function $queue(worker, concurrency) {
+		var workers = 0;
+		var q = {
+			tasks: [],
+			concurrency: concurrency,
+			saturated: null,
+			empty: null,
+			drain: null,
+			push: function(data, callback) {
+				if(data.constructor !== Array) {
+					data = [data];
+				}
+				_async.each(data, function(task) {
+					q.tasks.push({
+						data: task,
+						callback: typeof callback === funType ? callback : null
+					});
+					if (q.saturated && q.tasks.length == concurrency) {
+						q.saturated();
+					}
+					_async.nextTick(q.process);
+				});
+			},
+			process: function() {
+				if (workers < q.concurrency && q.tasks.length) {
+					var task = q.tasks.shift();
+					if(q.empty && q.tasks.length == 0) q.empty();
+					workers += 1;
+					worker(task.data, function () {
+						workers -= 1;
+						if (task.callback) {
+							task.callback.apply(task, arguments);
+						}
+						if(q.drain && q.tasks.length + workers == 0) q.drain();
+						q.process();
+					});
+				}
+			},
+			length: function() {
+				return q.tasks.length;
+			},
+			running: function() {
+				return workers;
+			}
+		};
+
+		return q;
+	}
+
 
 	// ------------------------------- exports -------------------------------
 	var _scope;
@@ -2886,11 +3250,13 @@ var dom = [
 	};
 
 	loot.exports = {
-		// basic types
+		// types
 		$isNull: $isNull,
 		$isNaN: $isNaN,
 		$isElement: $isElement,
 		$isObject: $isObject,
+		$isPlainObject: $isPlainObject,
+		$isEmptyObject: $isEmptyObject,
 		$isBoolean: $isBoolean,
 		$isUndefined: $isUndefined,
 		$isFunction: $isFunction,
@@ -2901,39 +3267,14 @@ var dom = [
 		$isArguments: $isArguments,
 		$isArray: $isArray,
 		$typeof: $typeof,
-		$isEmpty: $isEmpty,
-		$has: $has,
-
-		// collections
-		$each: $each,
-		$for: $each,
-		$keys: $keys,
-		$map: $map,
-		$collect: $map,
-		$reduce: $reduce,
-		$filter: $filter,
-		$reject: $reject,
-		$all: $all,
-		$any: $any,
-		$includes: $includes,
-		$pluck: $pluck,
-		$length: $length,
-		$compact: $compact,
-		$flat: $flat,
-		$slice: $slice,
-		$splice: $splice,
-		$values: $values,
-		$clear: $clear,
-
-		// map iterator functions
-		$value: $value,
-
-		// async
-		$async: _async,
-		$parallel: $parallel,
-		$series: $series,
 
 		// objects
+		$isEmpty: $isEmpty,
+		$has: $has,
+		$pick: $pick,
+		$keys: $keys,
+		$values: $values,
+
 		$new: $new,
 		$copy: $copy,
 		$merge: $merge,
@@ -2941,12 +3282,47 @@ var dom = [
 		$mixin: $mixin,
 		$make: $make,
 
+		// collections
+		$each: $each,
+		$for: $each,
+		$map: $map,
+		$reduce: $reduce,
+		$find: $find,
+		$filter: $filter,
+		$reject: $reject,
+		$every: $all,
+		$all: $all,
+		$any: $any,
+		$includes: $includes,
+		$contains: $includes,
+		$invoke: $invoke,
+		$pluck: $pluck,
+		$max: $max,
+		$min: $min,
+		$shuffle: $shuffle,
+		$sortBy: $sortBy,
+		$groupBy: $groupBy,
+		$sortedIndex: $sortedIndex,
+		$size: $length,
+		$length: $length,
+		$compact: $compact,
+		$flat: $flat,
+		$slice: $slice,
+		$splice: $splice,
+		$clear: $clear,
+
+		// async
+		$async: _async,
+		$parallel: $parallel,
+		$series: $series,
+
 		// functions
 		$bind: $bind,
 
 		// time
 		$now: $now,
 		$timeAgo: $timeAgo,
+		$timer: $timer,
 
 		// messaging
 		$speak: $speak,
@@ -2981,11 +3357,13 @@ var dom = [
 
 		// misc
 		$uniqueId: $uniqueId,
+		$queue: $queue,
 
 		// html
 		$id: $id,
 		$tmpl: $tmpl,
 		$node: $node,
+		$doc: $doc,
 		$el: $el,
 		$isSelector: $isSelector,
 		$dom: $dom,
@@ -2996,7 +3374,7 @@ var dom = [
 
 	loot.addExport = function(name, obj) {
 		if(this.exports[name]) {
-			throw new Error("loot.addExport: " + name + "is already taken.");
+			throw new Error("loot.addExport: " + name + " is already taken.");
 		}
 
 		this.exports[name] = obj;
