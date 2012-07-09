@@ -34,85 +34,6 @@
 
 
 	<script type="text/javascript">
-		"use strict";
-
-		var create = (function () {
-
-		var doc = document;
-
-		var directProperties = {
-			'class': 'className',
-			className: 'className',
-			defaultValue: 'defaultValue',
-			'for': 'htmlFor',
-			html: 'innerHTML',
-			text: 'textContent',
-			value: 'value'
-		};
-
-		var booleanProperties = {
-			checked: 1,
-			defaultChecked: 1,
-			disabled: 1,
-			multiple: 1,
-			selected: 1
-		};
-
-		var setProperty = function ( el, key, value ) {
-			var prop = directProperties[ key ];
-			if ( prop ) {
-				el[ prop ] = ( value == null ? '' : '' + value );
-			} else if ( booleanProperties[ key ] ) {
-				el[ key ] = !!value;
-			} else if ( value == null ) {
-				el.removeAttribute( key );
-			} else {
-				el.setAttribute( key, '' + value );
-			}
-		};
-
-		var appendChildren = function ( el, children ) {
-			var i, l, node;
-			for ( i = 0, l = children.length; i < l; i += 1 ) {
-				node = children[i];
-				if ( node ) {
-					if ( node instanceof Array ) {
-						appendChildren( el, node );
-					} else {
-						if ( typeof node === 'string' ) {
-							node = doc.createTextNode( node );
-						}
-						el.appendChild( node );
-					}
-				}
-			}
-		};
-
-
-		var create = function ( tag, props, children ) {
-			if ( props instanceof Array ) {
-				children = props;
-				props = null;
-			}
-
-			var parts, name, el,
-				i, j, l, node, prop;
-
-			el = doc.createElement( tag );
-			if ( props ) {
-				for ( prop in props ) {
-					setProperty( el, prop, props[ prop ] );
-				}
-			}
-			if ( children ) {
-				appendChildren( el, children );
-			}
-			return el;
-		};
-
-		return create;
-
-		}() );
 
 		var data = {
 			isSelected: true,
@@ -126,6 +47,7 @@
 
 
 		var genDOMWith$el = function ( data ) {
+
 			return $el( 'div', {
 				className: 'Foo' +
 					( data.isSelected ? ' selected' : '' ) +
@@ -139,9 +61,8 @@
 				]),
 				$el( 'button', {
 					className:'button',
-					title: 'A title',
-					text: 'The button text'
-				}),
+					title: 'A title'
+				}, ['The button text']),
 				$el( 'a', {
 					href: data.href
 				}, [
@@ -157,30 +78,59 @@
 						]),
 						data.total > 1 ? $el( 'span', {
 							className:'total',
-							unselectable: 'on',
-							text: '(' + data.total + ')'
-						}) : null
+							unselectable: 'on'
+						},'(' + data.total + ')') : null
 					]),
-					data.yes ? $el( 'span', {
-						className:'yes',text: '*'
-					}) : null,
+					data.yes ? $el( 'span', {className:'yes'},'*') : null,
 					$el( 'span', {
 						className:'text',unselectable: 'on'
-					}, [
+					},
 						data.total > 1 ? data.text : null
-					]),
+					),
 					$el( 'time', {
 						unselectable: 'on',
-						text: data.displayDate,
 						title: data.displayDate
-					}),
+					}, data.displayDate),
 					$el( 'span', {
-						className:'preview',unselectable: 'on',
-						text: data.preview
-					})
+						className:'preview',unselectable: 'on'
+					}, data.preview)
 				])
-			] );
+			]);
 		};
+
+		var x = 0;
+		function genDOMWith$dom(data) {
+			var dom = $dom([
+				'div', {className: 'Foo' + ( data.isSelected ? ' selected' : '' ) + ( data.isActive ? ' active' : '' )}, [
+					'label', [
+						'input', {type: 'checkbox', checked: data.isSelected ? 'checked': ''}
+					],
+					'button.button', {title: 'A title'},
+						'The button text',
+					'a', {href: data.href}, [
+						'span', {className: 'lorem' + ( data.total > 1 ? ' ipsum' : '' )}, [
+							'span.dolores', {unselectable: 'on'}, [
+								data.text
+							],
+							'span.total', {unselectable: 'on', className: (data.total < 1 ? "hidden" : "")}
+						],
+						'span.yes', {text: '*', className: (!data.yes ? "hidden" : "")},
+						'span', {unselectable: 'on'}, data.total > 1 ? data.text : null,
+						'time', {unselectable: 'on', title: data.displayDate},
+							data.displayDate,
+						'span.preview', {unselectable: 'on'},
+							data.preview
+					]
+				]
+			]);
+
+			if (x == 0) {
+				console.log(data, dom);
+			}
+			x++;
+
+			return dom;
+		}
 
 
 		var genDOM = function ( data ) {
@@ -499,12 +449,21 @@
 
 		// add tests
 		suite.add("$el", function() {
+			$doc.useRealDom(true);
 			genDOMWith$el(data);
 		})
 		.add("$el - outputStrings", function() {
-			$el.outputStrings(true);
+			$doc.useRealDom(false);
 			genDOMWith$el(data);
 		})
+//		.add("$dom", function() {
+//			$el.outputStrings(false);
+//			genDOMWith$dom(data);
+//		})
+//		.add("$dom - outputStrings", function() {
+//			$el.outputStrings(true);
+//			genDOMWith$dom(data);
+//		})
 		.add("DOM", function() {
 			genDOM(data);
 		})
