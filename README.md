@@ -381,9 +381,9 @@ see underscore.js
   * **$escapeHTML(html)** see backbone
   * **$el(selector, attributes, children (Array|String|Element))** a handy node builder / html string builder for
   those times you dont want to write a template or use the dom directly. Will return a dom structure unless you
-  call $el.outputStrings(true), then it will output a micro-dom api object instead. Calling toString on this object
+  call $doc.useRealDom(false), then it will output a micro-dom api object instead. Calling toString on this object
   will return the html. See "dom instruction patterns" below for parameter definitions.
-  Makes uses of http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
+  Makes uses of http://blog.fastmail.fm/2012/02/20/buil	ding-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
   * **$el(selector, children (Array|String|Element))** same as above without attributes
   * **$el(selector)** creates an empty dom node
 
@@ -396,14 +396,14 @@ see underscore.js
       //prints: <div id="message">...</div>, [object HTMLDivElement]
   ```
 
-  * **$el.outputStrings(boolean)** sets the output type, defaults to false, if set to true the returned object will be
+  * **$doc.useRealDom(boolean)** sets the output type, defaults to false, if set to true the returned object will be
    a micro-dom api object which is used for the purposes of appending children and adding attributes. It will have a
    toString method that will return the html. This is useful in node.js when you don't want to use the more bulky js
    dom package.
 
   ``` javascript
 
-		$el.outputStrings(true);
+		$doc.useRealDom(false);
 		var items = [ 1, 2, 3, 4];
 		var div2 = $el('div#message', [
 			$el('a.biglink', {href: 'http://www.google.com'}, 'A link to Google'),
@@ -413,14 +413,14 @@ see underscore.js
 			)
 		]);
 
-		// with outputStrings  == true, toString will output the html
-		console.log(list, list.toString());
+		// with useRealDom == false, toString will output the html
+		console.log(div2, div2.toString());
 		//prints: Object, <div id="message"><a href="http://www.google.com" class="biglink">A link to Google</a><ul><li class="item">1. Item</li><li class="item">2. Item</li><li class="item">3. Item</li><li class="item">4. Item</li></ul></div>
   ```
 
   * **$dom(domSyntaxArray)** build dom structures or html using a simplified json syntax of nested arrays with
   selectors defining dom nodes, followed by an optional attributes object then an aray of children or a string of
-  inner html. Makes use of $el so will output dom nodes or html strings depending on $el.outputStirngs(bool),
+  inner html. Makes use of $el so will output dom nodes or html strings depending on $doc.useRealDom(bool),
   Syntax guide follows:
 
     **dom instruction syntax:**
@@ -448,6 +448,7 @@ see underscore.js
     attributes eg. {title: "my title", value: 2}
     an object can be followed by an array or a string (selector or innerHTML)
     * __[selector (String), attributes (Object), children (Array)]__
+    * lots more, you can embed partials as siblings or children (wrapped in an array) see tests for examples.
 
   ``` javascript
 
@@ -463,7 +464,7 @@ see underscore.js
          ]
      ]);
 
-     // with outputStrings  == true, toString will output the html
+     // with useRealDom == false, toString will output the html
      console.log(dom.toString());
      // prints <div class="newsItem"><h3>Life discovered on Mars!</h3><p>Lorem ipsum dolor sit amet.</p></div>
   ```
@@ -507,9 +508,9 @@ see underscore.js
 			"ul.todos", $map(todoItems, $part("todoItem"))
 		]);
 
-		// with outputStrings  == true, toString will output the html
+		// with useRealDom == false, toString will output the html
 		console.log(todoListDom.toString());
-		// with outputStrings == true, prints: <ul class="todos"><div class="done"><div class="display"><input type="checkbox" checked="false" class="check"/><label class="todo-content">walk dog</label><span class="todo-destroy"></span></div><div class="edit"><input type="text" value="walk dog" class="todo-input"/></div></div><div class="done"><div class="display"><input type="checkbox" checked="checked" class="check"/><label class="todo-content">get milk</label><span class="todo-destroy"></span></div><div class="edit"><input type="text" value="get milk" class="todo-input"/></div></div><div class="done"><div class="display"><input type="checkbox" checked="false" class="check"/><label class="todo-content">find better things to do than make yet another todo application</label><span class="todo-destroy"></span></div><div class="edit"><input type="text" value="find better things to do than make yet another todo application" class="todo-input"/></div></div></ul>
+		// prints: <ul class="todos"><div class="done"><div class="display"><input type="checkbox" checked="false" class="check"/><label class="todo-content">walk dog</label><span class="todo-destroy"></span></div><div class="edit"><input type="text" value="walk dog" class="todo-input"/></div></div><div class="done"><div class="display"><input type="checkbox" checked="checked" class="check"/><label class="todo-content">get milk</label><span class="todo-destroy"></span></div><div class="edit"><input type="text" value="get milk" class="todo-input"/></div></div><div class="done"><div class="display"><input type="checkbox" checked="false" class="check"/><label class="todo-content">find better things to do than make yet another todo application</label><span class="todo-destroy"></span></div><div class="edit"><input type="text" value="find better things to do than make yet another todo application" class="todo-input"/></div></div></ul>
   ```
 
   * **$parts()** return the parts container
