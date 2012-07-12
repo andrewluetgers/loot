@@ -7,10 +7,10 @@ This is an experimental bag of tricks that is starting to look like a microframe
 
 ## Use it
 Just load up the js file/s and call the global methods. Init process will protect existing globals by making backups
-under loot.oldValues. See loot.sauce.js for extending with custom methods.
+under loot.oldValues.
 
 ## Not ready for production
-This is experimental and minimally tested code, it also changes frequently.
+This is experimental and minimally tested code, it also changes frequently. Docs may not be 100% up to date, check the tests and benchmarks for more usage examples.
 
 ## Methods
 
