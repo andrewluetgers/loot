@@ -1,5 +1,5 @@
 /*
- * loot.js 0.2.0
+ * loot.js 0.2.2
  * (c) andrew luetgers
  * you are free to distribute loot.js under the MIT license
  * https://github.com/andrewluetgers/loot
@@ -9,7 +9,7 @@
 
 (function() {
 
-	var version = "0.2.1";
+	var version = "0.2.2";
 
 	var root = this;
 
@@ -1317,9 +1317,6 @@
 	 *
 	 * Licensed under the MIT license.
 	 */
-
-	//
-
 	var $timeAgo = (function() {
 
 		var lang = {
@@ -1999,7 +1996,7 @@
 		if (!type || !$isString(type) || !schema) {
 			//throw new Error("$model: valid type string required");
 			return null;
-		} else if (vals && ($isArray(vals) || $isString(vals) || $isBoolean(vals) || $isFunction(vals) || $isRegExp(vals)|| $isNumber(vals))) {
+		} else if (vals && !$isPlainObject(vals)) {
 			throw new Error("$model: valid values object required");
 		} else {
 			return schema.newInstance(vals);
@@ -2028,7 +2025,6 @@
 			return str;
 		}
 	}
-
 
 
 
@@ -2182,11 +2178,6 @@
 
 
 
-
-
-
-
-
 	// dom -------------------------------------------------------
 	function $id(id) {
 		return document.getElementById(id);
@@ -2332,9 +2323,6 @@
 				this.attr = {};
 				this.children = [];
 				this.children.toString = childrenToString;
-//				this.children.toString = function() {
-//					return this.join("");
-//				};
 				// for compatibility with $el dom builder in outputStrings mode
 				this.appendChild = this.append;
 				this.removeAttribute = this.setAttribute = this.set;
@@ -2346,19 +2334,6 @@
 				this.children.splice.apply(this.children, $flat(this.children.length, 0, nodes));
 				return this;
 			},
-//			append: function(el) {
-//				if (!$isString(el) && !$isElement(el)) {
-//					console.log(el);
-//					if ($isArray(el)) {
-//						var that = this;
-//						$each(el, function(val) {that.append(val);});
-//					} else
-//					throw new TypeError("expected string or element saw " + $typeof(el));
-//				}
-//				// this will handle a single node or an array of nodes or a mixed array of nodes and arrays of nodes
-//				this.children.push(el);
-//				return this;
-//			},
 			set: function(key, value) {
 				if (key) {
 					if (!$isString(key)) {
@@ -2433,7 +2408,7 @@
 
 	// for compatibility with $el dom builder in outputStrings mode
 	var hasDocument = ("document" in root),
-		useDocument = false,
+		useDocument = true,
 		emptyString = "";
 
 	// create nodes in real DOM or microDom from one api
@@ -2530,6 +2505,7 @@
 		var splitter = /(#|\.)/;
 
 		function create(selector, props, children) {
+
 			// this function is currently ugly and repeats code from elsewhere but
 			// it is also the fastest I have been able to achieve by 30-100%
 			if (!selector) {
@@ -2657,7 +2633,6 @@
 				}
 			}
 
-//			return [tag, id, className];
 			return {
 				tag: tag,
 				id: id,
@@ -2722,8 +2697,10 @@
 
 		function $dom(domInstructions, preProcessedSelector) {
 
-			if ($typeof(domInstructions) !== arrType) {
-				throw new Error("Unexpected type, expected array but saw " + $typeof(domInstructions));
+			if (!$isArray(domInstructions)) {
+				domInstructions = $slice(arguments);
+				preProcessedSelector = null;
+//				throw new Error("Unexpected type, expected array but saw " + $typeof(domInstructions));
 			}
 
 			var returnNodes = [],
@@ -2960,12 +2937,15 @@
 	 * @param name - (string) the name of the view
 	 * @param parent - a DOM node
 	 * @param model - a product of $schema
-	 * @param templateOrRenderFn - a doT template string or a render function(data, changes, view) which must return a dom node, the results of which will be appended to the parent node
-	 * @description getter = single argument signature pass just the type string and get the view constructor
+	 * @param templateOrRenderFn - a doT template string or a render
+	 * function(data, changes, view) which must return a dom node, the results of which will
+	 * be appended to the parent node
+	 * @description getter = single argument signature pass just the type string and get the
+	 * view constructor
 	 *
 	 */
 	var viewConstructorBank = {};
-	var $view = function(type, node, model, templateOrRenderFn, events) {
+	function $view(type, node, model, templateOrRenderFn, events) {
 
 		var existing = viewConstructorBank[type],
 			ctorArgs = arguments, instances = [];
@@ -2984,48 +2964,49 @@
 			return existing(modelData);
 
 		// return a view constructor
-		} else if (type && $isString(type) && !existing) {
+		} else if ($isString(type) && !existing) {
 			var constructor = function(modelData) {
-				var renderer, update, drop;
+				var renderer, update, drop, viewNode, viewModel;
 				var view = $speak({
-					drop: function() {
-						model.ignore(update); 					// unsubscribe our model
-						drop && $isFunction(drop) && drop(); 	// call the custom drop method if it exists
-						$(this.node).remove(); 					// this will unbind event handlers
-						this.tell("drop");						// emit our drop event
-						$clear(this);							// final house cleaning
-					},
-					update: function() {
-						update({}, "update", this.model);
-					}
-				});
+						drop: function() {
+							view.model.ignore(update); 					// unsubscribe our model
+							drop && $isFunction(drop) && drop(); 	// call the custom drop method if it exists
+							$(view.node).remove(); 					// this will unbind event handlers
+							view.tell("drop");						// emit our drop event
+							$clear(view);							// final house cleaning
+						},
+						update: function() {
+							update({}, "update", view.model);
+						}
+					});
 
-				if (node && ctorArgs.length === 2) {
+				if (node && ctorArgs.length === 2 && $isObject(node)) {
 					var spec = ctorArgs[1];
 					events = spec.events;
-					node = spec.node;
-					model = spec.model;
+					viewNode = spec.node;
+					viewModel = spec.model;
 					drop = spec.drop;
 					templateOrRenderFn = spec.template || spec.render;
 					$extend(view, spec);
 				}
 
-				if ($isString(node)) { node = $el(node); }
+				if ($isString(viewNode)) { viewNode = $el(viewNode); }
 
-				if ($isString(model)) { model = $model(model, modelData); }
+				if ($isString(viewModel)) { viewModel = $model(viewModel, modelData); }
 
-				if (!$isElement(node)) {
+				if (!$isElement(viewNode)) {
+					console.log(spec, viewNode, ctorArgs, $doc.usesRealDom());
 					throw new Error("$view: parent must be a DOM node");
 				}
 
-				if (!model || !$isModel(model)) {
+				if (!viewModel || !$isModel(viewModel)) {
 					throw new Error("$view: model argument must be a product of $model");
 				}
 
 				view.type = type;
 				view.id = $uniqueId(type+"View");
-				view.node = node;
-				view.model = model;
+				view.node = viewNode;
+				view.model = viewModel;
 
 				// define our renderer and render functions
 				if ($isString(templateOrRenderFn)) {
@@ -3045,9 +3026,9 @@
 						if (content) {
 							if ($isElement(content)) {
 								if (oldContent) {
-									node.replaceChild(content, oldContent);
+									view.node.replaceChild(content, oldContent);
 								} else {
-									node.appendChild(content);
+									view.node.appendChild(content);
 								}
 								oldContent = content;
 
@@ -3063,7 +3044,7 @@
 					throw new Error("$view: template must be a template string or render function");
 				}
 
-				model.listen("change", update);
+				view.model.listen("change", update);
 
 				view.init && $isFunction(view.init) && view.init();
 
@@ -3138,6 +3119,7 @@
 			return constructor;
 
 		} else {
+			console.log(arguments);
 			throw new Error("Invalid Arguments!");
 		}
 	};
@@ -3285,6 +3267,7 @@
 		// collections
 		$each: $each,
 		$for: $each,
+
 		$map: $map,
 		$reduce: $reduce,
 		$find: $find,

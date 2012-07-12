@@ -193,19 +193,20 @@ var N = 100;
 	var lootInit = function() {
 		boxViews = [];
 		var x = N;
-		var boxView = $view({
+		var boxView = $view("boxView", {
+			node:   $id("grid"),
+			model:  "box",
 			init: function() {
 				boxViews.push(this);
-				$id("grid").appendChild(this.node);
+				var boxDiv = $dom("div.box-view", ["div.box"])[0];
+				this.node.appendChild(boxDiv); // add our boxDiv to the parent node
+				this.el = boxDiv.childNodes[0]; // lets keep track of the thing we want to update
 			},
-			node:   $el("div.box-view"),
-			model:  "box",
 			render: function(data, changes, view) {
-				var el = view.el, newEl;
-				if (!el) { newEl = el = view.el = $el("div.box");}
+				// model changed! lets update our view
+				var el = view.el;
 				el.style.cssText = 'top: ' + data.top + 'px; left: ' +  data.left +'px; background: rgb(0,0,' + data.color + ');';
 				el.innerHTML = data.content;
-				return newEl; // returns undefined after first run
 			}
 		});
 
@@ -246,7 +247,6 @@ var N = 100;
 window.timeout = null;
 
 window.reset = function() {
-	console.log("reset");
 	$('#grid').empty();
 	clearTimeout(timeout);
 };

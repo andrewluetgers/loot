@@ -9,6 +9,7 @@
 	<script type="text/javascript" src="../lib/jquery-1.6.js"></script>
 	<script type="text/javascript" src="../lib/jquery.mockjax.js"></script>
 	<script type="text/javascript" src="../src/loot.js"></script>
+	<!--<script type="text/javascript" src="../loot-0.2.2-min.js"></script>-->
 	<script type="text/javascript">
 
 		module("loot");
@@ -754,7 +755,7 @@
 			$each(validDoms, function(d, name) {
 
 				$part(name, function(data) {
-					return $dom(d.dom)
+					return $dom(d.dom);
 				});
 
 				$doc.useRealDom(false);
@@ -1070,7 +1071,6 @@
 			var parentNode = $el("div#parentNode");
 
 
-			console.log(parentNode, $isElement(parentNode));
 			document.body.appendChild(parentNode);
 
 			var mData = {
@@ -1079,22 +1079,24 @@
 				allYourBase: "are belong to us"
 			};
 
+			// start with blank model
 			$define("testSchema2");
 
-			// start with blank model
+			// create an instance with mData
 			var m = $model("testSchema2", mData);
 			var html;
+			// verify model is working correctly
 			var renderFn = function(data, changes, view) {
-				console.log("view renderFn", arguments);
-				ok(data === m.get(), "first argument is model values object");
+				console.log("view renderFn", arguments, aTestView);
+				same(data, m.get(), "first argument is model values object");
 				ok(typeof changes === "object", "second argument is model changes object");
-				ok(view === testView, "third argument is the view");
+				ok(view === aTestView, "third argument is the view");
 				ok(true, "view was rendered");
 				html = "<div>all your html " + data.allYourBase + "</div>";
 				return html;
 			};
 
-			var testView = $view("testSchema2", {
+			var testView = $view("testView", {
 				node: parentNode,
 				model: "testSchema2",
 				render: renderFn
@@ -1104,11 +1106,11 @@
 
 			var aTestView = testView(mData);
 
-			console.log(aTestView);
+			console.log("aTestView", aTestView);
 //
 			aTestView.update();
 
-			ok(parentNode.innerHTML === html, "view node was properly updated");
+			same(parentNode.innerHTML, html, "view node was properly updated");
 		});
 
 		test("$async.each", function() {
@@ -1324,7 +1326,7 @@
 			
 			$parallel(func1, func2, func3);
 
-			$parallel([func1, func2, func3], function(err, result) {
+			$parallel([func1, func2, func3], function(err, result, work) {
 				console.log("$parallel 2", arguments);
 				same(result, [2,4,6], "result is as expected");
 				same(runOrder, [2,2,3,3,1,1], "run order is as expected");
@@ -1335,27 +1337,32 @@
 			var delays = [100, 1, 10];
 			var work = [5,6,7];
 			
-			$parallel([5,6,7], function(push, val, key, results, obj) {
+			$parallel(work, function(next, val, key, obj) {
+				console.log("parallel", arguments);
 				setTimeout(function() {
 					run(key);
 					ok($isNumber(val) && val > 4, "val param is correct");
 					ok($isNumber(key) && key < 3, "key param is correct");
 					runOrder1.push(key);
-					push(null, val*2);
+					obj[key] = val * 2;
+					next();
 				}, delays[key]);
 			});
 
 			var runOrder2 = [];
-			$parallel([5,6,7], function(push, val, key, results, obj) {
+			var work2 = [5,6,7];
+			$parallel(work2, function(next, val, key, obj) {
 				console.log("$parallel 4", arguments);
 				setTimeout(function() {
 					run(key);
 					ok($isNumber(val) && val > 4, "val param is correct");
 					ok($isNumber(key) && key < 3, "key param is correct");
 					runOrder2.push(key);
-					push(null, val*2);
+					obj[key] = val * 2;
+					next();
 				}, delays[key]);
 			}, function(err, result) {
+				console.log("finish", arguments);
 				ok(true, "array of functions with callback signature: all functions ran");
 				same(runOrder2, [1,2,0], "run order is as expected");
 				same(result, [10,12,14], "result is as expected");
@@ -1423,25 +1430,28 @@
 			var delays = [100, 1, 10];
 			var work = [5,6,7];
 
-			$series([5,6,7], function(push, val, key, results, obj) {
+			$series(work, function(next, val, key, obj) {
 				setTimeout(function() {
 					run(key);
 					ok($isNumber(val) && val > 4, "val param is correct");
 					ok($isNumber(key) && key < 3, "key param is correct");
 					runOrder1.push(key);
-					push(null, val*2);
+					obj[key] = val * 2;
+					next();
 				}, delays[key]);
 			});
 
 			var runOrder2 = [];
-			$series([5,6,7], function(push, val, key, results, obj) {
+			var work2 = [5,6,7];
+			$series(work2, function(next, val, key, obj) {
 				console.log("$series 4", arguments);
 				setTimeout(function() {
 					run(key);
 					ok($isNumber(val) && val > 4, "val param is correct");
 					ok($isNumber(key) && key < 3, "key param is correct");
 					runOrder2.push(key);
-					push(null, val*2);
+					obj[key] = val * 2;
+					next();
 				}, delays[key]);
 			}, function(err, result) {
 				ok(true, "array of functions with callback signature: all functions ran");

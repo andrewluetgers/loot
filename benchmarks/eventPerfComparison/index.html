@@ -5,6 +5,7 @@
 		<title></title>
 	</head>
 	<body>
+	<p>Beware! These results are very deceiving, the actual amount of time ANY decent event system contributes to the overall execution time of an application is minuscule so large differences are really kind of meaningless. Also they have varying apis so its kind of apples to oranges.</p>
 	<h3>1 event, 1 handler</h3>
 	<ul id="results"></ul>
 	<h3>many events, 1 handler</h3>
@@ -23,7 +24,7 @@
 
 	<script type="text/javascript">
 
-		var howMuch = 10;
+		var howMuch = 0; // as this goes up the
 
 		// lets call some functions and make some garbage
 		var doWork = function() {
