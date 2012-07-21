@@ -185,9 +185,10 @@ var N = 100;
 
 	var boxViews,
 		clearViews = function() {
-			$each(boxViews, function(boxView) {
-				boxView.drop();
-			});
+			var view = $views("boxView")[0];
+			if (view) {
+				$view("boxView").drop();
+			}
 		};
 
 	var lootInit = function() {
@@ -223,7 +224,9 @@ var N = 100;
 		frame++;
 
 		$each(boxViews, function(boxView) {
-			boxView.model.tick();
+			if(boxView) {
+				boxView.model.tick();
+			}
 		});
 
 		window.timeout = _.defer(lootAnimate);

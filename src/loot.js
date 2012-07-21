@@ -204,7 +204,7 @@
 		}
 		return true;
 	}
-	
+
 	function $has (obj, key) { return hasOwnProperty.call(obj, key); }
 
 
@@ -251,10 +251,7 @@
 					if (iterator.call(context, i, i, arr) === breaker) return;
 				}
 			}
-			if (nativeForEach && obj.forEach === nativeForEach) {
-				obj.forEach(iterator, context);
-
-			} else if (obj.length === +obj.length) {
+			if (obj.length === +obj.length) {
 				for (i = 0, l = obj.length; i < l; i++) {
 					if (iterator.call(context, obj[i], i, obj) === breaker) return;
 				}
@@ -274,32 +271,30 @@
 		return each;
 
 	}());
-	
-	
+
+
 	// Return the results of applying the iterator to each element.
 	// Delegates to **ECMAScript 5**'s native "map" if available.
+
+
 	function $map(obj, iterator, context) {
 
 		var results = [];
 
-		if (!obj) { return results; }
-
-		if (nativeMap && obj.map === nativeMap) {
-			return obj.map(iterator, context);
+		if (obj) {
+			if ($isArray(obj) || $isNumber(obj)) {
+				$each(obj, function(value, index, list) {
+					results[results.length] = iterator.call(context, value, index, list);
+				});
+				if (obj.length === +obj.length) results.length = obj.length;
+			} else {
+				results = {};
+				$each(obj, function(value, key, list) {
+					results[key] = iterator.call(context, value, key, list);
+				});
+			}
 		}
 
-		if ($isArray(obj) || $isNumber(obj)) {
-			$each(obj, function(value, index, list) {
-				results[results.length] = iterator.call(context, value, index, list);
-			});
-			if (obj.length === +obj.length) results.length = obj.length;
-		} else {
-			results = {};
-			$each(obj, function(value, key, list) {
-				results[key] = iterator.call(context, value, key, list);
-			});
-		}
-		
 		return results;
 	}
 
@@ -339,7 +334,7 @@
 		});
 		return result;
 	};
-	
+
 	// Return all the elements that pass a truth test.
 	// Delegates to **ECMAScript 5**'s native `filter` if available.
 	// Aliased as `select`.
@@ -348,7 +343,7 @@
 		if (obj == null) return results;
 		// nativeFilter only applies to arrays
 		if (nativeFilter && obj.filter === nativeFilter) return obj.filter(iterator, context);
-		
+
 		if ($isArray(obj)) {
 			// array mode
 			$each(obj, function(value, index, list) {
@@ -367,13 +362,13 @@
 		}
 		return results;
 	}
-	
-	
+
+
 	// Return all the elements for which a truth test fails.
 	function $reject(obj, iterator, context) {
 		var results;
 		if (!obj) return results;
-		
+
 		if ($isArray(obj)) {
 			results = [];
 			$each(obj, function(value, index, list) {
@@ -385,11 +380,11 @@
 				if (!iterator.call(context, value, key, list)) results[key] = value;
 			});
 		}
-		
+
 		return results;
 	}
-	
-	
+
+
 	// Determine whether all of the elements match a truth test.
 	// Delegates to **ECMAScript 5**'s native `every` if available.
 	// Aliased as `all`.
@@ -402,8 +397,8 @@
 		});
 		return result;
 	}
-	
-	
+
+
 	// Determine if at least one element in the object matches a truth test.
 	// Delegates to **ECMAScript 5**'s native "some" if available
 	function $any(obj, iterator, context) {
@@ -422,8 +417,8 @@
 
 		return !!result;
 	}
-	
-	
+
+
 	// Determine if a given value is included in the array or object using `===`.
 	// Aliased as `$contains`.
 	function $includes(obj, target) {
@@ -525,7 +520,7 @@
 		return low;
 	}
 
-	
+
 	function $length(item) {
 		var len = item && item.length;
 		if (!$isNumber(len)) {
@@ -534,8 +529,8 @@
 		}
 		return len;
 	}
-	
-	
+
+
 	// Trim out all falsy values from an array or object.
 	function $compact(obj) {
 		return $filter(obj, function(value){ return !!value; });
@@ -575,7 +570,7 @@
 
 
 
-	// async functions ------------------------------------------------------------ 
+	// async functions ------------------------------------------------------------
 	// taken from https://github.com/caolan/async with some modifications
 	// each and series support iterating over objects as well as arrays
 
@@ -585,7 +580,7 @@
 			callback = callback || function() {};
 
 			if (!len) { return callback(); }
-			
+
 			$each(obj, function(val, key, obj) {
 				iterator(function(err) {
 					if (err) {
@@ -778,7 +773,7 @@
 			throw new TypeError();
 		}
 	};
-	
+
 
 	// $series(func1, func2, func3)
 	// $series([func1, func2, func3], callback)
@@ -1019,7 +1014,7 @@
 
 
 	// object -------------------------------------------------------
-	
+
 	// use the same constructor every time to save on memory usage per
 	// http://oranlooney.com/functional-javascript/
 	function F() {}
@@ -1032,16 +1027,20 @@
 
 		if(!ignoreInit && newInstance.init) {
 
-			// fix any uglyness that may have come through in the inits array
-			var inits = $filter($flat(newInstance.init), $isFunction);
+			if ($isFunction(newInstance.init)) {
+				newInstance.init();
+			} else {
+				// fix any uglyness that may have come through in the inits array
+				var inits = $filter($flat(newInstance.init), $isFunction);
 
-			// support single init functions or arrays of them
-			newInstance.init = (inits.length > 1) ? inits : inits[0];
+				// support single init functions or arrays of them
+				newInstance.init = (inits.length > 1) ? inits : inits[0];
 
-			// call the init methods using the new object for "this"
-			$each(inits, function(fn) {
-				fn.call(newInstance);
-			});
+				// call the init methods using the new object for "this"
+				$each(inits, function(fn) {
+					fn.call(newInstance);
+				});
+			}
 		}
 
 		return newInstance;
@@ -1823,7 +1822,7 @@
 				}
 			}
 		}
-		
+
 		if (failed) {
 			this.tell("validationFailed", {
 				passed: changes,
@@ -1851,7 +1850,7 @@
 		} else if (type && $isString(type) && !existingSchema) {
 			options = $copy(options || {});
 			options.defaults = options.defaults || {};
-			
+
 			// type-check optional validators
 			if (options.validate) {
 				$each(options.validate, function(val) {
@@ -2288,28 +2287,33 @@
 
 	// hyper-simplistic dom node api for html string building, used by $el for outputStrings mode
 	// EXPOSED FOR TESTING ONLY, DON'T USE THIS DIRECTLY, DOES NOT ESCAPE HTML IN STRINGS
-	var $node = (function() {
+	var selfClosing = {area:1, base:1, basefont:1, br:1, col:1, frame:1, hr:1, img:1, input:1, link:1, meta:1, param:1};
+	var directProperties = {className:'class', htmlFor:'for'};
+	var booleanProperties = {checked: 1, defaultChecked: 1, disabled: 1, multiple: 1, selected: 1};
 
-		var booleanProperties = {
-			checked: 1,
-			defaultChecked: 1,
-			disabled: 1,
-			multiple: 1,
-			selected: 1
-		};
+	var $node = (function() {
 
 		var lt  = "<",  gt  = ">",
 			lts = "</", gts = "/>" ,
 			space = " ", equo = '="',
 			quo = '"';
 
-		var directProperties = {className:'class', htmlFor:'for'};
-		var selfClosing = {area:1, base:1, basefont:1, br:1, col:1, frame:1, hr:1, img:1, input:1, link:1, meta:1, param:1};
+		// usage of trailing slash on self closing tags varies so mimic the platform
+		// this is mostly to help write passing tests
+		var selfClosingEnd = gts;
+		if ("document" in root) {
+			var div = document.createElement("div");
+			var img = document.createElement("img");
+			div.appendChild(img);
+			if (div.innerHTML === "<img>") {
+				selfClosingEnd = gt;
+			}
+		}
 
 		// children toString should not include commas
-		var childrenToString = function() {
+		var childrenToString = function(node) {
 			var str = "";
-			$each(this, function(val) {
+			$each(node, function(val) {
 				if (val || val === 0) {
 					str += $isString(val) ? $escapeHTML(val) : val;
 				}
@@ -2322,10 +2326,9 @@
 				this.type = "";
 				this.attr = {};
 				this.children = [];
-				this.children.toString = childrenToString;
-				// for compatibility with $el dom builder in outputStrings mode
-				this.appendChild = this.append;
-				this.removeAttribute = this.setAttribute = this.set;
+				this.children.toString = function() {
+					return childrenToString(this);
+				}
 			},
 			nodeType: 1, // so we can pass the $isElement test
 			append: function(nodes) {
@@ -2388,14 +2391,18 @@
 				});
 
 				if (selfClosing[this.type]) {
-					// todo support self-closing tags with and without fslash depending on a flag
-					return str + gt;
+					return str + selfClosingEnd;
 				} else {
-//					console.log("children tostring", this.children,  str + gt + this.children + lts + this.type + gt);
 					return str + gt + this.children + lts + this.type + gt;
 				}
 			}
 		};
+
+
+
+		// for compatibility with $el dom builder in outputStrings mode
+		node.appendChild = node.append;
+		node.removeAttribute = node.setAttribute = node.set;
 
 		return function(type) {
 			// use new to reduce memory footprint for many nodes
@@ -2407,20 +2414,19 @@
 	}());
 
 	// for compatibility with $el dom builder in outputStrings mode
-	var hasDocument = ("document" in root),
-		useDocument = true,
+	var useDocument = root.document,
 		emptyString = "";
 
 	// create nodes in real DOM or microDom from one api
 	var $doc = {
 		hasRealDom: function() {
-			return hasDocument;
+			return !!root.document;
 		},
 		usesRealDom: function() {
 			return useDocument;
 		},
 		useRealDom: function(bool) {
-			useDocument = hasDocument ? bool : false;
+			useDocument = root.document ? bool : false;
 			return useDocument;
 		},
 		createTextNode: function(str) {
@@ -2428,6 +2434,7 @@
 				return document.createTextNode(str);
 			} else {
 				return $escapeHTML(str + emptyString);
+//				return str + emptyString;
 			}
 		},
 		createElement: function(tag) {
@@ -2576,8 +2583,7 @@
 
 
 	var $isSelector = (function() {
-		var one = 1,
-			maxLength = 0,
+		var maxLength = 0,
 			tags = {},
 			splitter = /(#|\.)/,
 			whitespace = /\s+/,
@@ -2593,7 +2599,7 @@
 
 		$each(validTags.split(whitespace), function(str) {
 			maxLength = Math.max(maxLength, str.length);
-			tags[str] = one;
+			tags[str] = 1;
 		});
 
 		// its not perfect but should get the job done
@@ -2610,7 +2616,7 @@
 			}
 
 			var parts = string.split(splitter),
-				tag = parts[0];
+				tag = parts[0].toLowerCase();
 
 			// is it longer than any of the valid tags or is it not a valid tag?
 			if ((tag.length > maxLength) || !(tag in tags)) {
@@ -2739,14 +2745,17 @@
 
 
 						} else {
-							returnNodes.push(arg + " ");
+							returnNodes.push(arg);
+							console.log("++++++++++++++++++++++", arg);
 							// stay on step 1 for next arg
 						}
 						continue;
 
 					case "1-element":
+					case "3-element":
 						returnNodes.push(arg);
-						// stay on step one for next arg
+						// final possible step so start back on 1 for next arg
+						step = 1;
 						continue;
 
 					// new sibling node/s via partial --------------------------------------------------------------
@@ -2757,7 +2766,7 @@
 
 					// add/merge attributes ------------------------------------------------------------------------
 					case "2-object":
-//							attributes = $mixin(attributes, arg);
+//						attributes = $mixin(attributes, arg);
 						$each(arg, function(val, key) {
 							attributes[key] = val;
 						});
@@ -2782,7 +2791,7 @@
 						selector = preProcessedSelector || $isSelector(arg);
 
 						// starting a new object
-						if (selector) {
+						if (selector || selfClosing[tag]) {
 							// finish the previous object
 							returnNodes.push($el(tag, attributes));
 
@@ -2791,7 +2800,7 @@
 							preProcessedSelector = selector;
 							i--; // iterate over this arg again
 
-						// child text
+							// child text
 						} else {
 							//create node with child text
 							returnNodes.push($el(tag, attributes, arg));
@@ -2804,6 +2813,9 @@
 					// recursive child array -----------------------------------------------------------------------
 					case "2-array":
 					case "3-array":
+						if (selfClosing[tag]) {
+							throw new Error("Can not add children to " + tag);
+						}
 						// this is where we do our recursion
 						childNodes = $dom(arg);
 						// and push the result back into the final output
@@ -2813,12 +2825,10 @@
 						continue;
 
 					case "3-function":
-						// this is where we do our recursion
-//							childNodes = arg();
-						// and push the result back into the final output
-						returnNodes.push($el(tag, attributes));
-						// functions in third position are treated as siblings
+						// no children so done, functions in third position are treated as siblings
+						// function will get handled in step 1 after we finish up here
 						// to produce children functions can be wrapped in an array
+						returnNodes.push($el(tag, attributes));
 						returnNodes = returnNodes.concat(arg());
 						// final possible step so start back on 1 for next arg
 						step = 1;
@@ -2834,7 +2844,7 @@
 
 			// we do this down here bc for function types we do a concat which overwrites returnNodes
 			returnNodes.toString = function() {
-				return this.join("");
+				return this.join('');
 			};
 			return returnNodes;
 		}
@@ -2878,7 +2888,7 @@
 				return function(data) {				// get instance with predefined default data object (great for nesting partials)
 					return parts[name](data || arg);
 				}
-			}	
+			}
 
 		} else if ($isFunction(arg)) {
 			return parts[name] = arg;				// set
@@ -2897,6 +2907,34 @@
 
 	// plural alias nice for collection methods
 	var $parts = $part;
+
+	function $render(name, data) {
+		return $parts(name)(data).toString();
+	}
+
+	// script helper for $part, $dom
+	var jsre = /\.js$/i;
+	function $js(script) {
+		var val, attrs = {type: "text/javascript"};
+
+		if ($isFunction(script)) {
+			var scriptStr = script.toString();
+			scriptStr = scriptStr.substring(scriptStr.indexOf("{") + 1, scriptStr.lastIndexOf("}"));
+			val = $el("script", attrs, scriptStr);
+			console.log("----------", val, scriptStr);
+		} else if ($isString(script)) {
+			if (script.match(jsre)) {
+				attrs.src = script;
+				val = $el("script", attrs);
+			} else {
+				val = $el("script", attrs, script);
+			}
+		} else if ($isPlainObject(script)) {
+			val = $el("script", $mixin(attrs, script));
+		}
+
+		return val;
+	}
 
 	// escapeHTML -------------------------------------------------------
 	// from backbone.js
@@ -3280,6 +3318,7 @@
 		$contains: $includes,
 		$invoke: $invoke,
 		$pluck: $pluck,
+		$value: $value,
 		$max: $max,
 		$min: $min,
 		$shuffle: $shuffle,
@@ -3316,7 +3355,7 @@
 		$recyclable: $recyclable,
 		$recycle: $recycle,
 		$reuse: $reuse,
-		
+
 		// traits
 		$component: $component,
 		$compose: $compose,
@@ -3351,7 +3390,10 @@
 		$isSelector: $isSelector,
 		$dom: $dom,
 		$part: $part,
+		$js: $js,
+		$script: $js,
 		$parts: $parts,
+		$render: $render,
 		$escapeHTML: $escapeHTML
 	};
 
@@ -3392,70 +3434,3 @@
 	this.loot = loot;
 	loot(this);
 }());
-
-
-loot.extend("$io", loot.exports.$speak(function(url, req, dataType, reqType) {
-
-	var key = $cache.getKey(url, req),
-		parent = $isSpeaker(this) ? this : $io,
-		typeId = parent.typeId || "io",
-		lastArg = arguments[arguments.length-1],
-		handlers = (!lastArg || $isString(lastArg) || $isBoolean(lastArg)) ? {} : lastArg,
-		startH = handlers.start,
-		successH = handlers.success,
-		errorH = handlers.error,
-		useCache = (typeId === "io") ? false : true,
-		bin = useCache ? $cache.get(typeId, url, req) : null;
-
-	var xhr = $.ajax({
-			dataType: 	$isString(dataType) ? dataType : "json",
-			type: 		$isString(reqType) ? reqType : "post",
-			url: 		url,
-			data: 		req,
-
-			success: function(val, textStatus, xhr) {
-				var msg = useCache ?
-							$cache.set(typeId, url, req, val, {xhr: xhr}) :
-							{val: val, xhr: xhr, url: url, req: req};
-
-				if ($isFunction(successH)) {
-					successH.call(parent, msg, typeId + ":success:" + url);
-				}
-
-				parent.tell(typeId + ":success:" + url, msg);
-			},
-
-			error: function(xhr, textStatus, error) {
-				var err = {
-					status: textStatus,
-					key: key,
-					error: error,
-					req: req,
-					xhr: xhr
-				};
-
-				if (useCache) {
-					err.bin = bin;
-					err.key = key;
-				}
-
-				if ($isFunction(errorH)) {
-					errorH.call(parent, err, typeId + ":error:" + url);
-				}
-
-				parent.tell(typeId + ":error:" + url, err);
-			}
-		});
-
-	if (useCache) {
-		bin.xhr = xhr;
-	}
-
-	if ($isFunction(startH)) {
-		startH.call(parent, bin, typeId + ":start:" + url);
-	}
-
-	parent.tell(typeId + ":start:" + url, bin);
-
-	return bin;
-}));

@@ -7,7 +7,8 @@
 	<body>
 	<ul id="results"></ul>
 	<script src="../../lib/benchmarkjs/benchmark.js"></script>
-
+	<script src="http://dl.dropbox.com/u/513327/doT.min.js"></script>
+	<script src="http://dl.dropbox.com/u/513327/jsconf/2012/documentcloud/underscore.js"></script>
 	<script src="http://cloud.github.com/downloads/wycats/handlebars.js/handlebars-1.0.0.beta.6.js"></script>
 	<script src="../../src/loot.js"></script>
 
@@ -35,7 +36,7 @@
 
 	<script type="text/javascript">
 
-		var data = {
+		var dat = {
 			isSelected: true,
 			isActive: false,
 			href: 'http://www.google.com',
@@ -44,6 +45,18 @@
 			text: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
 			preview: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.'
 		};
+
+		// generate 100 variations on the above
+		var datas = [];
+		$for(100, function(val, i) {
+			datas.push($map(dat, function(val, name) {
+				if ($isBoolean(val)) {
+					return !val;
+				} else {
+					return val + i;
+				}
+			}))
+		});
 
 
 		var genDOMWith$el = function ( data ) {
@@ -98,7 +111,6 @@
 			]);
 		};
 
-		var x = 0;
 		function genDOMWith$dom(data) {
 			var dom = $dom([
 				'div', {className: 'Foo' + ( data.isSelected ? ' selected' : '' ) + ( data.isActive ? ' active' : '' )}, [
@@ -124,13 +136,10 @@
 				]
 			]);
 
-			if (x == 0) {
-				console.log(data, dom);
-			}
-			x++;
-
 			return dom;
 		}
+
+
 
 
 		var genDOM = function ( data ) {
@@ -230,6 +239,29 @@
 					'</time><span class="preview" unselectable="on">' + data.preview +
 					'</span></a></div>';
 			return div.firstChild;
+		};
+
+		var genHtmlString = function ( data ) {
+			return '<div class="Foo' +
+				(data.isSelected ? ' selected' : '') +
+				(data.isActive ? ' active' : '') + '">' +
+			'<label><input type="checkbox" checked="' +
+			(data.isSelected ? 'checked': '') + '"></label>' +
+			'<button class="button" title="A title">The button text</button>' +
+			'<a href="' + data.href + '"><span class="lorem' +
+				( data.total > 1 ? ' ipsum' : '' ) +
+				'"><span class="dolores" unselectable="on">' + data.text +
+				'</span>' + ( data.total > 1 ?
+					'<span class="total" unselectable="on">(' + data.total + ')</span>' :
+					'') +
+				'</span>' + (data.yes ? '<span class="yes">*</span>' : '') +
+				'<span class="text" unselectable="on">' +
+				(data.total > 1 ? data.text : null) +
+				'</span>' +
+				'<time unselectable="on" title="' + data.displayDate + '">' +
+				data.displayDate +
+				'</time><span class="preview" unselectable="on">' + data.preview +
+				'</span></a></div>';
 		};
 
 		Handlebars.registerHelper( 'ifGreaterThanOne', function( number, options ) {
@@ -439,39 +471,68 @@
 		});
 
 
-		var genHandlebarsTemplate = function ( data ) {
+		var genDOMFromHandlebarsTemplate = function ( data ) {
 			var div = document.createElement( 'div' );
 			div.innerHTML = template( data );
 			return div.firstChild;
 		};
 
+		var genHandlebarsTemplate = function ( data ) {
+			return template( data );
+		};
+
 		var suite = new Benchmark.Suite;
 
 		// add tests
-		suite.add("$el", function() {
+		suite
+		.add("$el", function() {
 			$doc.useRealDom(true);
-			genDOMWith$el(data);
+			$each(datas, function(data) {
+				genDOMWith$el(data);
+			});
 		})
-		.add("$el - outputStrings", function() {
+		.add("$el - STRING ONLY", function() {
 			$doc.useRealDom(false);
-			genDOMWith$el(data);
+			$each(datas, function(data) {
+				genDOMWith$el(data);
+			});
 		})
-//		.add("$dom", function() {
-//			$el.outputStrings(false);
-//			genDOMWith$dom(data);
-//		})
-//		.add("$dom - outputStrings", function() {
-//			$el.outputStrings(true);
-//			genDOMWith$dom(data);
-//		})
-		.add("DOM", function() {
-			genDOM(data);
+		.add("$dom", function() {
+			$doc.useRealDom(true);
+			$each(datas, function(data) {
+				genDOMWith$dom(data);
+			});
 		})
-		.add("innerHTML", function() {
-			genDOMWithInnerHTML(data);
+		.add("$dom - STRING ONLY", function() {
+			$doc.useRealDom(false);
+			$each(datas, function(data) {
+				genDOMWith$dom(data);
+			});
 		})
-		.add("Handlebars", function() {
-			genHandlebarsTemplate(data);
+		.add("DOM API", function() {
+			$each(datas, function(data) {
+				genDOM(data);
+			});
+		})
+		.add("html string to DOM", function() {
+			$each(datas, function(data) {
+				genDOMWithInnerHTML(data);
+			});
+		})
+		.add("html - STRING ONLY", function() {
+			$each(datas, function(data) {
+				genHtmlString(data);
+			});
+		})
+		.add("Handlebars to DOM", function() {
+			$each(datas, function(data) {
+				genDOMFromHandlebarsTemplate(data);
+			});
+		})
+		.add("Handlebars - STRING ONLY", function() {
+			$each(datas, function(data) {
+				genHandlebarsTemplate(data);
+			});
 		})
 		// add listeners
 		.on("error", function() {
