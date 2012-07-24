@@ -2315,7 +2315,8 @@
 			var str = "";
 			$each(node, function(val) {
 				if (val || val === 0) {
-					str += $isString(val) ? $escapeHTML(val) : val;
+//					str += $isString(val) ? $escapeHTML(val) : val;
+					str += val;
 				}
 			});
 			return str;
@@ -2433,8 +2434,8 @@
 			if (useDocument) {
 				return document.createTextNode(str);
 			} else {
-				return $escapeHTML(str + emptyString);
-//				return str + emptyString;
+//				return $escapeHTML(str + emptyString);
+				return str + emptyString;
 			}
 		},
 		createElement: function(tag) {
@@ -2501,9 +2502,16 @@
 						appendChildren(node, child);
 					} else {
 						if (!$isElement(child)) {
-							child = $doc.createTextNode(child);
+							// handle other node types here
+							var d = document.createElement("div");
+							d.innerHTML = child;
+							$each(d.childNodes, function(val) {
+								node.appendChild(val);
+							});
+
+						} else {
+							node.appendChild(child);
 						}
-						node.appendChild(child);
 					}
 				}
 			});
@@ -2590,7 +2598,7 @@
 			validTags = "a abbr acronym address applet area article aside audio b base basefont bdi bdo big\
 						blockquote body br button canvas caption center cite code col colgroup command datalist\
 						dd del details dfn dir div dl dt em embed fieldset figcaption figure font footer\
-						form frame frameset h1 head header hgroup hr html i iframe img input ins keygen kbd\
+						form frame frameset h1 h2 h3 h4 h5 h6 head header hgroup hr html i iframe img input ins keygen kbd\
 						label legend li link map mark menu meta meter nav noframes noscript object ol optgroup\
 						option output p param pre progress q rp rt ruby s samp script section select small source\
 						span strike strong style sub summary sup table tbody td textarea tfoot th thead time title\
@@ -2752,7 +2760,6 @@
 						continue;
 
 					case "1-element":
-					case "3-element":
 						returnNodes.push(arg);
 						// final possible step so start back on 1 for next arg
 						step = 1;
@@ -2788,6 +2795,7 @@
 					// next sibling node via selector or child string ------------------------------------------------------------------
 					case "2-string":
 					case "3-string":
+					case "3-element":
 						selector = preProcessedSelector || $isSelector(arg);
 
 						// starting a new object
@@ -2913,7 +2921,7 @@
 	}
 
 	// script helper for $part, $dom
-	var jsre = /\.js$/i;
+	var jsre = /^http|^\/|^\.|\.js$/i;
 	function $js(script) {
 		var val, attrs = {type: "text/javascript"};
 
@@ -3434,3 +3442,70 @@
 	this.loot = loot;
 	loot(this);
 }());
+
+
+loot.extend("$io", loot.exports.$speak(function(url, req, dataType, reqType) {
+
+	var key = $cache.getKey(url, req),
+		parent = $isSpeaker(this) ? this : $io,
+		typeId = parent.typeId || "io",
+		lastArg = arguments[arguments.length-1],
+		handlers = (!lastArg || $isString(lastArg) || $isBoolean(lastArg)) ? {} : lastArg,
+		startH = handlers.start,
+		successH = handlers.success,
+		errorH = handlers.error,
+		useCache = (typeId === "io") ? false : true,
+		bin = useCache ? $cache.get(typeId, url, req) : null;
+
+	var xhr = $.ajax({
+			dataType: 	$isString(dataType) ? dataType : "json",
+			type: 		$isString(reqType) ? reqType : "post",
+			url: 		url,
+			data: 		req,
+
+			success: function(val, textStatus, xhr) {
+				var msg = useCache ?
+							$cache.set(typeId, url, req, val, {xhr: xhr}) :
+							{val: val, xhr: xhr, url: url, req: req};
+
+				if ($isFunction(successH)) {
+					successH.call(parent, msg, typeId + ":success:" + url);
+				}
+
+				parent.tell(typeId + ":success:" + url, msg);
+			},
+
+			error: function(xhr, textStatus, error) {
+				var err = {
+					status: textStatus,
+					key: key,
+					error: error,
+					req: req,
+					xhr: xhr
+				};
+
+				if (useCache) {
+					err.bin = bin;
+					err.key = key;
+				}
+
+				if ($isFunction(errorH)) {
+					errorH.call(parent, err, typeId + ":error:" + url);
+				}
+
+				parent.tell(typeId + ":error:" + url, err);
+			}
+		});
+
+	if (useCache) {
+		bin.xhr = xhr;
+	}
+
+	if ($isFunction(startH)) {
+		startH.call(parent, bin, typeId + ":start:" + url);
+	}
+
+	parent.tell(typeId + ":start:" + url, bin);
+
+	return bin;
+}));

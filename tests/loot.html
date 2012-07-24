@@ -473,7 +473,7 @@
 
 			escapeHTML = $doc.usesRealDom();
 
-			same(p.toString(), "<p>"+$esc(textNode)+"</p>", "text append with escaping html strings works fine");
+			same(p.toString(), "<p>"+textNode+"</p>", "text append with escaping html strings works fine");
 
 		});
 
@@ -683,7 +683,7 @@
 			},
 			escapeHtmlStrings: {
 				dom: ["div.test-3", "<div>this is some html<p>p tag</p></div>"],
-				val: '<div class="test-3">'+$escapeHTML("<div>this is some html<p>p tag</p></div>")+'</div>'
+				val: '<div class="test-3"><div>this is some html<p>p tag</p></div></div>'
 			}
 			// todo add LOTS more here
 		};
@@ -725,7 +725,7 @@
 				console.log(div.innerHTML);
 
 				same(dom1.toString(), d.val, "outputStrings dom output is good");
-				same(div.innerHTML, d.val, "dom output converted to string is good");
+				same(d.val, div.innerHTML, "dom output converted to string is good");
 			});
 
 

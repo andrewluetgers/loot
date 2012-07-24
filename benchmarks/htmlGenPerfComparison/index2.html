@@ -1,0 +1,496 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+		"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+	<head>
+		<title></title>
+	</head>
+	<body>
+	<ul id="results"></ul>
+	<script src="../../lib/benchmarkjs/benchmark.js"></script>
+	<script src="http://dl.dropbox.com/u/513327/doT.min.js"></script>
+	<script src="http://dl.dropbox.com/u/513327/jsconf/2012/documentcloud/underscore.js"></script>
+	<script src="../../src/loot.js"></script>
+
+	<script id="template" type="text/x-handlebars-template">
+		<div class="Foo{{#if isSelected}} selected{{/if}}{{#if isActive}} selected{{/if}}">
+			<label><input type="checkbox" checked="{{#if isSelected}}checked{{/if}}"></label>
+			<button class="button" title="A title">The button text</button>
+			<a href="{{href}}"><span class="lorem{{#ifGreaterThanOne total}} ipsum{{/ifGreaterThanOne}}">
+				<span class="dolores" unselectable="on">{{text}}</span>
+				{{#ifGreaterThanOne total}}
+				<span class="total" unselectable="on">({{total}})</span>
+				{{/ifGreaterThanOne}}
+				{{#if yes}}
+				<span class="yes">*</span>
+				{{/if}}
+				<span class="text" unselectable="on">
+				{{#ifGreaterThanOne total}}{{text}}{{/ifGreaterThanOne}}
+				</span>
+				<time unselectable="on" title="{{displayDate}}">{{displayDate}}</time>
+				<span class="preview" unselectable="on">{{preview}}</span>
+			</a>
+		</div>
+	</script>
+
+
+	<script type="text/javascript">
+
+		var data = {
+			isSelected: true,
+			isActive: false,
+			href: 'http://www.google.com',
+			total: 4,
+			displayDate: '28th December 2011',
+			text: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+			preview: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.'
+		};
+
+
+		var genDOMWith$el = function ( data ) {
+
+			return $el( 'div', {
+				className: 'Foo' +
+					( data.isSelected ? ' selected' : '' ) +
+					( data.isActive ? ' active' : '' )
+			}, [
+				$el( 'label', [
+					$el( 'input', {
+						type: 'checkbox',
+						checked: data.isSelected ? 'checked': ''
+					})
+				]),
+				$el( 'button', {
+					className:'button',
+					title: 'A title'
+				}, ['The button text']),
+				$el( 'a', {
+					href: data.href
+				}, [
+					$el( 'span', {
+						className: 'lorem' +
+							( data.total > 1 ? ' ipsum' : '' )
+					}, [
+						$el( 'span', {
+							className:'dolores',
+							unselectable: 'on'
+						}, [
+							data.text
+						]),
+						data.total > 1 ? $el( 'span', {
+							className:'total',
+							unselectable: 'on'
+						},'(' + data.total + ')') : null
+					]),
+					data.yes ? $el( 'span', {className:'yes'},'*') : null,
+					$el( 'span', {
+						className:'text',unselectable: 'on'
+					},
+						data.total > 1 ? data.text : null
+					),
+					$el( 'time', {
+						unselectable: 'on',
+						title: data.displayDate
+					}, data.displayDate),
+					$el( 'span', {
+						className:'preview',unselectable: 'on'
+					}, data.preview)
+				])
+			]);
+		};
+
+		var x = 0;
+		function genDOMWith$dom(data) {
+			var dom = $dom([
+				'div', {className: 'Foo' + ( data.isSelected ? ' selected' : '' ) + ( data.isActive ? ' active' : '' )}, [
+					'label', [
+						'input', {type: 'checkbox', checked: data.isSelected ? 'checked': ''}
+					],
+					'button.button', {title: 'A title'},
+						'The button text',
+					'a', {href: data.href}, [
+						'span', {className: 'lorem' + ( data.total > 1 ? ' ipsum' : '' )}, [
+							'span.dolores', {unselectable: 'on'}, [
+								data.text
+							],
+							'span.total', {unselectable: 'on', className: (data.total < 1 ? "hidden" : "")}
+						],
+						'span.yes', {text: '*', className: (!data.yes ? "hidden" : "")},
+						'span', {unselectable: 'on'}, data.total > 1 ? data.text : null,
+						'time', {unselectable: 'on', title: data.displayDate},
+							data.displayDate,
+						'span.preview', {unselectable: 'on'},
+							data.preview
+					]
+				]
+			]);
+
+			if (x == 0) {
+				console.log(data, dom);
+			}
+			x++;
+
+			return dom;
+		}
+
+
+		var genDOM = function ( data ) {
+			var doc = document,
+				div = doc.createElement( 'div' );
+
+			div.className = 'Foo' +
+				( data.isSelected ? ' selected' : '' ) +
+				( data.isActive ? ' active' : '' );
+
+			var label = doc.createElement( 'label' ),
+				input = doc.createElement( 'input' );
+			input.setAttribute( 'type', 'checkbox' );
+			input.checked = !!data.isSelected;
+			label.appendChild( input );
+			div.appendChild( label );
+
+			var button = doc.createElement( 'button' );
+			button.className = 'button';
+			button.setAttribute( 'title', 'A title' );
+			button.textContent = 'The button text';
+			div.appendChild( button );
+
+			var a = doc.createElement( 'a' );
+			a.setAttribute( 'href', data.href );
+
+			var span = doc.createElement( 'span' );
+			span.className = 'lorem' +
+				( data.total > 1 ? ' ipsum' : '' );
+
+			var span2 = doc.createElement( 'span' );
+			span2.className = 'dolores';
+			span2.setAttribute( 'unselectable', 'on' );
+			span2.appendChild( doc.createTextNode( data.text ) );
+			span.appendChild( span2 );
+
+			if ( data.total > 1 ) {
+				span2 = doc.createElement( 'span' );
+				span2.className = 'total';
+				span2.setAttribute( 'unselectable', 'on' );
+				span2.textContent = '(' + data.total + ')';
+				span.appendChild( span2 );
+			}
+			a.appendChild( span );
+			if ( data.yes ) {
+				span = doc.createElement( 'span' );
+				span.className = 'yes';
+				span.textContent = '*';
+				a.appendChild( span );
+			}
+
+			span = doc.createElement( 'span' );
+			span.className = 'text';
+			span.setAttribute( 'unselectable', 'on' );
+			if ( data.total > 1 ) {
+				span.appendChild( doc.createTextNode(  data.text ) );
+			}
+			a.appendChild( span );
+
+			var time = doc.createElement( 'time' );
+			time.setAttribute( 'unselectable', 'on' );
+			time.textContent = data.displayDate;
+			time.setAttribute( 'title', data.displayDate );
+			a.appendChild( time );
+
+			span = doc.createElement( 'span' );
+			span.className = 'preview';
+			span.setAttribute( 'unselectable', 'on' );
+			span.textContent = data.preview;
+			a.appendChild( span );
+
+			div.appendChild( a );
+
+			return div;
+		};
+
+		var genDOMWithInnerHTML = function ( data ) {
+			var div = document.createElement( 'div' );
+			div.innerHTML = '<div class="Foo' +
+					(data.isSelected ? ' selected' : '') +
+					(data.isActive ? ' active' : '') + '">' +
+				'<label><input type="checkbox" checked="' +
+				(data.isSelected ? 'checked': '') + '"></label>' +
+				'<button class="button" title="A title">The button text</button>' +
+				'<a href="' + data.href + '"><span class="lorem' +
+					( data.total > 1 ? ' ipsum' : '' ) +
+					'"><span class="dolores" unselectable="on">' + data.text +
+					'</span>' + ( data.total > 1 ?
+						'<span class="total" unselectable="on">(' + data.total + ')</span>' :
+						'') +
+					'</span>' + (data.yes ? '<span class="yes">*</span>' : '') +
+					'<span class="text" unselectable="on">' +
+					(data.total > 1 ? data.text : null) +
+					'</span>' +
+					'<time unselectable="on" title="' + data.displayDate + '">' +
+					data.displayDate +
+					'</time><span class="preview" unselectable="on">' + data.preview +
+					'</span></a></div>';
+			return div.firstChild;
+		};
+
+		Handlebars.registerHelper( 'ifGreaterThanOne', function( number, options ) {
+			if ( number > 1 ) { return options.fn( this ); }
+		});
+
+		var template = Handlebars.template(function (Handlebars, depth0, helpers, partials, data) {
+
+			helpers = helpers || Handlebars.helpers;
+
+			var buffer = "",
+				stack1, stack2, foundHelper, tmp1,
+				self=this,
+				functionType="function",
+				helperMissing=helpers.helperMissing,
+				undef=void 0,
+				escapeExpression=this.escapeExpression,
+				blockHelperMissing=helpers.blockHelperMissing;
+
+			function program1(depth0,data) {return " selected";}
+
+			function program3(depth0,data) {return " selected";}
+
+			function program5(depth0,data) {return "checked";}
+
+			function program7(depth0,data) {return " ipsum";}
+
+			function program9(depth0,data) {
+
+				var buffer = "", stack1;
+
+				buffer += "\n        <span class=\"total\" unselectable=\"on\">(";
+				foundHelper = helpers.total;
+				stack1 = foundHelper || depth0.total;
+
+				if (typeof stack1 === functionType) {
+					stack1 = stack1.call(depth0, { hash: {} });
+				} else if (stack1=== undef) {
+					stack1 = helperMissing.call(depth0, "total", { hash: {} });
+				}
+
+				buffer += escapeExpression(stack1) + ")</span>\n        ";
+
+				return buffer;
+			}
+
+			function program11(depth0,data) {
+				return "\n        <span class=\"yes\">*</span>\n        ";
+			}
+
+			function program13(depth0,data) {
+				var stack1;
+
+				foundHelper = helpers.text;
+				stack1 = foundHelper || depth0.text;
+
+				if (typeof stack1 === functionType) {
+					stack1 = stack1.call(depth0, { hash: {} });
+				} else if(stack1=== undef) {
+					stack1 = helperMissing.call(depth0, "text", { hash: {} });
+				}
+				return escapeExpression(stack1);
+			}
+
+			buffer += "<div class=\"Foo";
+			foundHelper = helpers.isSelected;
+			stack1 = foundHelper || depth0.isSelected;
+			stack2 = helpers['if'];
+			tmp1 = self.program(1, program1, data);
+			tmp1.hash = {};
+			tmp1.fn = tmp1;
+			tmp1.inverse = self.noop;
+			stack1 = stack2.call(depth0, stack1, tmp1);
+			if (stack1 || stack1 === 0) {
+				buffer += stack1;
+			}
+			foundHelper = helpers.isActive;
+			stack1 = foundHelper || depth0.isActive;
+			stack2 = helpers['if'];
+			tmp1 = self.program(3, program3, data);
+			tmp1.hash = {};
+			tmp1.fn = tmp1;
+			tmp1.inverse = self.noop;
+			stack1 = stack2.call(depth0, stack1, tmp1);
+			if (stack1 || stack1 === 0) {
+				buffer += stack1;
+			}
+			buffer += "\">\n    <label><input type=\"checkbox\" checked=\"";
+			foundHelper = helpers.isSelected;
+			stack1 = foundHelper || depth0.isSelected;
+			stack2 = helpers['if'];
+			tmp1 = self.program(5, program5, data);
+			tmp1.hash = {};
+			tmp1.fn = tmp1;
+			tmp1.inverse = self.noop;
+			stack1 = stack2.call(depth0, stack1, tmp1);
+			if (stack1 || stack1 === 0) {
+				buffer += stack1;
+			}
+			buffer += "\"></label>\n    <button class=\"button\" title=\"A title\">The button text</button>\n    <a href=\"";
+			foundHelper = helpers.href;
+			stack1 = foundHelper || depth0.href;
+			if (typeof stack1 === functionType) {
+				stack1 = stack1.call(depth0, { hash: {} });
+			}
+			else if (stack1 === undef) {
+				stack1 = helperMissing.call(depth0, "href", { hash: {} });
+			}
+			buffer += escapeExpression(stack1) + "\"><span class=\"lorem";
+			foundHelper = helpers.total;
+			stack1 = foundHelper || depth0.total;
+			foundHelper = helpers.ifGreaterThanOne;
+			stack2 = foundHelper || depth0.ifGreaterThanOne;
+			tmp1 = self.program(7, program7, data);
+			tmp1.hash = {};
+			tmp1.fn = tmp1;
+			tmp1.inverse = self.noop;
+			if (foundHelper && typeof stack2 === functionType) {
+				stack1 = stack2.call(depth0, stack1, tmp1);
+			} else {
+				stack1 = blockHelperMissing.call(depth0, stack2, stack1, tmp1);
+			}
+			if (stack1 || stack1 === 0) {
+				buffer += stack1;
+			}
+			buffer += "\">\n        <span class=\"dolores\" unselectable=\"on\">";
+			foundHelper = helpers.text;
+			stack1 = foundHelper || depth0.text;
+			if (typeof stack1 === functionType) {
+				stack1 = stack1.call(depth0, { hash: {} });
+			} else if (stack1 === undef) {
+				stack1 = helperMissing.call(depth0, "text", { hash: {} });
+			}
+			buffer += escapeExpression(stack1) + "</span>\n        ";
+			foundHelper = helpers.total;
+			stack1 = foundHelper || depth0.total;
+			foundHelper = helpers.ifGreaterThanOne;
+			stack2 = foundHelper || depth0.ifGreaterThanOne;
+			tmp1 = self.program(9, program9, data);
+			tmp1.hash = {};
+			tmp1.fn = tmp1;
+			tmp1.inverse = self.noop;
+			if (foundHelper && typeof stack2 === functionType) {
+				stack1 = stack2.call(depth0, stack1, tmp1);
+			} else {
+				stack1 = blockHelperMissing.call(depth0, stack2, stack1, tmp1);
+			}
+			if (stack1 || stack1 === 0) {
+				buffer += stack1;
+			}
+			buffer += "\n        ";
+			foundHelper = helpers.yes;
+			stack1 = foundHelper || depth0.yes;
+			stack2 = helpers['if'];
+			tmp1 = self.program(11, program11, data);
+			tmp1.hash = {};
+			tmp1.fn = tmp1;
+			tmp1.inverse = self.noop;
+			stack1 = stack2.call(depth0, stack1, tmp1);
+			if (stack1 || stack1 === 0) {
+				buffer += stack1;
+			}
+			buffer += "\n        <span class=\"text\" unselectable=\"on\">\n        ";
+			foundHelper = helpers.total;
+			stack1 = foundHelper || depth0.total;
+			foundHelper = helpers.ifGreaterThanOne;
+			stack2 = foundHelper || depth0.ifGreaterThanOne;
+			tmp1 = self.program(13, program13, data);
+			tmp1.hash = {};
+			tmp1.fn = tmp1;
+			tmp1.inverse = self.noop;
+			if (foundHelper && typeof stack2 === functionType) {
+				stack1 = stack2.call(depth0, stack1, tmp1);
+			} else {
+				stack1 = blockHelperMissing.call(depth0, stack2, stack1, tmp1);
+			}
+			if (stack1 || stack1 === 0) {
+				buffer += stack1;
+			}
+			buffer += "\n        </span>\n        <time unselectable=\"on\" title=\"";
+			foundHelper = helpers.displayDate;
+			stack1 = foundHelper || depth0.displayDate;
+			if (typeof stack1 === functionType) {
+				stack1 = stack1.call(depth0, { hash: {} });
+			} else if (stack1 === undef) {
+				stack1 = helperMissing.call(depth0, "displayDate", { hash: {} });
+			}
+			buffer += escapeExpression(stack1) + "\">";
+			foundHelper = helpers.displayDate;
+			stack1 = foundHelper || depth0.displayDate;
+			if (typeof stack1 === functionType) {
+				stack1 = stack1.call(depth0, { hash: {} });
+			} else if (stack1 === undef) {
+				stack1 = helperMissing.call(depth0, "displayDate", { hash: {} });
+			}
+			buffer += escapeExpression(stack1) + "</time>\n        <span class=\"preview\" unselectable=\"on\">";
+			foundHelper = helpers.preview;
+			stack1 = foundHelper || depth0.preview;
+			if (typeof stack1 === functionType) {
+				stack1 = stack1.call(depth0, { hash: {} });
+			}
+			else if (stack1 === undef) {
+				stack1 = helperMissing.call(depth0, "preview", { hash: {} });
+			}
+			buffer += escapeExpression(stack1) + "</span>\n    </a>\n</div>\n";
+			return buffer;
+		});
+
+
+		var genHandlebarsTemplate = function ( data ) {
+			var div = document.createElement( 'div' );
+			div.innerHTML = template( data );
+			return div.firstChild;
+		};
+
+		var suite = new Benchmark.Suite;
+
+		// add tests
+		suite.add("$el", function() {
+			$doc.useRealDom(true);
+			genDOMWith$el(data);
+		})
+		.add("$el - outputStrings", function() {
+			$doc.useRealDom(false);
+			genDOMWith$el(data);
+		})
+//		.add("$dom", function() {
+//			$el.outputStrings(false);
+//			genDOMWith$dom(data);
+//		})
+//		.add("$dom - outputStrings", function() {
+//			$el.outputStrings(true);
+//			genDOMWith$dom(data);
+//		})
+		.add("DOM", function() {
+			genDOM(data);
+		})
+		.add("innerHTML", function() {
+			genDOMWithInnerHTML(data);
+		})
+		.add("Handlebars", function() {
+			genHandlebarsTemplate(data);
+		})
+		// add listeners
+		.on("error", function() {
+			console.log("error", this, arguments);
+		})
+		.on("abort", function() {
+			console.log("abort", this, arguments);
+		})
+		.on('cycle', function(event, bench) {
+			$id("results").innerHTML += "<li>" + String(bench) + "</li>";
+			console.log(this, event, bench, String(bench));
+		})
+		.on('complete', function() {
+			$id("results").innerHTML +="<li>Fastest is " + this.filter('fastest').pluck('name') +"</li>";
+			console.log(this, 'Fastest is ' + this.filter('fastest').pluck('name'));
+		})
+		// run async
+		.run({ 'async': true });
+
+	</script>
+</body>
+</html>
