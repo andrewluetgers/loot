@@ -760,7 +760,7 @@
 		} else if (type === funType) {
 			var iterator = callback;
 			callback = arguments[2];
-			_async.each(tasks, iterator, callback);
+			_async.map(tasks, iterator, callback);
 
 		// fourth signature: async for each limit
 		} else if (len === 4 && type === numType) {

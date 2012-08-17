@@ -1477,7 +1477,7 @@
 					ok($isNumber(key) && key < 3, "key param is correct");
 					runOrder2.push(key);
 					obj[key] = val * 2;
-					next();
+					next(null, val * 2);
 				}, delays[key]);
 			}, function(err, result) {
 				console.log("finish", arguments);
