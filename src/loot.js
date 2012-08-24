@@ -596,7 +596,7 @@
 		},
 
 		eachSeries: function(obj, iterator, callback) {
-			var next, keys = $map(obj, function(v, k) {return k;}), // not using keys here bc we want array indexes as numbers, each gives us that
+			var next, keys = $keys(obj), // not using keys here bc we want array indexes as numbers, each gives us that
 				i = 0, len = keys.length,
 				key;
 
@@ -641,8 +641,8 @@
 							callback(err);
 							callback = function() {};
 						} else {
-							completed += 1;
-							running -= 1;
+							completed++;
+							running--;
 							if (completed === arr.length) {
 								callback();
 							} else {
@@ -650,8 +650,8 @@
 							}
 						}
 					});
-					started += 1;
-					running += 1;
+					started++;
+					running++;
 				}
 			})();
 		},
@@ -753,10 +753,10 @@
 		}
 
 		// second signature: array of functions and final callback
-		if ($isArray(tasks) && $isFunction(tasks[0])) {
+		if ( ($isArray(tasks) && $isFunction(tasks[0])) || ($isPlainObject(tasks) && $isFunction($values(tasks)[0])) ) {
 			_async.tasks(tasks, callback);
 
-		// third signature: async for each
+		// third signature: async map
 		} else if (type === funType) {
 			var iterator = callback;
 			callback = arguments[2];
@@ -786,14 +786,16 @@
 		}
 
 		// second signature: array of functions and final callback
-		if ($isArray(tasks) && $isFunction(tasks[0])) {
+		if ( ($isArray(tasks) && $isFunction(tasks[0])) || ($isPlainObject(tasks) && $isFunction($values(tasks)[0])) ) {
+			console.log("tasksSeries", tasks, callback);
 			_async.tasksSeries(tasks, callback);
 
-		// third signature: async for each
+		// third signature: async mapSeries
 		} else {
 			//var iterator = callback;
-			_async.eachSeries(tasks, callback, arguments[2]);
+			_async.mapSeries(tasks, callback, arguments[2]);
 		}
+
 	};
 
 
@@ -2867,7 +2869,7 @@
 	 *
 	 * @param name			string,
 	 * @param arg			function or object
-	 * @param overwrite		bool
+	 * @param preventOverwrite		bool
 	 * @description this function serves as a constructor, getter, setter and collection interface to partials
 	 * there are multiple signatures and a plural alias that makes more sense depending on what you want to do
 	 * $part("name", function(data){...}) returns undefined, saves the function under the given name so that it can be used via the following signatures
@@ -2875,7 +2877,7 @@
 	 * $parts("myPartial") returns a partial function(data) which if called returns a minidom
 	 * $parts("myPartial", dataObject)
 	 */
-	function $part(name, arg, overwrite) {
+	function $part(name, arg, preventOverwrite) {
 		if (arguments.length === 0) {
 			return parts;							// get all
 		} else if (!$isString(name)) {
@@ -2887,7 +2889,7 @@
 				return parts[name];					// get
 
 			} else if ($isFunction(arg)) {
-				if (overwrite) {
+				if (!preventOverwrite) {
 					return parts[name] = arg;		// update
 				} else {
 					throw new Error("Partial already defined for " + name + ". use overwrite flag to update");
