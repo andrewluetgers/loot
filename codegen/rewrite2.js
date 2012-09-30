@@ -1,245 +1,358 @@
-/*
-  Copyright (C) 2012 Ariya Hidayat <ariya.hidayat@gmail.com>
+(function() {
 
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are met:
 
-	* Redistributions of source code must retain the above copyright
-	  notice, this list of conditions and the following disclaimer.
-	* Redistributions in binary form must reproduce the above copyright
-	  notice, this list of conditions and the following disclaimer in the
-	  documentation and/or other materials provided with the distribution.
+	var parseId;
 
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
-  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+	function updateTree(syntax, syntax2) {
 
-/*jslint browser:true evil:true */
-
-function sourceRewrite() {
-	'use strict';
-
-	var code, syntax, indent, code2, options;
-
-	function setText(id, str) {
-		var el = document.getElementById(id);
-		if (typeof el.innerText === 'string') {
-			el.innerText = str;
-		} else {
-			el.textContent = str;
+		if (window.tree) {
+			window.tree.destroy();
+			window.tree = null;
 		}
-	}
 
-	setText('error', '');
-	if (typeof window.editor !== 'undefined') {
-		// Using CodeMirror.
-		code = window.editor.getValue();
-	} else {
-		// Plain textarea, likely in a situation where CodeMirror does not work.
-		code = document.getElementById('code').value;
-	}
+		if (typeof syntax === 'undefined') {
+			return;
+		}
 
-	indent = '';
-	if (document.getElementById('onetab').checked) {
-		indent = '\t';
-	} else if (document.getElementById('twospaces').checked) {
-		indent = '  ';
-	} else if (document.getElementById('fourspaces').checked) {
-		indent = '    ';
-	}
+		window.tree = new YAHOO.widget.TreeView("treeview");
+		$id('collapse').onclick = function () { window.tree.collapseAll(); };
+		$id('expand').onclick = function () { window.tree.expandAll(); };
 
-	options = {
-		comment: document.getElementById('comment').checked,
-		raw: document.getElementById('raw').checked,
-		range: document.getElementById('range').checked,
-		loc: document.getElementById('loc').checked
-	};
+		window.tree2 = new YAHOO.widget.TreeView("treeview2");
+		$id('collapse2').onclick = function () { window.tree2.collapseAll(); };
+		$id('expand2').onclick = function () { window.tree2.expandAll(); };
 
-	try {
-		syntax = window.esprima.parse(code, options);
 
-		code2 = window.editor2.getValue();
 
-		var process = eval(code2);
+		function isArray(o) {
+			return (typeof Array.isArray === 'function') ? Array.isArray(o) :
+				Object.prototype.toString.apply(o) === '[object Array]';
+		}
 
-		var newSyntax = process(syntax);
+		function convert(name, node) {
+			var result, i, key, value, child;
 
-		updateTree(syntax, newSyntax);
+			switch (typeof node) {
+			case 'string':
+				return {
+					type: 'Text',
+					label: name + ': ' + node
+				};
 
-		console.log(JSON.stringify(syntax), syntax);
-		console.log(JSON.stringify(newSyntax), newSyntax);
-		code = window.escodegen.generate(newSyntax, { indent: indent });
+			case 'number':
+			case 'boolean':
+				return {
+					type: 'Text',
+					label: name + ': ' + String(node)
+				};
 
-//		(function () {
-			console.log(eval(code), dom, code);
-//		}())
+			case 'object':
+				if (!node) {
+					return {
+						type: 'Text',
+						label: name + ': null'
+					};
+				}
+				if (node instanceof RegExp) {
+					return {
+						type: 'Text',
+						label: name + ': ' + node.toString()
+					};
+				}
+				result = {
+					type: 'Text',
+					label: name,
+					expanded: true,
+					children: []
+				};
+				if (isArray(node)) {
+					if (node.length === 2 && name === 'range') {
+						result.label = name + ': [' + node[0] + ', ' + node[1] + ']';
+					} else {
+						result.label = result.label + ' [' + node.length + ']';
+						for (i = 0; i < node.length; i += 1) {
+							key = String(i);
+							value = node[i];
+							child = convert(key, value);
+							if (isArray(child.children) && child.children.length === 1) {
+								result.children.push(child.children[0]);
+							} else {
+								result.children.push(convert(key, value));
+							}
+						}
+					}
+				} else {
+					if (typeof node.type !== 'undefined') {
+						result.children.push({
+							type: 'Text',
+							label: node.type,
+							expanded: true,
+							children: []
+						});
+						for (key in node) {
+							if (Object.prototype.hasOwnProperty.call(node, key)) {
+								if (key !== 'type') {
+									value = node[key];
+									result.children[0].children.push(convert(key, value));
+								}
+							}
+						}
+					} else {
+						for (key in node) {
+							if (Object.prototype.hasOwnProperty.call(node, key)) {
+								value = node[key];
+								result.children.push(convert(key, value));
+							}
+						}
+					}
+				}
+				return result;
 
-	} catch (e) {
-		setText('error', e.toString());
-	} finally {
-		window.editor3.setValue(code);
-	}
-}
-
-	/**
-	 * serves as a utility method for $copy and $merge
-	 * @param source (object) the object to copy properties from
-	 * @param target (object) optional object to merge source's properties into
-	 * @param filter (function) optional function(key, source, target) { return boolean; }
-	 * the filter function returns true if a property should be copied and false if it should be ignored
-	 * filter can also be provided as the last of two arguments when omitting a target
-	 * filter example: to deep copy only owned properties from objA to objB
-	 * 	$copy(objA, objB, function(key, source) {
-	 * 		return source.hasOwnProperty(key);
-	 * 	});
-	 */
-//
-//if ($isString(source) || $isBoolean(source) || $isNumber(source)) {
-//	throw new Error("copy source must be an object");
-//}
-//
-//if (target && ($isString(source) || $isBoolean(source) || $isNumber(source))) {
-//	throw new Error("optional copy target must be an object");
-//}
-//
-//// support (source, filter) signature
-//if (arguments.length === 2 && $isFunction(target)) {
-//	filter = target;
-//	target = {};
-//} else {
-//	filter = ($isFunction(filter)) ? filter : false;
-//	target = target || {};
-//}
-
-function parse(source, result, process, depth) {
-	var key, sourceProp, resultProp, processed;
-
-	if ($isString(source) || $isBoolean(source) || $isNumber(source)) {
-		throw new Error("parse source must be an object or array");
-	}
-
-	if (target && ($isString(source) || $isBoolean(source) || $isNumber(source))) {
-		throw new Error("result target must be an object or array");
-	}
-
-	process = $isFunction(process) ? process : false;
-
-	depth = depth || 0;
-
-	for (key in source) {
-		// skip this property if filter returns false
-		if (process) {
-			processed = process(key, source, result);
-			if (processed === undefined) {
-				continue;
-			} else {
-				sourceProp = processed;
+			default:
+				break;
 			}
+
+			return {
+				type: 'Text',
+				label: '?'
+			};
+		}
+
+		tree.buildTreeFromObject(convert('Program body', syntax.body));
+		tree.render();
+		tree.subscribe("clickEvent", sourceTreeNodeClickHandler);
+
+
+
+		tree2.buildTreeFromObject(convert('Program body', syntax2.body));
+		tree2.render();
+//		tree2.subscribe("clickEvent", sourceTreeNodeClickHandler);
+
+
+		// json views
+
+//		$("#json1").html(JSON.stringify(syntax.body, null, 4));
+//		$("#json2").html(JSON.stringify(syntax2.body, null, 4));
+	}
+
+	var hilight;
+
+	function sourceTreeNodeClickHandler(e) {
+		window.n = e.node;
+		nc = null;
+
+		if (hilight && hilight.clear) {
+			hilight.clear();
+		}
+
+		if (n.children && (nc = n.children[n.children.length - 1]) && nc.label == "loc") {
+			var start = nc.children[0];
+			var end = nc.children[1];
+			var startSel = {line: parseInt(start.children[0].label.split(" ")[1])-1, ch: parseInt(start.children[1].label.split(" ")[1])};
+			var endSel = {line: parseInt(end.children[0].label.split(" ")[1])-1, ch: parseInt(end.children[1].label.split(" ")[1])};
+			console.log("loc", nc, startSel, endSel);
+			hilight = editor.markText(startSel, endSel, "hilight");
 		} else {
-			sourceProp = source[key];
-		}
-
-		// Prevent infinite loop
-		if (sourceProp === result) {
-			continue;
-		}
-
-		if (typeof sourceProp === "object" && !$isNull(sourceProp)) {
-			resultProp = $isArray(sourceProp) ? [] : {};
-			result[key] = parse(sourceProp, resultProp, filter, depth+1);
-		} else {
-			result[key] = sourceProp;
+			console.log("clickEvent", n, arguments);
 		}
 	}
 
-	return result;
-}
+	window.logAST = true;
 
+	function sourceRewrite() {
+		'use strict';
 
-function traverse(state) {
-	var queue = [],
-		next = state;
+		var code, syntax, indent, code2, options;
 
-	while (next) {
-		if (typeof sourceProp === "object" && !$isNull(sourceProp)) {
-			$each(next.possibleMoves, function(i, possibleMove) {
-				queue.push(possibleMove);
-			});
-		}
-		next = queue.shift();
-	}
-}
-
-
-function parse(obj, process) {
-
-	var result, key, sourceProp, resultProp, processed, type,
-		depth = -1,
-		current,
-		root = {root: obj};
-
-	var resultType = $typeOf(root);
-
-	if (resultType == "array") {
-		result = [];
-	} else if (resultType !== "object") {
-		result = {};
-	} else {
-		throw new Error("root must be an object or array");
-	}
-
-	var next = [{
-		key: "root",
-		parent: root,
-		target: result
-	}];
-
-	process = $isFunciton(process) ? process : function(val) { return val;};
-
-	while (current = next.shift()) {
-		depth++;
-		for (key in current.parent[root]) {
-
-			// skip this property if filter returns undefined
-			processed = process(key, current, result);
-			if (processed === undefined) {
-				continue;
+		function setText(id, str) {
+			var el = document.getElementById(id);
+			if (typeof el.innerText === 'string') {
+				el.innerText = str;
 			} else {
-				sourceProp = processed;
+				el.textContent = str;
+			}
+		}
+
+		setText('error', '');
+		if (typeof window.editor !== 'undefined') {
+			// Using CodeMirror.
+			code = window.editor.getValue();
+		} else {
+			// Plain textarea, likely in a situation where CodeMirror does not work.
+			code = document.getElementById('code').value;
+		}
+
+		indent = '';
+		if (document.getElementById('onetab').checked) {
+			indent = '\t';
+		} else if (document.getElementById('twospaces').checked) {
+			indent = '  ';
+		} else if (document.getElementById('fourspaces').checked) {
+			indent = '    ';
+		}
+
+		options = {
+			comment: document.getElementById('comment').checked,
+			raw: document.getElementById('raw').checked,
+			range: document.getElementById('range').checked,
+			loc: document.getElementById('loc').checked
+		};
+
+		try {
+			syntax = window.esprima.parse(code, options);
+
+			code2 = window.editor2.getValue();
+
+			var process = eval(code2);
+
+			var newSyntax = process(syntax);
+
+			updateTree(syntax, newSyntax);
+
+
+			if (logAST) {
+				console.log("original AST", JSON.stringify(syntax), syntax);
+				console.log("generated AST", JSON.stringify(newSyntax), newSyntax);
+				console.log("to disable logging: window.logAST = false");
+			}
+			code = window.escodegen.generate(newSyntax, { indent: indent });
+
+	//		(function () {
+				console.log(eval(code), code);
+	//		}())
+
+		} catch (e) {
+			setText('error', e.toString());
+		} finally {
+			window.editor3.setValue(code);
+		}
+	}
+
+
+	function parse(source, result, process, depth) {
+		var key, sourceProp, resultProp, processed;
+
+		if ($isString(source) || $isBoolean(source) || $isNumber(source)) {
+			throw new Error("parse source must be an object or array");
+		}
+
+		if (target && ($isString(source) || $isBoolean(source) || $isNumber(source))) {
+			throw new Error("result target must be an object or array");
+		}
+
+		process = $isFunction(process) ? process : false;
+
+		depth = depth || 0;
+
+		for (key in source) {
+			// skip this property if filter returns false
+			if (process) {
+				processed = process(key, source, result);
+				if (processed === undefined) {
+					continue;
+				} else {
+					sourceProp = processed;
+				}
+			} else {
+				sourceProp = source[key];
 			}
 
 			// Prevent infinite loop
-			if (sourceProp === result || sourceProp === root || sourceProp === current) {
+			if (sourceProp === result) {
 				continue;
 			}
 
-			type = $typeof(sourceProp);
-
-			if (type === "array" || type === "object") {
-				result[key] = (type == "array") ? [] : {};
-				next.push({
-					key: key,
-					parent: current,
-					target: result[key]
-				});
+			if (typeof sourceProp === "object" && !$isNull(sourceProp)) {
+				resultProp = $isArray(sourceProp) ? [] : {};
+				result[key] = parse(sourceProp, resultProp, filter, depth+1);
 			} else {
 				result[key] = sourceProp;
 			}
 		}
+
+		return result;
 	}
 
-	return result;
-}
 
-
-// todo: paternmatchers, rewrite rules,
-// todo: node methods, getSiblings, getChildren, getParent
+//	function traverse(state) {
+//		var queue = [],
+//			next = state;
 //
+//		while (next) {
+//			if (typeof sourceProp === "object" && !$isNull(sourceProp)) {
+//				$each(next.possibleMoves, function(i, possibleMove) {
+//					queue.push(possibleMove);
+//				});
+//			}
+//			next = queue.shift();
+//		}
+//	}
+
+	// yes these are not generic, abstracted tabs, so shoot me
+	function initTabs() {
+		$(".tabs a").click(function() {
+			var active = this.parentNode.className;
+			refreshEditor(active);
+			this.parentNode.parentNode.parentNode.className = "layout "+active;
+			return false;
+		});
+	}
+
+	function refreshEditor(id) {
+		setTimeout(function() {
+			switch (id) {
+				case "src":
+					editor.refresh();
+					break;
+				case "mod":
+					editor2.refresh();
+					break;
+				case "gen":
+					editor3.refresh();
+					break;
+			}
+		}, 100);
+	}
+
+	function initEditors() {
+		try {
+			window.checkEnv();
+
+			window.editor = CodeMirror.fromTextArea($id("code"), {
+				lineNumbers: true,
+				matchBrackets: true,
+				onChange: function() {
+					console.log("rewrite");
+					sourceRewrite();
+				}
+			});
+
+			window.editor2 = CodeMirror.fromTextArea($id("code2"), {
+				lineNumbers: true,
+				matchBrackets: true,
+				onChange: function() {
+					console.log("rewrite");
+					sourceRewrite();
+				}
+			});
+
+			window.editor3 = CodeMirror.fromTextArea($id("result"), {
+				lineNumbers: true,
+				matchBrackets: true
+			});
+
+
+		} catch (e) {
+			// CodeMirror failed to initialize, possible in e.g. old IE.
+			$id('codemirror').innerHTML = '';
+		}
+	}
+
+	// main init;
+	$(function() {
+		initTabs();
+		initEditors();
+		sourceRewrite();
+	});
+
+}());

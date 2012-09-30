@@ -1287,6 +1287,7 @@
 			// with error
 			var finishOrder2 = [];
 			var iterator2 = function(done, val, key, obj) {
+				key = key*1;
 				console.log("provided each iterator", arguments);
 				ok(true, "iterator fired");
 				setTimeout(function() {
@@ -1305,6 +1306,7 @@
 
 			// without error
 			var iterator = function(done, val, key, obj) {
+				key = key*1;
 				console.log("provided eachSeries iterator", arguments);
 				ok(true, "iterator fired");
 				setTimeout(function() {
@@ -1372,6 +1374,7 @@
 			var objObj;
 
 			var iterator = function(push, val, key, result, obj) {
+				key = key*1;
 				console.log("iterator", arguments);
 				ok(true, "iterator fired");
 				setTimeout(function() {
@@ -1456,6 +1459,7 @@
 			var work = [5,6,7];
 			
 			$parallel(work, function(next, val, key, obj) {
+				key = key*1;
 				console.log("parallel", arguments);
 				setTimeout(function() {
 					run(key);
@@ -1463,13 +1467,14 @@
 					ok($isNumber(key) && key < 3, "key param is correct");
 					runOrder1.push(key);
 					obj[key] = val * 2;
-					next();
+					next(null, val * 2);
 				}, delays[key]);
 			});
 
 			var runOrder2 = [];
 			var work2 = [5,6,7];
 			$parallel(work2, function(next, val, key, obj) {
+				key = key*1;
 				console.log("$parallel 4", arguments);
 				setTimeout(function() {
 					run(key);
@@ -1549,19 +1554,21 @@
 			var work = [5,6,7];
 
 			$series(work, function(next, val, key, obj) {
+				key = key*1;
 				setTimeout(function() {
 					run(key);
 					ok($isNumber(val) && val > 4, "val param is correct");
 					ok($isNumber(key) && key < 3, "key param is correct");
 					runOrder1.push(key);
 					obj[key] = val * 2;
-					next();
+					next(null, val * 2);
 				}, delays[key]);
 			});
 
 			var runOrder2 = [];
 			var work2 = [5,6,7];
 			$series(work2, function(next, val, key, obj) {
+				key = key*1;
 				console.log("$series 4", arguments);
 				setTimeout(function() {
 					run(key);
@@ -1569,7 +1576,7 @@
 					ok($isNumber(key) && key < 3, "key param is correct");
 					runOrder2.push(key);
 					obj[key] = val * 2;
-					next();
+					next(null, val * 2);
 				}, delays[key]);
 			}, function(err, result) {
 				ok(true, "array of functions with callback signature: all functions ran");

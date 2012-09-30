@@ -1,257 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Esprima: Full Source Rewrite Demo</title>
-
-<script src="../src/loot.js"></script>
-<script src="../lib/json2.js"></script>
-<script src="../lib/jquery-1.7.1.js"></script>
-
-<script src="../lib/esprima/test/3rdparty/platform.js"></script>
-<script src="../lib/esprima/test/3rdparty/escodegen.js"></script>
-<script src="../lib/esprima/demo/checkenv.js"></script>
-<script src="../lib/esprima/esprima.js"></script>
-
-<script src="../lib/esprima/assets/codemirror/codemirror.js"></script>
-<script src="../lib/esprima/assets/codemirror/javascript.js"></script>
-
-<script src="rewrite2.js"></script>
-
-<link rel="stylesheet" type="text/css" href="../lib/esprima/assets/codemirror/codemirror.css"/>
-<link rel="stylesheet" type="text/css" href="../lib/esprima/assets/style.css"/>
-<style>
-.CodeMirror-scroll {
-	height: 300px;
-}
-</style>
-
-
-<script src="../lib/esprima/assets/yui/yahoo-dom-event.js"></script>
-<script src="../lib/esprima/assets/yui/treeview-min.js"></script>
-
-<link rel="stylesheet" type="text/css" href="../lib/esprima/assets/yui/treeview.css"/>
-<style>
-.ygtvfocus .ygtvlabel,
-.ygtvfocus .ygtvlabel:link,
-.ygtvfocus .ygtvlabel:visited,
-.ygtvfocus .ygtvlabel:hover {
-	background-color: #eee;
-}
-
-table th, table td {
-	text-align: left;
-	background-color: white;
-}
-
-tbody tr:nth-child(odd) td {
-	background-color: white;
-}
-
-tbody td {
-	background-color: white;
-}
-
-.clear {
-	clear: both;
-	height: 0;
-	width: 0;
-	line-height: 0;
-}
-
-
-#trees {
-	padding-bottom: 40px;
-}
-
-#sourceTree {
-	float: left;
-	width: 460px;
-}
-
-#source2Tree {
-	float: right;
-	width: 460px;
-}
-
-#treeview, #treeview2 {
-	border: solid 1px #999;
-}
-
-</style>
-
-<script>
-/*jslint sloppy:true browser:true */
-/*global esprima:true, YAHOO:true */
-var parseId;
-
-function updateTree(syntax, syntax2) {
-
-	if (window.tree) {
-		window.tree.destroy();
-		window.tree = null;
-	}
-
-	if (typeof syntax === 'undefined') {
-		return;
-	}
-
-	window.tree = new YAHOO.widget.TreeView("treeview");
-	$id('collapse').onclick = function () { window.tree.collapseAll(); };
-	$id('expand').onclick = function () { window.tree.expandAll(); };
-
-	window.tree2 = new YAHOO.widget.TreeView("treeview2");
-	$id('collapse2').onclick = function () { window.tree2.collapseAll(); };
-	$id('expand2').onclick = function () { window.tree2.expandAll(); };
-
-
-
-	function isArray(o) {
-		return (typeof Array.isArray === 'function') ? Array.isArray(o) :
-			Object.prototype.toString.apply(o) === '[object Array]';
-	}
-
-	function convert(name, node) {
-		var result, i, key, value, child;
-
-		switch (typeof node) {
-		case 'string':
-			return {
-				type: 'Text',
-				label: name + ': ' + node
-			};
-
-		case 'number':
-		case 'boolean':
-			return {
-				type: 'Text',
-				label: name + ': ' + String(node)
-			};
-
-		case 'object':
-			if (!node) {
-				return {
-					type: 'Text',
-					label: name + ': null'
-				};
-			}
-			if (node instanceof RegExp) {
-				return {
-					type: 'Text',
-					label: name + ': ' + node.toString()
-				};
-			}
-			result = {
-				type: 'Text',
-				label: name,
-				expanded: true,
-				children: []
-			};
-			if (isArray(node)) {
-				if (node.length === 2 && name === 'range') {
-					result.label = name + ': [' + node[0] + ', ' + node[1] + ']';
-				} else {
-					result.label = result.label + ' [' + node.length + ']';
-					for (i = 0; i < node.length; i += 1) {
-						key = String(i);
-						value = node[i];
-						child = convert(key, value);
-						if (isArray(child.children) && child.children.length === 1) {
-							result.children.push(child.children[0]);
-						} else {
-							result.children.push(convert(key, value));
-						}
-					}
-				}
-			} else {
-				if (typeof node.type !== 'undefined') {
-					result.children.push({
-						type: 'Text',
-						label: node.type,
-						expanded: true,
-						children: []
-					});
-					for (key in node) {
-						if (Object.prototype.hasOwnProperty.call(node, key)) {
-							if (key !== 'type') {
-								value = node[key];
-								result.children[0].children.push(convert(key, value));
-							}
-						}
-					}
-				} else {
-					for (key in node) {
-						if (Object.prototype.hasOwnProperty.call(node, key)) {
-							value = node[key];
-							result.children.push(convert(key, value));
-						}
-					}
-				}
-			}
-			return result;
-
-		default:
-			break;
-		}
-
-		return {
-			type: 'Text',
-			label: '?'
-		};
-	}
-
-	window.tree.buildTreeFromObject(convert('Program body', syntax.body));
-	window.tree.render();
-
-
-	window.tree2.buildTreeFromObject(convert('Program body', syntax2.body));
-	window.tree2.render();
-
-
-	// json views
-
-	//		JSON.stringify(result, null, "	");
-}
-</script>
-
-
+	<meta charset="utf-8">
+	<title>Esprima AST editor</title>
+	<link rel="stylesheet" type="text/css" href="../lib/esprima/assets/codemirror/codemirror.css"/>
+	<link rel="stylesheet" type="text/css" href="style.css"/>
+	<link rel="stylesheet" type="text/css" href="../lib/esprima/assets/yui/treeview.css"/>
 </head>
 <body>
-<div class="container">
 
-<p>
-	original code
-<textarea id="code" autofocus="autofocus" cols="70" rows="30" spellcheck="false">
+	<div id="main" class="layout">
+		<!--<div id="header" class="layout">header</div>-->
+
+		<div id="body" class="layout">
+
+
+			<div id="codes" class="layout src">
+				<ul class="tabs layout">
+					<li class="src"><a href="#src">Source</a></li>
+					<li class="mod"><a href="#mod">AST Mod</a></li>
+					<li class="gen"><a href="#gen">Generated</a></li>
+				</ul>
+
+				<div id="src" class="layout">
+					<p><textarea id="code" autofocus="autofocus" spellcheck="false">
 var dom = $dom(["div", "some text"]);
-</textarea></p>
-
-	<!--var dom = $dom([-->
-		<!--'div', {className: 'Foo' + ( data.isSelected ? ' selected' : '' ) + ( data.isActive ? ' active' : '' )}, [-->
-			<!--'label', [-->
-				<!--'input', {type: 'checkbox', checked: data.isSelected ? 'checked': ''}-->
-			<!--],-->
-			<!--'button.button', {title: 'A title'},-->
-				<!--'The button text',-->
-			<!--'a', {href: data.href}, [-->
-				<!--'span', {className: 'lorem' + ( data.total > 1 ? ' ipsum' : '' )}, [-->
-					<!--'span.dolores', {unselectable: 'on'}, [-->
-						<!--data.text-->
-					<!--],-->
-					<!--'span.total', {unselectable: 'on', className: (data.total < 1 ? "hidden" : "")}-->
-				<!--],-->
-				<!--'span.yes', {text: '*', className: (!data.yes ? "hidden" : "")},-->
-				<!--'span', {unselectable: 'on'}, data.total > 1 ? data.text : null,-->
-				<!--'time', {unselectable: 'on', title: data.displayDate},-->
-					<!--data.displayDate,-->
-				<!--'span.preview', {unselectable: 'on'},-->
-					<!--data.preview-->
-			<!--]-->
-		<!--]-->
-	<!--]);-->
-
-<p>
-	ast modification code
-	<textarea id="code2" autofocus="autofocus" cols="70" rows="30" spellcheck="false">
+					</textarea></p>
+				</div>
+				<div id="mod" class="layout">
+					<p><textarea id="code2" autofocus="autofocus" spellcheck="false">
 (function() {
 	var optimizer = function(ast) {
 		// do cool things to ast
@@ -260,106 +37,145 @@ var dom = $dom(["div", "some text"]);
 
 	return optimizer;
 }());
-</textarea></p>
-
-<p>
-	generated modified code
-	<textarea id="result" autofocus="autofocus" cols="70" rows="30" spellcheck="false"></textarea></p>
-
-<p>Indent with:
-	<label><input type="radio" name="indent" id="onetab" value="onetab"> tab</label>
-	<label><input type="radio" name="indent" id="twospaces" value="twospaces"> 2 spaces</label>
-	<label><input checked type="radio" name="indent" id="fourspaces" value="fourspaces"> 4 spaces</label>
-</p>
-<p>Options:
-	<label><input type="checkbox" id="raw"> Preserve raw value of literals</label>
-	<label><input type="checkbox" id="comment"> Include comments</label>
-	Syntax node location info (start, end)
-	<label><input type="checkbox" id="range">Index-based range</label>
-	<label><input type="checkbox" id="loc">Line and column-based</label>
-</p>
-
-<p><input type="button" value="Rewrite" id="rewrite"></p>
-
-<p id="error"></p>
+					</textarea></p>
+				</div>
+				<div id="gen" class="layout">
+					<p><textarea id="result" autofocus="autofocus" spellcheck="false"></textarea></p>
+				</div>
+			</div>
 
 
-<label for="asTree">View AST as:</label> <button id="asTree">Tree</button> <button id="asJSON">JSON</button>
+			<div id="ast" class="layout ast-left">
+				<ul class="tabs layout">
+					<li class="ast-left"><a href="#ast-left">Source</a></li>
+					<li class="ast-right"><a href="#ast-right">Generated</a></li>
+				</ul>
 
-<div id="astViews">
+				<div id="ast-left" class="layout">
+					<div id="sourceTree">
+						original AST
+						<span>
+							<input type="button" id="expand" value="Expand All">
+							<input type="button" id="collapse" value="Collapse All">
+						</span>
+						<div id="treeview"></div>
+					</div>
+					<!--<textarea id="json1" class="layout"></textarea>-->
+				</div>
 
-	<div id="trees">
+				<div id="ast-right" class="layout">
+					<div id="source2Tree">
+						modified AST
+						<span>
+							<input type="button" id="expand2" value="Expand All">
+							<input type="button" id="collapse2" value="Collapse All">
+						</span>
+						<div id="treeview2"></div>
+					</div>
+					<!--<textarea id="json2" class=""></textarea>-->
+				</div>
 
-		<div id="sourceTree">
-			original ast
-			<span>
-				<input type="button" id="expand" value="Expand All">
-				<input type="button" id="collapse" value="Collapse All">
-			</span>
-			<div id="treeview">
 			</div>
 		</div>
 
-		<div id="source2Tree">
-			modified ast
-			<span>
-				<input type="button" id="expand2" value="Expand All">
-				<input type="button" id="collapse2" value="Collapse All">
-			</span>
-			<div id="treeview2">
+
+		<div id="footer" class="layout">
+
+			<div id="settings">
+				<p>Indent with:
+					<label><input checked type="radio" name="indent" id="onetab" value="onetab"> tab</label>
+					<label><input type="radio" name="indent" id="twospaces" value="twospaces"> 2 spaces</label>
+					<label><input type="radio" name="indent" id="fourspaces" value="fourspaces"> 4 spaces</label>
+				</p>
+
+				<p>Options:
+					<label><input type="checkbox" id="raw"> Preserve raw value of literals</label>
+					<label><input type="checkbox" id="comment"> Include comments</label>
+					Syntax node location info (start, end)
+					<label><input type="checkbox" checked="checked" id="range">Index-based range</label>
+					<label><input type="checkbox" checked="checked" id="loc">Line and column-based</label>
+				</p>
+
+				<p><input type="button" value="Rewrite" id="rewrite"></p>
+
+
 			</div>
+			<p id="error"></p>
+
+
+			<!--<label for="asTree">View AST as:</label> <button id="asTree">Tree</button> <button id="asJSON">JSON</button>-->
 		</div>
-
-		<br class="clear">
-
 	</div>
 
-	<div id="jsons">
-		<div id="json1"></div>
-		<div id="json2"></div>
-	</div>
 
-</div>
+	<!--<div class="container">-->
 
 
 
-<script>
-	// init editors
-	try {
-		window.checkEnv();
-
-		window.editor = CodeMirror.fromTextArea($id("code"), {
-			lineNumbers: true,
-			matchBrackets: true
-		});
-
-		window.editor2 = CodeMirror.fromTextArea($id("code2"), {
-			lineNumbers: true,
-			matchBrackets: true
-		});
-
-		window.editor3 = CodeMirror.fromTextArea($id("result"), {
-			lineNumbers: true,
-			matchBrackets: true
-		});
-
-	} catch (e) {
-		// CodeMirror failed to initialize, possible in e.g. old IE.
-		$id('codemirror').innerHTML = '';
-	}
-
-	// make the tree/json tabs work
+		<!--var dom = $dom([-->
+			<!--'div', {className: 'Foo' + ( data.isSelected ? ' selected' : '' ) + ( data.isActive ? ' active' : '' )}, [-->
+				<!--'label', [-->
+					<!--'input', {type: 'checkbox', checked: data.isSelected ? 'checked': ''}-->
+				<!--],-->
+				<!--'button.button', {title: 'A title'},-->
+					<!--'The button text',-->
+				<!--'a', {href: data.href}, [-->
+					<!--'span', {className: 'lorem' + ( data.total > 1 ? ' ipsum' : '' )}, [-->
+						<!--'span.dolores', {unselectable: 'on'}, [-->
+							<!--data.text-->
+						<!--],-->
+						<!--'span.total', {unselectable: 'on', className: (data.total < 1 ? "hidden" : "")}-->
+					<!--],-->
+					<!--'span.yes', {text: '*', className: (!data.yes ? "hidden" : "")},-->
+					<!--'span', {unselectable: 'on'}, data.total > 1 ? data.text : null,-->
+					<!--'time', {unselectable: 'on', title: data.displayDate},-->
+						<!--data.displayDate,-->
+					<!--'span.preview', {unselectable: 'on'},-->
+						<!--data.preview-->
+				<!--]-->
+			<!--]-->
+		<!--]);-->
 
 
 
-	// do a source rewrite on initial load
-	$(function() {
-		$id('rewrite').onclick = sourceRewrite;
-		sourceRewrite();
-	});
+
+
+		<!--<div id="astViews">-->
+
+			<!--<div id="trees">-->
 
 
 
-</script>
+
+
+				<!--<br class="clear">-->
+
+			<!--</div>-->
+
+			<!--<div id="jsons">-->
+
+			<!--</div>-->
+
+		<!--</div>-->
+	<!--</div>-->
+
+	<script src="../src/loot.js"></script>
+	<script src="../lib/json2.js"></script>
+	<script src="../lib/jquery-1.8.2.min.js"></script>
+	<script src="../lib/jsonselect.js"></script>
+
+	<script src="../lib/esprima/test/3rdparty/platform.js"></script>
+	<script src="../lib/esprima/test/3rdparty/escodegen.js"></script>
+	<script src="../lib/esprima/demo/checkenv.js"></script>
+	<script src="../lib/esprima/esprima.js"></script>
+
+	<script src="../lib/esprima/assets/codemirror/codemirror.js"></script>
+	<script src="../lib/esprima/assets/codemirror/javascript.js"></script>
+
+	<script src="../lib/esprima/assets/yui/yahoo-dom-event.js"></script>
+	<script src="../lib/esprima/assets/yui/treeview-min.js"></script>
+
+	<script src="rewrite2.js"></script>
+
 </body>
 </html>

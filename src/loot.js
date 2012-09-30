@@ -1,5 +1,5 @@
 /*
- * loot.js 0.2.2
+ * loot.js 0.2.3
  * (c) andrew luetgers
  * you are free to distribute loot.js under the MIT license
  * https://github.com/andrewluetgers/loot
@@ -98,10 +98,11 @@
 		arrType = "array", 				regType = "regexp", 	argType = "arguments",
 		eleType = "element", 			objType = "object", 	numType = "number",
 		nanType = "NaN", 				nulType = "null", 		booType = "boolean",
+		errType = "error",				datType = "date", 		calleeS = "callee",
 		booStr = "[object Boolean]", 	numStr = "[object Number]",
 		datStr = "[object Date]", 		regStr = "[object RegExp]",
 		argStr = "[object Arguments]", 	aryStr = "[object Array]",
-		calleeS = "callee";
+		errStr = "Error";
 
 	// basic types -------------------------------------------------------
 	// stolen wholesale from underscore
@@ -116,6 +117,7 @@
 	function $isNumber		(obj) { 	return toString.call(obj) === numStr;}
 	function $isDate		(obj) { 	return toString.call(obj) === datStr;}
 	function $isRegExp		(obj) { 	return toString.call(obj) === regStr;}
+	function $isError		(obj) { 	return toString.call(obj) === errStr;}
 
 	function $isArguments	(obj) { 	return toString.call(obj) === argStr;}
 	if (!$isArguments(arguments)) {
@@ -160,29 +162,22 @@
 	}
 
 	function $typeof(obj) {
-		var type = typeof obj;
+		var type = typeof obj, str;
 
 		switch(type) {
 			case objType:
-				if (obj === null) {
-					return nulType;
-				} else if ($isArray(obj)) {
-					return arrType;
-				} else if (toString.call(obj) === regStr) {
-					return regType;
-				} else if ($isArguments(obj)) {
-					return argType;
-				} else if (!!(obj && obj.nodeType == 1)) {
-					return eleType;
-				} else { // this should be last
-					return objType;
-				}
+				if (obj === null) { 								return nulType;}
+				else if ($isArray(obj)) { 							return arrType;}
+				else if ((str = toString.call(obj)) === regStr) { 	return regType;}
+				else if ($isArguments(obj)) { 						return argType;}
+				else if (!!(obj && obj.nodeType == 1)) { 			return eleType;}
+				else if (str === errStr) {							return errType;}
+				else if (str === datStr) { 							return datType;}
+				else {												return objType;} // this should be last
 				break;
 
 			case numType:
-				if (obj !== obj) {
-					return nanType;
-				}
+				if (obj !== obj) {return nanType;}
 				break;
 
 			default:
@@ -205,7 +200,7 @@
 		return true;
 	}
 
-	function $has (obj, key) { return hasOwnProperty.call(obj, key); }
+	function $has(obj, key) { return hasOwnProperty.call(obj, key); }
 
 
 	// Return a copy of the object only containing the whitelisted properties.
@@ -264,7 +259,7 @@
 			}
 		}
 
-		each.breaker = breaker;
+		each.break = each.breaker = breaker;
 		each.nativeForEach = nativeForEach;
 		each.hasOwnProperty = hasOwnProperty;
 
@@ -304,9 +299,9 @@
 	// or `foldl`. Delegates to **ECMAScript 5**'s native `reduce` if available.
 	function $reduce(obj, iterator, memo, context) {
 		var initial = arguments.length > 2;
-		if (obj == null) obj = [];
+		if (obj == null) { obj = []; }
 		if (nativeReduce && obj.reduce === nativeReduce) {
-			if (context) iterator = $bind(iterator, context);
+			if (context) { iterator = $bind(iterator, context); }
 			return initial ? obj.reduce(iterator, memo) : obj.reduce(iterator);
 		}
 
@@ -323,7 +318,7 @@
 	}
 
 
-	// Return the first value which passes a truth test. Aliased as `detect`.
+	// Return the first value which passes a truth test.
 	function $find(obj, iterator, context) {
 		var result;
 		$any(obj, function(value, index, list) {
@@ -333,7 +328,7 @@
 			}
 		});
 		return result;
-	};
+	}
 
 	// Return all the elements that pass a truth test.
 	// Delegates to **ECMAScript 5**'s native `filter` if available.
@@ -447,8 +442,8 @@
 
 	// Return the maximum element or (element-based computation).
 	function $max(obj, iterator, context) {
-	if (!iterator && $isArray(obj) && obj[0] === +obj[0]) return Math.max.apply(Math, obj);
-		if (!iterator && $isEmpty(obj)) return -Infinity;
+	if (!iterator && $isArray(obj) && obj[0] === +obj[0]) {return Math.max.apply(Math, obj);}
+		if (!iterator && $isEmpty(obj)) {return -Infinity;}
 		var result = {computed : -Infinity};
 		$each(obj, function(value, index, list) {
 			var computed = iterator ? iterator.call(context, value, index, list) : value;
@@ -459,8 +454,8 @@
 
 	// Return the minimum element (or element-based computation).
 	function $min(obj, iterator, context) {
-		if (!iterator && $isArray(obj) && obj[0] === +obj[0]) return Math.min.apply(Math, obj);
-		if (!iterator && $isEmpty(obj)) return Infinity;
+		if (!iterator && $isArray(obj) && obj[0] === +obj[0]) {return Math.min.apply(Math, obj);}
+		if (!iterator && $isEmpty(obj)) {return Infinity;}
 		var result = {computed : Infinity};
 		$each(obj, function(value, index, list) {
 			var computed = iterator ? iterator.call(context, value, index, list) : value;
@@ -531,7 +526,7 @@
 	}
 
 
-	// Trim out all falsy values from an array or object.
+	// Trim out all falsey values from an array or object.
 	function $compact(obj) {
 		return $filter(obj, function(value){ return !!value; });
 	}
@@ -1049,6 +1044,90 @@
 	}
 
 	/**
+	 * @param obj (object) the object to read properties from
+	 * @param handler (function) function(value, key, obj) { return boolean; }
+	 * traverse an object calling a handler on each "owned" property
+	 * do so with depth first top down order by default
+	 * optionally can choos breadthFirst and or reversing the order of execution
+	 */
+	function $walk(obj, handler, isBreadthFirst, isReverseOrder) {
+		if (typeof obj !== objType || $isNull(obj)) {
+			throw new Error("traverse source must be an object");
+		}
+
+		if (!$isFunction(handler)) {
+			throw new Error("traverse handler must be a function");
+		}
+
+		var exec,
+			res = {
+				breadthFirst: [],
+				depthFirst: [],
+				siblings: []
+			};
+
+		_walk(obj, handler, -1, isBreadthFirst, isReverseOrder, res);
+
+		// finalize the bread-first list
+		res.siblings = res.breadthFirst;
+		res.breadthFirst = $flat(res.breadthFirst);
+
+		if (isBreadthFirst) {
+			exec = res.breadthFirst;
+		} else {
+			exec = res.depthFirst;
+		}
+
+		if (isReverseOrder) {exec = exec.reverse();}
+
+		$each(exec, function(obj) {obj.fn();});
+
+		return res;
+	}
+
+	// does the actual work for $walk
+	function _walk(obj, handler, depth, isBreadthFirst, isReverseOrder, res) {
+		depth++;
+		var key, val,
+			depthFirst = res.depthFirst,
+			breadthFirst = res.breadthFirst,
+			siblings = [],
+			levels = [];
+
+		if (!breadthFirst[depth]) {
+			// init the breadthFirst per-level calls array
+			breadthFirst[depth] = levels;
+		} else {
+			levels = breadthFirst[depth];
+		}
+
+		for (key in obj) {
+			if (obj.hasOwnProperty(key)) {
+				val = obj[key];
+
+				// capture closure values in a new context for later access
+				(function(v, k, d) {
+					// a function we can call later that would be tha same as calling it now
+					var fn = function() {handler(v, k, d);};
+					var theObj = {val: v, key: k, depth: d, fn: fn};
+					depthFirst.push(theObj);
+					siblings.push(theObj);
+				} (val, key, depth));
+
+				// recursive call
+				if (typeof val === objType && !$isNull(val)) {
+					// todo check for cycles!
+					_walk(val, handler, depth, isBreadthFirst, isReverseOrder, res);
+				}
+			}
+		}
+
+		levels.push(siblings);
+
+		depth--;
+	}
+
+	/**
 	 * serves as a utility method for $copy and $merge
 	 * @param source (object) the object to copy properties from
 	 * @param target (object) optional object to merge source's properties into
@@ -1082,7 +1161,8 @@
 
 		for (key in source) {
 
-			// skip this property if filter returns false
+			// todo check for cycles from arbitrary parents using an array of objects as a set and
+			// indexOf to test if an object has been visited yet
 			if (filter && !filter(key, source, target)) {
 				continue;
 			}
@@ -1547,6 +1627,7 @@
 				var that = this,
 					topicType = typeof topic,
 					topicIsString = (topicType == strType),
+					handlerExistsForTopic = false,
 					responderType = typeof responder;
 
 				if (arguments.length > 1) {
@@ -1556,30 +1637,31 @@
 					}
 
 					if (topicIsString && responderType === "function") {
+
 						// don't add something twice
 						var topicSpecificListeners = (topic !== "*") ? this._listeningFor[topic] || [] : []; //$reuse.array();
 						$each(topicSpecificListeners, function(listener) {
 							if(listener.responder === responder) {
-								return this;
+								handlerExistsForTopic = true;
+								return $each.break;
 							}
 						});
 
-						// we only hit this block if the listener has not already been added
-						topicSpecificListeners.push({
-							responder: responder,
-							responses: 0,
-							maxResponses: maxResponses
-						});
+						if (!handlerExistsForTopic) {
+							topicSpecificListeners.push({
+								responder: responder,
+								responses: 0,
+								maxResponses: maxResponses
+							});
 
-						this._listeningFor[topic] = topicSpecificListeners;
-
-						return this;
+							this._listeningFor[topic] = topicSpecificListeners;
+						}
 
 					} else {
 						throw new Error("Invalid parameters, expected: (string, function) but saw (" + topicType + ", " +responderType +")");
 					}
 
-				// handle listen({event:handler}) signature
+				// handle listen({event:handler, event2:handler2, ...}) signature
 				} else if (typeof topic === objType) {
 					// call self for each function if given a map of callbacks instead of a single function
 					$each(topic, function(listener, topic) {
@@ -1589,6 +1671,8 @@
 						}
 					});
 				}
+
+				return this;
 			},
 
 			once: function(topic, responder) {
@@ -3296,6 +3380,7 @@
 		$isRegExp: $isRegExp,
 		$isArguments: $isArguments,
 		$isArray: $isArray,
+		$isError: $isError,
 		$typeof: $typeof,
 
 		// objects
@@ -3306,6 +3391,7 @@
 		$values: $values,
 
 		$new: $new,
+		$walk: $walk,
 		$copy: $copy,
 		$merge: $merge,
 		$extend: $extend,
@@ -3445,8 +3531,8 @@
 	loot(this);
 }());
 
-
-loot.extend("$io", loot.exports.$speak(function(url, req, dataType, reqType) {
+// example of adding an external plugin/extension
+loot.extend("$io", $speak(function(url, req, dataType, reqType) {
 
 	var key = $cache.getKey(url, req),
 		parent = $isSpeaker(this) ? this : $io,
@@ -3456,7 +3542,7 @@ loot.extend("$io", loot.exports.$speak(function(url, req, dataType, reqType) {
 		startH = handlers.start,
 		successH = handlers.success,
 		errorH = handlers.error,
-		useCache = (typeId === "io") ? false : true,
+		useCache = typeId !== "io",
 		bin = useCache ? $cache.get(typeId, url, req) : null;
 
 	var xhr = $.ajax({
@@ -3466,9 +3552,9 @@ loot.extend("$io", loot.exports.$speak(function(url, req, dataType, reqType) {
 			data: 		req,
 
 			success: function(val, textStatus, xhr) {
-				var msg = useCache ?
-							$cache.set(typeId, url, req, val, {xhr: xhr}) :
-							{val: val, xhr: xhr, url: url, req: req};
+				var msg = useCache
+						? $cache.set(typeId, url, req, val, {xhr: xhr})
+						: {val: val, xhr: xhr, url: url, req: req};
 
 				if ($isFunction(successH)) {
 					successH.call(parent, msg, typeId + ":success:" + url);

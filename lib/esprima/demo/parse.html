@@ -9,19 +9,28 @@
 <script src="../assets/json2.js"></script>
 <script src="../assets/codemirror/codemirror.js"></script>
 <script src="../assets/codemirror/javascript.js"></script>
-<link rel="stylesheet" type="text/css" href="../assets/codemirror/codemirror.css"/>
-<link rel="stylesheet" type="text/css" href="../assets/style.css"/>
-<link rel="stylesheet" type="text/css" href="parse.css"/>
-
 <script src="../assets/yui/yahoo-dom-event.js"></script>
 <script src="../assets/yui/treeview-min.js"></script>
+<link rel="stylesheet" type="text/css" href="../assets/codemirror/codemirror.css"/>
 <link rel="stylesheet" type="text/css" href="../assets/yui/treeview.css"/>
+<link rel="stylesheet" type="text/css" href="../assets/style.css"/>
+<link rel="stylesheet" type="text/css" href="parse.css"/>
 <style>
 .ygtvfocus .ygtvlabel,
 .ygtvfocus .ygtvlabel:link,
 .ygtvfocus .ygtvlabel:visited,
 .ygtvfocus .ygtvlabel:hover {
     background-color: #eee;
+}
+
+.highlight {
+    background-color: #add8e6;
+    background-color: rgba(173, 216, 230, 0.6);
+}
+
+label {
+    margin-left: 5px;
+    margin-right: 15px;
 }
 
 table th, table td {
@@ -124,7 +133,8 @@ function updateTree(syntax) {
                         type: 'Text',
                         label: node.type,
                         expanded: true,
-                        children: []
+                        children: [],
+                        data: node
                     });
                     for (key in node) {
                         if (Object.prototype.hasOwnProperty.call(node, key)) {
@@ -154,6 +164,27 @@ function updateTree(syntax) {
             label: '?'
         };
     }
+
+    window.tree.subscribe('focusChanged', function (args) {
+        var from, to;
+
+        function convert(loc) {
+            return {
+                line: loc.line - 1,
+                ch:   loc.column
+            };
+        }
+
+        if (window.editorMark) {
+            window.editorMark.clear();
+            delete window.editorMark;
+        }
+        if (args.newNode && args.newNode.data && args.newNode.data.loc) {
+            from = convert(args.newNode.data.loc.start);
+            to = convert(args.newNode.data.loc.end);
+            window.editorMark = window.editor.markText(from, to, 'highlight');
+        }
+    });
 
     window.tree.buildTreeFromObject(convert('Program body', syntax.body));
     window.tree.render();
@@ -195,8 +226,9 @@ function parse(delay) {
 
             result = esprima.parse(code, options);
             str = JSON.stringify(result, adjustRegexLiteral, 4);
-            document.getElementById('tokens').value = JSON.stringify(esprima.parse(code,
-                { tokens : true }).tokens, adjustRegexLiteral, 4);
+            options.tokens = true;
+            document.getElementById('tokens').value = JSON.stringify(esprima.parse(code, options).tokens,
+                adjustRegexLiteral, 4);
             updateTree(result);
         } catch (e) {
             updateTree();
@@ -232,13 +264,11 @@ function parse(delay) {
 // Life, Universe, and Everything
 var answer = 6 * 7;</textarea></p>
 <p id="codemirror" align="right"><small>The above code editor is based on <a href="http://codemirror.net" target="_blank">CodeMirror</a>.</small></p>
-<p><label><input type="checkbox" id="raw"> Preserve raw value of literals</label></p>
-<p><label><input type="checkbox" id="comment"> Include comments</label></p>
-<p>  Syntax node location info (start, end)</p>
-<div style="margin-left: 20px;">
-<p><label><input type="checkbox" id="range">Index-based range</label></p>
-<p><label><input type="checkbox" id="loc">Line and column-based</label></p>
-</div>
+<p><label><input type="checkbox" id="raw"> Preserve raw value of literals</label>
+<label><input type="checkbox" id="comment"> Include comments</label></p>
+<p>Syntax node location info (start, end):
+<label><input type="checkbox" id="range">Index-based range</label>
+<label><input type="checkbox" id="loc">Line and column-based</label></p>
 <div class="tabs">
     <ul>
     <li id="tab_syntax" class="active">
