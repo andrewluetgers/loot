@@ -120,7 +120,7 @@
 
 		tree.buildTreeFromObject(convert('Program body', syntax.body));
 		tree.render();
-		tree.subscribe("clickEvent", sourceTreeNodeClickHandler);
+		tree.subscribe("focusChanged", sourceTreeNodeHilightHandler);
 
 
 
@@ -137,8 +137,9 @@
 
 	var hilight;
 
-	function sourceTreeNodeClickHandler(e) {
-		window.n = e.node;
+	function sourceTreeNodeHilightHandler(e) {
+		console.log(e.newNode);
+		window.n = e.newNode;
 		nc = null;
 
 		if (hilight && hilight.clear) {
