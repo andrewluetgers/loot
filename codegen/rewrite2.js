@@ -202,7 +202,7 @@
 			loc: false
 		};
 
-		try{
+		try {
 			syntax = window.esprima.parse(code, options);
 			code2 = window.editor2.getValue();
 			var process = eval(code2);
@@ -214,16 +214,19 @@
 				console.log("to disable logging: window.logAST = false");
 			}
 			code = window.escodegen.generate(newSyntax, { indent: indent });
-		}catch(e){
+		} catch(e) {
+			setText('error', e.toString());
 			//swallow if first attempt fails
 		}
 
-		try{ //regardless of status of first attempt, try with macros expanded
-			afterMacroExpandSyntax = window.esprima.parse( window.editor4.getValue() + code, options);
+		try { //regardless of status of first attempt, try with macros expanded
+			var macros = window.editor4.getValue();
+			afterMacroExpandSyntax = window.esprima.parse( macros + code, options);
 			updateTree(syntax, afterMacroExpandSyntax);
-		}catch(e){ //no can do, display error
+			setText('error', "");
+		} catch(e) { //no can do, display error
 			setText('error', e.toString());
-		}finally {
+		} finally {
 			code = window.escodegen.generate(afterMacroExpandSyntax, { indent: indent });
 			window.editor3.setValue(code);
 		}
@@ -331,7 +334,6 @@
 				lineNumbers: true,
 				matchBrackets: true,
 				onChange: function() {
-					console.log("rewrite");
 					sourceRewrite();
 				}
 			});
@@ -340,7 +342,6 @@
 				lineNumbers: true,
 				matchBrackets: true,
 				onChange: function() {
-					console.log("rewrite");
 					sourceRewrite();
 				}
 			});
@@ -349,7 +350,6 @@
 				lineNumbers: true,
 				matchBrackets: true,
 				onChange: function() {
-					console.log("rewrite");
 					sourceRewrite();
 				}
 			});
