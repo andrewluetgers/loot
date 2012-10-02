@@ -19,6 +19,7 @@
 				<ul class="tabs layout">
 					<li class="src"><a href="#src">Source</a></li>
 					<li class="mod"><a href="#mod">AST Mod</a></li>
+					<li class="sweetmod"><a href="#sweetmod">Sweet</a></li>
 					<li class="gen"><a href="#gen">Generated</a></li>
 				</ul>
 
@@ -37,6 +38,15 @@ var dom = $dom(["div", "some text"]);
 
 	return optimizer;
 }());
+					</textarea></p>
+				</div>
+				<div id="sweetmod" class="layout">
+					<p><textarea id="code3" autofocus="autofocus" spellcheck="false">
+macro def {
+  case $name:ident $params $body => {
+    function $name $params $body
+  }
+}
 					</textarea></p>
 				</div>
 				<div id="gen" class="layout">
@@ -113,7 +123,7 @@ var dom = $dom(["div", "some text"]);
 	<script src="../lib/esprima/test/3rdparty/platform.js"></script>
 	<script src="../lib/esprima/test/3rdparty/escodegen.js"></script>
 	<script src="../lib/esprima/demo/checkenv.js"></script>
-	<script src="../lib/esprima/esprima.js"></script>
+
 
 	<script src="../lib/esprima/assets/codemirror/codemirror.js"></script>
 	<script src="../lib/esprima/assets/codemirror/javascript.js"></script>
@@ -121,6 +131,8 @@ var dom = $dom(["div", "some text"]);
 	<script src="../lib/esprima/assets/yui/yahoo-dom-event.js"></script>
 	<script src="../lib/esprima/assets/yui/treeview-min.js"></script>
 
+	<script src="../lib/underscore.js"></script>
+	<script src="../lib/sweet.js"></script> 
 	<script src="rewrite2.js"></script>
 
 </body>

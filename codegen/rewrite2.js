@@ -10,7 +10,7 @@
 			window.tree = null;
 		}
 
-		if (typeof syntax === 'undefined') {
+		if (typeof syntax === 'undefined' && syntax2 === 'undefined') {
 			return;
 		}
 
@@ -118,15 +118,18 @@
 			};
 		}
 
-		tree.buildTreeFromObject(convert('Program body', syntax.body));
-		tree.render();
-		tree.subscribe("focusChanged", sourceTreeNodeHilightHandler);
+		if(syntax){
+			tree.buildTreeFromObject(convert('Program body', syntax.body));
+			tree.render();
+			tree.subscribe("focusChanged", sourceTreeNodeHilightHandler);
+		}
 
 
-
-		tree2.buildTreeFromObject(convert('Program body', syntax2.body));
-		tree2.render();
+		if(syntax2){
+			tree2.buildTreeFromObject(convert('Program body', syntax2.body));
+			tree2.render();
 //		tree2.subscribe("clickEvent", sourceTreeNodeClickHandler);
+		}
 
 
 		// json views
@@ -163,7 +166,7 @@
 	function sourceRewrite() {
 		'use strict';
 
-		var code, syntax, indent, code2, options;
+		var code, syntax, indent, code2, options, afterMacroExpandSyntax;
 
 		function setText(id, str) {
 			var el = document.getElementById(id);
@@ -195,38 +198,40 @@
 		options = {
 			comment: document.getElementById('comment').checked,
 			raw: document.getElementById('raw').checked,
-			range: document.getElementById('range').checked,
-			loc: document.getElementById('loc').checked
+			range: false,
+			loc: false
 		};
 
-		try {
+		try{
 			syntax = window.esprima.parse(code, options);
-
 			code2 = window.editor2.getValue();
-
 			var process = eval(code2);
-
 			var newSyntax = process(syntax);
-
-			updateTree(syntax, newSyntax);
-
-
+			
 			if (logAST) {
 				console.log("original AST", JSON.stringify(syntax), syntax);
 				console.log("generated AST", JSON.stringify(newSyntax), newSyntax);
 				console.log("to disable logging: window.logAST = false");
 			}
 			code = window.escodegen.generate(newSyntax, { indent: indent });
+		}catch(e){
+			//swallow if first attempt fails
+		}
+
+		try{ //regardless of status of first attempt, try with macros expanded
+			afterMacroExpandSyntax = window.esprima.parse( window.editor4.getValue() + code, options);
+			updateTree(syntax, afterMacroExpandSyntax);
+		}catch(e){ //no can do, display error
+			setText('error', e.toString());
+		}finally {
+			code = window.escodegen.generate(afterMacroExpandSyntax, { indent: indent });
+			window.editor3.setValue(code);
+		}
+
 
 	//		(function () {
 				console.log(eval(code), code);
 	//		}())
-
-		} catch (e) {
-			setText('error', e.toString());
-		} finally {
-			window.editor3.setValue(code);
-		}
 	}
 
 
@@ -308,6 +313,9 @@
 				case "mod":
 					editor2.refresh();
 					break;
+				case "sweetmod":
+					editor4.refresh();
+					break;
 				case "gen":
 					editor3.refresh();
 					break;
@@ -337,10 +345,21 @@
 				}
 			});
 
+			window.editor4 = CodeMirror.fromTextArea($id("code3"), {
+				lineNumbers: true,
+				matchBrackets: true,
+				onChange: function() {
+					console.log("rewrite");
+					sourceRewrite();
+				}
+			});
+
 			window.editor3 = CodeMirror.fromTextArea($id("result"), {
 				lineNumbers: true,
 				matchBrackets: true
 			});
+
+
 
 
 		} catch (e) {

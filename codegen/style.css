@@ -390,8 +390,10 @@ ul.tabs a:hover {
 	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#efefef', endColorstr='#d3d3d3',GradientType=0 ); /* IE6-9 */
 }
 
+
 #src,
 #mod,
+#sweetmod,
 #gen {
 	display: none;
 	top: 24px;
@@ -408,6 +410,7 @@ ul.tabs a:hover {
 .ast-right li.ast-right a,
 .src li.src a,
 .mod li.mod a,
+.sweetmod li.sweetmod a,
 .gen li.gen a {
 	color: #333;
 	background: #ffffff; /* Old browsers */
@@ -422,6 +425,7 @@ ul.tabs a:hover {
 
 .src #src,
 .mod #mod,
+.sweetmod #sweetmod,
 .gen #gen {
 	display: block;
 }
