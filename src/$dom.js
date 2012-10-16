@@ -238,6 +238,7 @@
 		node.appendChild = node.append;
 		node.removeAttribute = node.setAttribute = node.set;
 
+		console.log($node);
 		return function(type) {
 			// use new to reduce memory footprint for many nodes
 			var n = $new(node);
@@ -396,7 +397,7 @@
 
 			// support (selector, children) signature'
 			// support (tag, children) signature
-			if (typeof props === strType || $isArray(props)) {
+			if (typeof props === "string" || $isArray(props)) {
 				children = props;
 				props = {};
 			}
@@ -476,7 +477,7 @@
 		// its not perfect but should get the job done
 		function $isSelector(string) {
 
-			if (typeof string !== strType) {
+			if (typeof string !== "string") {
 				return false;
 			}
 
@@ -821,7 +822,7 @@
 
 		// the escape function
 		return function(string) {
-			if (typeof string == strType) {
+			if (typeof string == "string") {
 				return string.replace(amp, ampStr).replace(lt, ltStr).replace(gt, gtStr).replace(quot, quotStr).replace(squot, squotStr); //.replace(fslash, fslashStr);
 			} else {
 				return string;

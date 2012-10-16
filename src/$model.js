@@ -50,7 +50,7 @@
 			failed;
 
 		// if using single item syntax convert it to multi-item syntax so we only need one implementation
-		if (typeof obj === strType) {
+		if (typeof obj === "string") {
 			// set single item to
 			if (_val === undefined) {
 				modelVals[_key] = _val;

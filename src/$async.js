@@ -93,7 +93,7 @@
 
 		// nextTick implementation with browser-compatible fallback
 		nextTick: (function() {
-			if (typeof process === undType || !(process.nextTick)) {
+			if (typeof process === "undefined" || !(process.nextTick)) {
 				return function(fn) { setTimeout(fn, 0); };
 			} else {
 				return process.nextTick;
@@ -192,7 +192,7 @@
 			$async.tasks(tasks, callback);
 
 			// third signature: async map
-		} else if (type === funType) {
+		} else if (type === "function") {
 			var iterator = callback;
 			callback = arguments[2];
 			$async.map(tasks, iterator, callback);

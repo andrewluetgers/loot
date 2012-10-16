@@ -84,11 +84,11 @@
 		function normalizeDateInput(date) {
 			switch (typeof date) {
 
-				case strType:
+				case "string":
 					date = new Date(('' + date).replace(minusRe, "/").replace(tzRe, " "));
 					break;
 
-				case numType:
+				case "number":
 					date = new Date(date);
 					break;
 			}
@@ -102,7 +102,7 @@
 			compareTo = normalizeDateInput(compareTo || new Date);
 
 			var token,
-				isString = (typeof date === strType),
+				isString = (typeof date === "string"),
 				seconds = (compareTo - date +
 					(compareTo.getTimezoneOffset() -
 						// if we received a GMT time from a string, doesn't include time zone bias

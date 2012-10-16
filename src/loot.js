@@ -75,39 +75,28 @@
 		nativeKeys 				= Object.keys,
 		nativeBind 				= FuncProto.bind;
 
-	// commonly used strings, this can help mitigate a tiny bit of garbage generation
-	var funType = "function", 			undType = "undefined", 	strType = "string",
-		arrType = "array", 				regType = "regexp", 	argType = "arguments",
-		eleType = "element", 			objType = "object", 	numType = "number",
-		nanType = "NaN", 				nulType = "null", 		booType = "boolean",
-		errType = "error",				datType = "date", 		calleeS = "callee",
-		booStr = "[object Boolean]", 	numStr = "[object Number]",
-		datStr = "[object Date]", 		regStr = "[object RegExp]",
-		argStr = "[object Arguments]", 	aryStr = "[object Array]",
-		errStr = "Error";
-
 	// basic types -------------------------------------------------------
 	// stolen wholesale from underscore
 	function $isNull		(obj) { 	return obj === null;}
 	function $isNaN			(obj) { 	return obj !== obj;}
 	function $isElement		(obj) { 	return !!(obj && obj.nodeType == 1);}
 	function $isObject		(obj) { 	return obj === Object(obj); }
-	function $isBoolean		(obj) { 	return obj === true || obj === false || toString.call(obj) == booStr;}
-	function $isUndefined	(obj) { 	return typeof obj === undType;}
-	function $isFunction	(obj) { 	return typeof obj === funType;}
-	function $isString		(obj) { 	return typeof obj === strType;}
-	function $isNumber		(obj) { 	return toString.call(obj) === numStr;}
-	function $isDate		(obj) { 	return toString.call(obj) === datStr;}
-	function $isRegExp		(obj) { 	return toString.call(obj) === regStr;}
-	function $isError		(obj) { 	return toString.call(obj) === errStr;}
+	function $isBoolean		(obj) { 	return obj === true || obj === false || toString.call(obj) == "[object Boolean]";}
+	function $isUndefined	(obj) { 	return typeof obj === "undefined";}
+	function $isFunction	(obj) { 	return typeof obj === "function";}
+	function $isString		(obj) { 	return typeof obj === "string";}
+	function $isNumber		(obj) { 	return toString.call(obj) === "[object Number]";}
+	function $isDate		(obj) { 	return toString.call(obj) === "[object Date]";}
+	function $isRegExp		(obj) { 	return toString.call(obj) === "[object RegExp]";}
+	function $isError		(obj) { 	return toString.call(obj) === "Error";}
 
-	function $isArguments	(obj) { 	return toString.call(obj) === argStr;}
+	function $isArguments	(obj) { 	return toString.call(obj) === "[object Arguments]";}
 	if (!$isArguments(arguments)) {
-		$isArguments = function(obj) { 	return !!(obj && $has(obj, calleeS));};
+		$isArguments = function(obj) { 	return !!(obj && $has(obj, "callee"));};
 	}
 
 	var $isArray = nativeIsArray ||
-			function(obj) { 			return toString.call(obj) == aryStr;};
+			function(obj) { 			return toString.call(obj) == "[object Array]";};
 
 	// from jQuery
 	function $isPlainObject( obj ) {
@@ -147,22 +136,22 @@
 		var type = typeof obj, str;
 
 		switch(type) {
-			case objType:
-				if (obj === null) { 								return nulType;}
-				else if ($isArray(obj)) { 							return arrType;}
-				else if ((str = toString.call(obj)) === regStr) { 	return regType;}
-				else if ($isArguments(obj)) { 						return argType;}
-				else if (!!(obj && obj.nodeType == 1)) { 			return eleType;}
-				else if (str === errStr) {							return errType;}
-				else if (str === datStr) { 							return datType;}
-				else {												return objType;} // this should be last
+			case "object":
+				if (obj === null) { 											return "null";}
+				else if ($isArray(obj)) { 										return "array";}
+				else if ((str = toString.call(obj)) === "[object RegExp]") { 	return "regexp";}
+				else if ($isArguments(obj)) { 									return "arguments";}
+				else if (!!(obj && obj.nodeType == 1)) { 						return "element";}
+				else if (str === "Error") {										return "error";}
+				else if (str === "[object Date]") { 							return "date";}
+				else {															return "object";} // this should be last
 				break;
 
-			case numType:
+			case "number":
 				if (obj !== obj) {
-					return nanType;
+					return "NaN";
 				} else {
-					return numType
+					return "number"
 				}
 				break;
 
@@ -268,7 +257,7 @@
 		function each(obj, iterator, context) {
 			var i, l, key;
 			if (!obj) return;
-			if (typeof obj === numType) {
+			if (typeof obj === "number") {
 				var arr = [];
 				for (i = 0, l = parseInt(obj); i < l; i++) {
 					arr[i] = i;
@@ -656,7 +645,7 @@
 
 	function $splice(obj, start, howMany) {
 		// slice creates garbage, lets not do that if we don't have to
-		if (arguments.length > 3 || typeof obj === strType) {
+		if (arguments.length > 3 || typeof obj === "string") {
 			return splice.apply(obj, $flat($slice(arguments, 1)));
 		} else {
 			return splice.call(obj, start, howMany);
@@ -718,7 +707,7 @@
 	 * optionally can choose breadthFirst and or reversing the order of execution
 	 */
 	function $walk(obj, handler, isBreadthFirst, isReverseOrder) {
-		if (typeof obj !== objType || $isNull(obj)) {
+		if (typeof obj !== "object" || $isNull(obj)) {
 			throw new Error("traverse source must be an object");
 		}
 
@@ -782,7 +771,7 @@
 				} (val, key, depth));
 
 				// recursive call
-				if (typeof val === objType && !$isNull(val)) {
+				if (typeof val === "object" && !$isNull(val)) {
 					// todo check for cycles!
 					_walk(val, handler, depth, isBreadthFirst, isReverseOrder, res);
 				}
@@ -842,7 +831,7 @@
 			}
 
 			// todo make the more specific for various types
-			if (typeof sourceProp === objType && !$isNull(sourceProp)) {
+			if (typeof sourceProp === "object" && !$isNull(sourceProp)) {
 				targetProp = $isArray(sourceProp) ? [] : {};
 				target[key] = copy(sourceProp, targetProp, filter);
 
@@ -1081,7 +1070,7 @@
 
 				var that = this,
 					topicType = typeof topic,
-					topicIsString = (topicType == strType),
+					topicIsString = (topicType == "string"),
 					handlerExistsForTopic = false,
 					responderType = typeof responder;
 
@@ -1117,7 +1106,7 @@
 					}
 
 				// handle listen({event:handler, event2:handler2, ...}) signature
-				} else if (typeof topic === objType) {
+				} else if (typeof topic === "object") {
 					// call self for each function if given a map of callbacks instead of a single function
 					$each(topic, function(listener, topic) {
 						if ($isFunction(listener)) {
@@ -1415,7 +1404,6 @@
 	};
 
 	loot.extend = function(name, obj) {
-
 		if (typeof name == "string") {
 			this.addExport(name, obj);
 
@@ -1423,7 +1411,7 @@
 		} else if (arguments.length == 1 && typeof arguments[0] == "object") {
 			obj = arguments[0];
 			for (name in obj) {
-				this.addExport(name, obj);
+				this.addExport(name, obj[name]);
 			}
 		}
 	};

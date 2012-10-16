@@ -150,7 +150,7 @@
 		return (obj && obj.bins && obj.get && obj.set);
 	}
 
-	loot.expand({
+	loot.extend({
 		$cache: $cache,
 		$isCache: $isCache
 	});
