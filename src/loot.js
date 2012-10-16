@@ -1,15 +1,6 @@
-/*
- * loot.js 0.2.3
- * (c) andrew luetgers
- * you are free to distribute loot.js under the MIT license
- * https://github.com/andrewluetgers/loot
- */
-
-
-
 (function() {
 
-	var version = "0.2.2";
+	var version = "@@version";
 
 	var root = this;
 
@@ -24,15 +15,6 @@
 			return characterArray.join("");
 		};
 	}
-
-
-	if(!String.prototype.trim) {
-		var trimRe = /^\s+|\s+$/g;
-		String.prototype.trim = function () {
-			return this.replace(trimRe,'');
-		};
-	}
-
 
 	if (!Array.prototype.indexOf) {
 		Array.prototype.indexOf = function (searchElement /*, fromIndex */ ) {
@@ -75,16 +57,16 @@
 	// Create quick reference variables for speed access to core prototypes.
 	var slice 					= ArrayProto.slice,
 		splice 					= ArrayProto.splice,
-		unshift 				= ArrayProto.unshift,
+//		unshift 				= ArrayProto.unshift,
 		toString 				= ObjProto.toString,
 		hasOwnProperty 			= ObjProto.hasOwnProperty;
 
 	// All **ECMAScript 5** native function implementations that we hope to use
 	// are declared here.
 	var nativeForEach 			= ArrayProto.forEach,
-		nativeMap  				= ArrayProto.map,
+//		nativeMap  				= ArrayProto.map,
 		nativeReduce 			= ArrayProto.reduce,
-		nativeReduceRight 		= ArrayProto.reduceRight,
+//		nativeReduceRight 		= ArrayProto.reduceRight,
 		nativeFilter 			= ArrayProto.filter,
 		nativeEvery 			= ArrayProto.every,
 		nativeSome 				= ArrayProto.some,
@@ -177,12 +159,60 @@
 				break;
 
 			case numType:
-				if (obj !== obj) {return nanType;}
+				if (obj !== obj) {
+					return nanType;
+				} else {
+					return numType
+				}
 				break;
 
 			default:
 				return type;
 		}
+	}
+
+	// trim string -------------------------------------------------------
+	// type agnostic string trim, just returns the original val if its not a string
+	var trimRe = /^\s+|\s+$/g;
+	function $trim(str) {
+		if ($isString(str)) {
+			return str.replace(trimRe,'');
+		} else {
+			return str;
+		}
+	}
+
+
+	// from underscore
+	// Reusable constructor function for prototype setting.
+	function Ctor(){}
+	// Create a function bound to a given object (assigning `this`, and arguments,
+	// optionally). Binding with arguments is also known as `curry`.
+	// Delegates to **ECMAScript 5**'s native `Function.bind` if available.
+	// We check for `func.bind` first, to fail fast when `func` is undefined.
+	function $bind(func, context) {
+		var bound, args;
+
+		if (func.bind === nativeBind && nativeBind) {
+			return nativeBind.apply(func, slice.call(arguments, 1));
+		}
+
+		if (!$isFunction(func)) {
+			throw new TypeError;
+		}
+
+		args = slice.call(arguments, 2);
+
+		return bound = function() {
+			if (!(this instanceof bound)) {
+				return func.apply(context, args.concat(slice.call(arguments)));
+			}
+			Ctor.prototype = func.prototype;
+			var self = new Ctor;
+			var result = func.apply(self, args.concat(slice.call(arguments)));
+			if (Object(result) === result) {return result;}
+			return self;
+		};
 	}
 
 	// Is a given array, string, or object empty?
@@ -201,7 +231,6 @@
 	}
 
 	function $has(obj, key) { return hasOwnProperty.call(obj, key); }
-
 
 	// Return a copy of the object only containing the whitelisted properties.
 	function $pick(obj) {
@@ -419,7 +448,9 @@
 	function $includes(obj, target) {
 		var found = false;
 		if (obj == null) return found;
-		if (nativeIndexOf && obj.indexOf === nativeIndexOf) return obj.indexOf(target) != -1;
+		if (nativeIndexOf && obj.indexOf === nativeIndexOf) {
+			return obj.indexOf(target) != -1;
+		}
 			found = $any(obj, function(value) {
 			return value === target;
 		});
@@ -481,26 +512,108 @@
 		return $pluck($map(obj, function(value, index, list) {
 			return {
 				value : value,
+				index: index,
 				criteria : iterator.call(context, value, index, list)
 			};
 		}).sort(function(left, right) {
 			var a = left.criteria, b = right.criteria;
-			if (a === void 0) return 1;
-			if (b === void 0) return -1;
-			return a < b ? -1 : a > b ? 1 : 0;
+				if (a !== b) {
+					if (a > b || a === void 0) return 1;
+					if (a < b || b === void 0) return -1;
+				}
+				return left.index < right.index ? -1 : 1;
 		}), 'value');
 	}
 
-	// Groups the object's values by a criterion. Pass either a string attribute
-	// to group by, or a function that returns the criterion.
-	function $groupBy(obj, val) {
+
+	var $naturalSort = (function() {
+
+		/*
+		 * Natural Sort algorithm for Javascript - Version 0.6 - Released under MIT license
+		 * Author: Jim Palmer (based on chunking idea from Dave Koelle)
+		 * Contributors: Mike Grier (mgrier.com), Clint Priest, Kyle Adams, guillermo
+		 * http://www.overset.com/2008/09/01/javascript-natural-sort-algorithm/
+		 * http://js-naturalsort.googlecode.com/svn/trunk/naturalSort.js
+		 */
+		function naturalSort (a, b) {
+			var re = /(^-?[0-9]+(\.?[0-9]*)[df]?e?[0-9]?$|^0x[0-9a-f]+$|[0-9]+)/gi,
+				sre = /(^[ ]*|[ ]*$)/g,
+				dre = /(^([\w ]+,?[\w ]+)?[\w ]+,?[\w ]+\d+:\d+(:\d+)?[\w ]?|^\d{1,4}[\/\-]\d{1,4}[\/\-]\d{1,4}|^\w+, \w+ \d+, \d{4})/,
+				hre = /^0x[0-9a-f]+$/i,
+				ore = /^0/,
+			// convert all to strings and trim()
+				x = a.toString().replace(sre, '') || '',
+				y = b.toString().replace(sre, '') || '',
+			// chunk/tokenize
+				xN = x.replace(re, '\0$1\0').replace(/\0$/,'').replace(/^\0/,'').split('\0'),
+				yN = y.replace(re, '\0$1\0').replace(/\0$/,'').replace(/^\0/,'').split('\0'),
+			// numeric, hex or date detection
+				xD = parseInt(x.match(hre)) || (xN.length != 1 && x.match(dre) && Date.parse(x)),
+				yD = parseInt(y.match(hre)) || xD && y.match(dre) && Date.parse(y) || null;
+			// first try and sort Hex codes or Dates
+			if (yD)
+				if ( xD < yD ) return -1;
+				else if ( xD > yD )	return 1;
+			// natural sorting through split numeric strings and default strings
+			for(var cLoc=0, numS=Math.max(xN.length, yN.length); cLoc < numS; cLoc++) {
+				// find floats not starting with '0', string or 0 if not defined (Clint Priest)
+				oFxNcL = !(xN[cLoc] || '').match(ore) && parseFloat(xN[cLoc]) || xN[cLoc] || 0;
+				oFyNcL = !(yN[cLoc] || '').match(ore) && parseFloat(yN[cLoc]) || yN[cLoc] || 0;
+				// handle numeric vs string comparison - number < string - (Kyle Adams)
+				if (isNaN(oFxNcL) !== isNaN(oFyNcL)) return (isNaN(oFxNcL)) ? 1 : -1;
+				// rely on string comparison if different types - i.e. '02' < 2 != '02' < '2'
+				else if (typeof oFxNcL !== typeof oFyNcL) {
+					oFxNcL += '';
+					oFyNcL += '';
+				}
+				if (oFxNcL < oFyNcL) return -1;
+				if (oFxNcL > oFyNcL) return 1;
+			}
+			return 0;
+		}
+
+		return function(arr, by) {
+			if ($isArray(arr)) {
+				return arr.sort(naturalSort);
+			} else {
+				throw new Error("expected arry but saw " + $typeof(arr));
+			}
+		}
+
+	}());
+
+	// An internal function to generate lookup iterators.
+	var lookupIterator = function(value) {
+		return $isFunction(value) ? value : function(obj){ return obj[value]; };
+	};
+
+	// An internal function used for aggregate "group by" operations.
+	var group = function(obj, value, context, behavior) {
 		var result = {};
-		var iterator = $isFunction(val) ? val : function(obj) { return obj[val]; };
+		var iterator = lookupIterator(value);
 		$each(obj, function(value, index) {
-			var key = iterator(value, index);
-			(result[key] || (result[key] = [])).push(value);
+			var key = iterator.call(context, value, index, obj);
+			behavior(result, key, value);
 		});
 		return result;
+	};
+
+	// Groups the object's values by a criterion. Pass either a string attribute
+	// to group by, or a function that returns the criterion.
+	function $groupBy(obj, value, context) {
+		return group(obj, value, context, function(result, key, value) {
+			($has(result, key) ? result[key] : (result[key] = [])).push(value);
+		});
+	}
+
+	// Counts instances of an object that group by a certain criterion. Pass
+	// either a string attribute to count by, or a function that returns the
+	// criterion.
+	function $countBy(obj, value, context) {
+		return group(obj, value, context, function(result, key, value) {
+			if (!$has(result, key)) result[key] = 0;
+			result[key]++;
+		});
 	}
 
 	// Use a comparator function to figure out at what index an object should
@@ -550,464 +663,18 @@
 		}
 	}
 
-	var _clearKey;
 	function $clear(obj) {
 		if ($isArray(obj)) {
 			obj.length = 0;
 		}
 
-		for (_clearKey in obj) {
-			if (obj.hasOwnProperty(_clearKey)) {
-				delete obj[_clearKey];
+		for (var key in obj) {
+			if (obj.hasOwnProperty(key)) {
+				delete obj[key];
 			}
 		}
 	}
 
-
-
-	// async functions ------------------------------------------------------------
-	// taken from https://github.com/caolan/async with some modifications
-	// each and series support iterating over objects as well as arrays
-
-	var _async = {
-		each: function(obj, iterator, callback) {
-			var len = $length(obj), i = 0 ;
-			callback = callback || function() {};
-
-			if (!len) { return callback(); }
-
-			$each(obj, function(val, key, obj) {
-				iterator(function(err) {
-					if (err) {
-						callback && callback(err, obj);
-						callback = null;
-					} else {
-						if (++i === len) {
-							callback && callback(null, obj);
-						}
-					}
-				}, val, key, obj);
-			});
-		},
-
-		eachSeries: function(obj, iterator, callback) {
-			var next, keys = $keys(obj), // not using keys here bc we want array indexes as numbers, each gives us that
-				i = 0, len = keys.length,
-				key;
-
-			callback = callback || function() {};
-
-			next = function() {
-				key = keys[i];
-				iterator(function(err) {
-					if (err) {
-						callback && callback(err, obj);
-						callback = null;
-					} else {
-						if (++i === len) {
-							callback && callback(null, obj);
-						} else {
-							next();
-						}
-					}
-				}, obj[key], key, obj);
-			};
-
-			next();
-		},
-
-		eachLimit: function (arr, limit, iterator, callback) {
-			callback = callback || function () {};
-			if (!arr.length || limit <= 0) {
-				return callback();
-			}
-			var completed = 0;
-			var started = 0;
-			var running = 0;
-
-			(function replenish() {
-				if (completed === arr.length) {
-					return callback();
-				}
-
-				while (running < limit && started < arr.length) {
-					iterator(arr[started], function (err) {
-						if (err) {
-							callback(err);
-							callback = function() {};
-						} else {
-							completed++;
-							running--;
-							if (completed === arr.length) {
-								callback();
-							} else {
-								replenish();
-							}
-						}
-					});
-					started++;
-					running++;
-				}
-			})();
-		},
-
-		// nextTick implementation with browser-compatible fallback
-		nextTick: (function() {
-			if (typeof process === undType || !(process.nextTick)) {
-				return function(fn) { setTimeout(fn, 0); };
-			} else {
-				return process.nextTick;
-			}
-		}()),
-
-		iterator: function(tasks) {
-			var makeCallback = function(index) {
-				var fn = function() {
-					if (tasks.length) {
-						tasks[index].apply(null, arguments);
-					}
-					return fn.next();
-				};
-				fn.next = function() {
-					return (index < tasks.length - 1) ? makeCallback(index + 1): null;
-				};
-				return fn;
-			};
-
-			return makeCallback(0);
-		}
-	};
-
-	var _doParallel = function(fn) {
-		return function() {
-			var args = $slice(arguments);
-			return fn.apply(null, [_async.each].concat(args));
-		};
-	};
-	var _doSeries = function(fn) {
-		return function() {
-			var args = $slice(arguments);
-			return fn.apply(null, [_async.eachSeries].concat(args));
-		};
-	};
-
-	var _asyncMap = function(eachfn, obj, iterator, callback) {
-		callback = callback || function() {};
-		var results = $isArray(obj) ? [] : {};
-		eachfn(obj, function(next, val, key, obj) {
-			iterator(function(err, _val) {
-				results[key] = _val;
-				next(err);
-			}, val, key, results, obj);
-		}, function(err) {
-			callback(err, results, obj);
-		});
-	};
-
-	_async.map = _doParallel(_asyncMap);
-	_async.mapSeries = _doSeries(_asyncMap);
-
-	_async.tasks = function(tasks, callback) {
-		var iterator = function (push, task, key, result, obj) {
-			if (task && $isFunction(task)) {
-				task(push, key, result);
-			} else {
-				throw new Error("expected a function but saw " + typeof task);
-			}
-		};
-
-		_async.map(tasks, iterator, callback);
-	};
-
-
-	_async.tasksSeries = function(tasks, callback) {
-		var iterator = function (push, task, key, result, obj) {
-			if (task && $isFunction(task)) {
-				task(push, key, result);
-			} else {
-				throw new Error("expected a function but saw " + typeof task);
-			}
-		};
-
-		_async.mapSeries(tasks, iterator, callback);
-	};
-
-
-	// $parallel(func1, func2, func3)
-	// $parallel([func1, func2, func3], callback)
-	// $parallel(objectOrArray, iterator, callback)
-	// $parallel(objectOrArray, limit, iterator, callback)
-	var $parallel = function(tasks, callback) {
-		var len = arguments.length,
-			type = typeof callback;
-
-		// first signature: a set of async functions to call, is converted to second signature format, no final callback is used
-		if ($isFunction(tasks)) {
-			tasks = $slice(arguments);
-			callback = function(){};
-		}
-
-		// second signature: array of functions and final callback
-		if ( ($isArray(tasks) && $isFunction(tasks[0])) || ($isPlainObject(tasks) && $isFunction($values(tasks)[0])) ) {
-			_async.tasks(tasks, callback);
-
-		// third signature: async map
-		} else if (type === funType) {
-			var iterator = callback;
-			callback = arguments[2];
-			_async.map(tasks, iterator, callback);
-
-		// fourth signature: async for each limit
-		} else if (len === 4 && type === numType) {
-			var limit = callback;
-			var iterator = arguments[2];
-			callback = arguments[3];
-			_async.eachLimit(tasks, limit, iterator, callback);
-
-		} else {
-			throw new TypeError();
-		}
-	};
-
-
-	// $series(func1, func2, func3)
-	// $series([func1, func2, func3], callback)
-	// $series(objectOrArray, iterator, callback)
-	var $series = function(tasks, callback) {
-		// first signature: a set of async functions to call, is converted to second signature format, no final callback is used
-		if ($isFunction(tasks)) {
-			tasks = $slice(arguments);
-			callback = function(){};
-		}
-
-		// second signature: array of functions and final callback
-		if ( ($isArray(tasks) && $isFunction(tasks[0])) || ($isPlainObject(tasks) && $isFunction($values(tasks)[0])) ) {
-			console.log("tasksSeries", tasks, callback);
-			_async.tasksSeries(tasks, callback);
-
-		// third signature: async mapSeries
-		} else {
-			//var iterator = callback;
-			_async.mapSeries(tasks, callback, arguments[2]);
-		}
-
-	};
-
-
-
-	// recycling and reuse of objects (object pool / gc mitigation strategy) ---------------------------------------------
-	var _recycleBins = {};
-	var _defaultPoolMax = 100;
-	var _recycleBinName;
-	var _recycleBin;
-
-	// reset an object and make it ready to be reused
-	// if none is provided when calling $recyclable
-	// this is the reducer that will be used by default
-	function _reduce(obj) {
-		if (obj) {
-			if (obj.reduce) {
-				return obj.reduce();
-			} else {
-				// $clear will leave the prototype in tact! All inherited properties will shine through.
-				$clear(obj);
-			}
-		}
-		return obj;
-	}
-
-	function $recycle(obj) {
-		obj = obj || this;
-		_recycleBinName = obj.recycleBin;
-		_recycleBin = _recycleBins[_recycleBinName];
-		_recycleBin.push(_recycleBin.reduce(obj));
-	}
-
-	// make an object recyclable/reusable
-	function $recyclable(name, constructor, reducer, maxItems) {
-
-		reducer = reducer || _reduce;
-
-		if (!$isString(name)) {
-			throw new Error("name must be a string");
-		} else if (name in _recycleBins) {
-			throw new Error("name already in use");
-		}
-
-		if (!$isFunction(reducer)) {
-			throw new Error("reducer must be a function");
-		}
-
-		if (!$isFunction(constructor)) {
-			throw new Error("constructor must be a function");
-		}
-
-		var bin = [];
-		bin.name = name;
-		bin.constructor = constructor;
-		bin.reducer = reducer;
-		bin.maxItems = maxItems || _defaultPoolMax;
-		_recycleBins[name] = bin;
-
-		$reuse[name] = function() {
-			return this(name);
-		};
-
-		return bin;
-	}
-
-	function $recycleBin(name) {
-		if (name && name in _recycleBins) {
-			return _recycleBins[name];
-		} else {
-			return _recycleBins;
-		}
-	}
-
-	// return a recycled object or a new object
-	var _recyclable;
-	function $reuse(name) {
-		if (name in _recycleBins) {
-			// return an object out of the recycleBin or a new one
-			_recycleBin = _recycleBins[name];
-			if (_recycleBin.length) {
-				_recyclable = _recycleBin.pop();
-				_recyclable.renew && _recyclable.renew();
-			} else {
-				_recyclable = _recycleBin.constructor();
-			}
-			return _recyclable;
-
-		} else {
-			throw new Error("no such recyclable " + name);
-		}
-	}
-
-	// lets make objects, arrays and speakers recyclable by default
-	// all models will also automatically be made recyclable
-//	$recyclable("array", function() {
-//		return [];
-//	});
-//	$recyclable("object", function() {
-//		return {};
-//	});
-
-
-
-
-	// component-------------------------------------------------------
-
-	var $component = (function() {
-
-		var components = {};
-
-		var newComponent = function(name, proto) {
-
-			if (!components.hasOwnProperty(name)) {
-
-				var key, api = {};
-
-				// create our api facade functions
-				for (key in proto) {
-					if (key.substr(0,1) !== "_" && $isFunction(proto[key])) {
-						api[key] = function() {
-							var compo = this._components[name][key];
-							return compo.apply(compo, $slice(arguments));
-						};
-					}
-				}
-
-				components[name] = {
-					api: api,
-					proto: proto
-				};
-			}
-		};
-
-		newComponent.attachComponent = function(obj, name) {
-
-			if (components.hasOwnProperty(name)) {
-				var component = components[name];
-
-				if (!(name in obj._components)) {
-					var compo = components[name];
-					// add the component
-					obj._components[name] = $new(compo.proto);
-					// attach the api
-					$each(compo.api, function(fn, name) {
-						if (name in obj) {
-							throw new Error("Cannot overwrite existing property with new component api method " + name);
-						} else {
-							obj[name] = fn;
-						}
-					});
-				}
-
-			} else {
-				throw new Error("No such component " + name);
-			}
-		};
-
-
-		newComponent.dropComponent = function(obj, name) {
-			var key, compo;
-
-			// intentional assignment in if!!
-			if (obj._components && (compo = obj._components[name])) {
-				for (key in compo) {
-					if (key.substr(0,1) !== "_" && $isFunction(compo[key])) {
-						delete obj[key];
-					}
-				}
-
-				delete obj._components[name];
-			}
-		};
-
-		return newComponent;
-
-	}());
-
-
-	// compose -------------------------------------------------------
-	function $compose(obj, deps) {
-
-		// handle new object variant
-		if(!deps && ($isString(obj) || $isArray(obj))) {
-			deps = obj;
-			obj = {};
-		}
-
-		if ($isString(deps)) {
-			deps = [deps];
-		}
-
-		if (!obj._components) {
-			obj._components = {
-				getParent: function() {
-					return obj;
-				}
-			};
-		}
-
-		$each(deps, function(dep) {
-			if (!(dep in obj._components)) {
-				$component.attachComponent(obj, dep);
-			}
-		});
-	}
-
-	function $decompose(obj) {
-		if (obj._components) {
-			$each(obj._components, function(fn, key) {
-				if ($isFunction(fn)) {
-					$component.dropComponent(obj, key);
-				}
-			});
-
-			delete obj._components;
-		}
-	}
 
 
 	// object -------------------------------------------------------
@@ -1048,7 +715,7 @@
 	 * @param handler (function) function(value, key, obj) { return boolean; }
 	 * traverse an object calling a handler on each "owned" property
 	 * do so with depth first top down order by default
-	 * optionally can choos breadthFirst and or reversing the order of execution
+	 * optionally can choose breadthFirst and or reversing the order of execution
 	 */
 	function $walk(obj, handler, isBreadthFirst, isReverseOrder) {
 		if (typeof obj !== objType || $isNull(obj)) {
@@ -1205,38 +872,6 @@
 		return copy(source, target, filter);
 	}
 
-	// from underscore
-	// Reusable constructor function for prototype setting.
-	function Ctor(){}
-	// Create a function bound to a given object (assigning `this`, and arguments,
-	// optionally). Binding with arguments is also known as `curry`.
-	// Delegates to **ECMAScript 5**'s native `Function.bind` if available.
-	// We check for `func.bind` first, to fail fast when `func` is undefined.
-	function $bind(func, context) {
-		var bound, args;
-
-		if (func.bind === nativeBind && nativeBind) {
-			return nativeBind.apply(func, slice.call(arguments, 1));
-		}
-
-		if (!$isFunction(func)) {
-			throw new TypeError;
-		}
-
-		args = slice.call(arguments, 2);
-
-		return bound = function() {
-			if (!(this instanceof bound)) {
-				return func.apply(context, args.concat(slice.call(arguments)));
-			}
-			Ctor.prototype = func.prototype;
-			var self = new Ctor;
-			var result = func.apply(self, args.concat(slice.call(arguments)));
-			if (Object(result) === result) {return result;}
-			return self;
-		};
-	}
-
 	/**
 	 * $extend augments the first object with shallow copies of
 	 * all other objects including their inherited properties
@@ -1376,186 +1011,6 @@
 		return myProto;
 	}
 
-
-	// date/time -------------------------------------------------------
-
-	function $now() {
-		return new Date().getTime();
-	}
-
-	/* $timeAgo
-	/*
-	 * Javascript Humane Dates
-	 * Copyright (c) 2008 Dean Landolt (deanlandolt.com)
-	 * Re-write by Zach Leatherman (zachleat.com)
-	 * RE-RE-write by andrew luetgers
-	 * 		to accept timestamps and remove init work from each call
-	 *
-	 * Adopted from the John Resig's pretty.js
-	 * at http://ejohn.org/blog/javascript-pretty-date
-	 * and henrah's proposed modification
-	 * at http://ejohn.org/blog/javascript-pretty-date/#comment-297458
-	 *
-	 * Licensed under the MIT license.
-	 */
-	var $timeAgo = (function() {
-
-		var lang = {
-				ago: 'Ago',
-				now: 'Just Now',
-				minute: 'Minute',
-				minutes: 'Minutes',
-				hour: 'Hour',
-				hours: 'Hours',
-				day: 'Day',
-				days: 'Days',
-				week: 'Week',
-				weeks: 'Weeks',
-				month: 'Month',
-				months: 'Months',
-				year: 'Year',
-				years: 'Years'
-			},
-			formats = [
-				[60, lang.now],
-				[3600, lang.minute, lang.minutes, 60], // 60 minutes, 1 minute
-				[86400, lang.hour, lang.hours, 3600], // 24 hours, 1 hour
-				[604800, lang.day, lang.days, 86400], // 7 days, 1 day
-				[2628000, lang.week, lang.weeks, 604800], // ~1 month, 1 week
-				[31536000, lang.month, lang.months, 2628000], // 1 year, ~1 month
-				[Infinity, lang.year, lang.years, 31536000] // Infinity, 1 year
-			],
-			minusRe = /-/g,
-			tzRe = /[TZ]/g,
-			margin = 0.1;
-
-		/*
-		 * 0 seconds && < 60 seconds    Now
-		 * 60 seconds            1 Minute
-		 * > 60 seconds && < 60 minutes   X Minutes
-		 * 60 minutes            1 Hour
-		 * > 60 minutes && < 24 hours    X Hours
-		 * 24 hours             1 Day
-		 * > 24 hours && < 7 days      X Days
-		 * 7 days              1 Week
-		 * > 7 days && < ~ 1 Month     X Weeks
-		 * ~ 1 Month            1 Month
-		 * > ~ 1 Month && < 1 Year     X Months
-		 * 1 Year              1 Year
-		 * > 1 Year             X Years
-		 *
-		 * Single units are +10%. 1 Year shows first at 1 Year + 10%
-		 */
-		function normalize(val, single) {
-			if(val >= single && val <= single * (1+margin)) {
-				return single;
-			}
-			return val;
-		}
-
-		function normalizeDateInput(date) {
-			switch (typeof date) {
-
-				case strType:
-					date = new Date(('' + date).replace(minusRe, "/").replace(tzRe, " "));
-					break;
-
-				case numType:
-					date = new Date(date);
-					break;
-			}
-
-			return date;
-		}
-
-		function timeAgo(date, compareTo) {
-
-			date = normalizeDateInput(date);
-			compareTo = normalizeDateInput(compareTo || new Date);
-
-			var token,
-				isString = (typeof date === strType),
-				seconds = (compareTo - date +
-							(compareTo.getTimezoneOffset() -
-								// if we received a GMT time from a string, doesn't include time zone bias
-								// if we got a date object, the time zone is built in, we need to remove it.
-								(isString ? 0 : date.getTimezoneOffset())
-							) * 60000
-						) / 1000;
-
-			if (seconds < 0) {
-				seconds = Math.abs(seconds);
-				token = '';
-			} else {
-				token = ' ' + lang.ago;
-			}
-			for(var i = 0, format = formats[0]; formats[i]; format = formats[++i]) {
-				if(seconds < format[0]) {
-					if(i === 0) {
-						// Now
-						return format[1];
-					}
-
-					var val = Math.ceil(normalize(seconds, format[3]) / (format[3]));
-					return val +
-							' ' +
-							(val != 1 ? format[2] : format[1]) +
-							(i > 0 ? token : '');
-				}
-			}
-		}
-
-		return timeAgo;
-	}());
-
-
-	var $timer = (function() {
-		var epoch = new Date(1970, 1, 1, 0, 0, 0, 0).valueOf();
-		var timerApi = {
-			parent: null,
-			interval: null,
-			started: 0,
-			elapsed: 0,
-			start: function() {
-				var that = this;
-				this.started = $now();
-				this.interval = setInterval(function() {
-					that.update();
-				}, 1000);
-			},
-			stop: function() {
-				clearInterval(this.interval);
-				this.reset();
-			},
-			pause: function() {
-				clearInterval(this.interval);
-			},
-			reset: function() {
-				this.started = $now();
-				this.update();
-			},
-			update: function() {
-				this.elapsed = $now() - this.started;
-				this.parent.innerHTML = this.format(this.elapsed + $now() - this.started);
-			},
-			format: function(ms) {
-//				console.log(ms, $now() - ms, new Date(ms - $now()).toString());
-				var d = new Date(ms + epoch).toString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, '$1');
-				var x = (ms % 1000) + "";
-				while (x.length < 3) {
-					x = "0" + x;
-				}
-				d += "." + x;
-				return d.substr(0, d.length - 4);
-			}
-		};
-
-		return function(parent) {
-			var timer = $new(timerApi);
-			timer.parent = parent;
-			return timer;
-		}
-	}());
 
 
 
@@ -1717,6 +1172,8 @@
 			 * if a string is passed all listeners to that topic will be removed
 			 * if a function is passed all listeners using that responder will be removed
 			 * if nothing is provided all listeners will be removed
+			 * @responder (function) optional callback if provided with a topic
+			 * only that instance of the responder that is bound to the given topic will be ignored
 			 */
 			ignore: function(ignoreable, responder) {
 				var test;
@@ -1747,6 +1204,12 @@
 			 * @description will forward all messages to the provided speaker by adding it to our _audience
 			 */
 			talksTo: function(speaker) {
+
+//				if (speaker === window) {
+//					console.log(this, arguments);
+//					throw new Error("WTF");
+//				}
+
 				if (this !== speaker && this._audience.indexOf(speaker) === -1) {
 					this._audience.push($speak(speaker));
 				}
@@ -1787,30 +1250,11 @@
 				obj = $extend(obj, aSpeaker);
 			}
 
-			// this is also a possible reuse pattern (to reduce garbage collections)
-			// so lets not create new objects/garbage if we don't have to
-			obj._listeningFor = {}; //$reuse.object();
-			obj._audience = []; //$reuse.array();
+			obj._listeningFor = {};
+			obj._audience = [];
 
 			return obj;
 		}
-
-		// setup the reduce method for speakers, so they can be recyclable
-		// we compare all keys to those on the base speaker object we defined above "aSpeakerFacade"
-		var _reducer = function(val, key, obj) {
-
-		};
-
-		// speakers are recyclable
-//		$recyclable("speaker", speak, function(speaker) {
-//			// reducer for speaker
-//			for (key in speaker) {
-//				if (!(key in aSpeaker)) {
-//					delete obj[key];
-//				}
-//				obj.ignoreAll();
-//			}
-//		});
 
 		return speak;
 
@@ -1822,1236 +1266,6 @@
 	}
 
 
-
-	// models -------------------------------------------------------
-
-	var schemaBank = {};
-
-	function modelApiGet(modelVals, _key) {
-		var len = arguments.length, val;
-		if (len == 2 && $isString(_key)) {
-			val = modelVals[_key];
-			// supports computed values
-			return $isFunction(val) ? modelVals[_key]() : val;
-
-		} else if (len > 2 || $isArray(_key)) {
-			var results = {}, keys = $flat($slice(arguments, 1));
-			$each(keys, function(key) {
-				if (key in modelVals) {
-					val = modelVals[key];
-					// supports computed values
-					results[key] = $isFunction(val) ? modelVals[key]() : val;
-				}
-			});
-			return results;
-
-		} else {
-			return modelVals;
-		}
-	}
-
-	function modelApiReset(modelVals, defaults) {
-		for (var key in modelVals) {
-			if (key in defaults) {
-				modelVals[key] = defaults[key];
-			} else {
-				delete modelVals[key];
-			}
-		}
-	}
-
-	function modelApiSet(modelVals, _key, _val) {
-		var obj = _key,
-			val, key,
-			changes = {},
-			validate = this.validate,
-			validateFn,
-			validationFailures,
-			failed;
-
-		// if using single item syntax convert it to multi-item syntax so we only need one implementation
-		if (typeof obj === strType) {
-			// set single item to
-			if (_val === undefined) {
-				modelVals[_key] = _val;
-				return;
-			} else {
-				obj = {};
-				obj[_key] = _val;
-			}
-		}
-
-		// generate our changes
-		if (!validate) {
-			// lets not check for validators if we don't have to
-			for (key in obj) {
-				changes[key] = obj[key];
-			}
-		} else {
-			// we have validators so check them and log failures
-			validationFailures = {};
-
-			for (key in obj) {
-				val = obj[key];
-				validateFn = validate[key];
-
-				if(validateFn) {
-					var validationResult = validateFn(val);
-					if (validationResult === true) {
-						changes[key] = val;
-					} else {
-						failed = true;
-						validationFailures[key] = validationResult;
-					}
-				} else {
-					changes[key] = val;
-				}
-			}
-		}
-
-		if (failed) {
-			this.tell("validationFailed", {
-				passed: changes,
-				failed: validationFailures
-			});
-		} else {
-			// no errors! merge our changes into the model values
-			$extend(modelVals, changes);
-			this.tell("change", changes);
-		}
-
-		return this;
-	}
-
-	// define a type of object or data model
-	function $schema(type, options, collection) {
-		var existingSchema = schemaBank[type],
-			instances = [];
-
-		// schema getter
-		if (type && arguments.length === 1 && existingSchema) {
-			return existingSchema;
-
-		// schema constructor
-		} else if (type && $isString(type) && !existingSchema) {
-			options = $copy(options || {});
-			options.defaults = options.defaults || {};
-
-			// type-check optional validators
-			if (options.validate) {
-				$each(options.validate, function(val) {
-					if (!$isFunction(val)) {
-						throw new Error("validator must be a function");
-					}
-				});
-			}
-
-			var schemaApi = $speak({
-				type: type,
-				constructor: function(vals) {
-					return this.newInstance(vals);
-				},
-				drop: function() {
-					this.dropInstances();
-					instances = existingSchema = null;
-					delete schemaBank[type];
-					$clear(this);
-					$schema.tell("drop", {schema: type});
-				},
-
-				getInstances: function() {
-					// return a copy of the instances array not the real thing
-					return instances;
-				},
-
-				dropInstances: function(filter) {
-					var _instances = instances;
-
-					if (filter) {
-						_instances = $filter(instances, filter);
-					}
-
-					$each(_instances, function(instance) {
-						instance.drop();
-					});
-
-					return this;
-				},
-
-				// instance api
-				newInstance: function(vals) {
-					var modelVals = $copy(options.defaults);
-					var modelProto = $speak($new(options));
-					var drop = options.drop;
-
-					if (drop && !$isFunction(drop)) {
-						throw new Error("drop must be a function");
-					}
-
-					// model instance api
-					var model = $extend(modelProto, {
-						schema: type,
-
-						// the following get and set facade allows us to have a unique closure for modelVals and modelProto
-						// without having copies of the larger modelApiSet and modelApiGet functions on each model instance hopefully saving some memory usage
-						get: function(key) {
-							if (arguments.length) {
-								return modelApiGet.apply(this, $flat(modelVals, $slice(arguments))); // todo can we do this in a better way
-							} else {
-								return modelVals;
-							}
-						},
-						set: function(key, val) {
-							return modelApiSet.call(this, modelVals, key, val);
-						},
-						reset: function() {
-							return modelApiReset.call(this, modelVals, options.defaults);
-						},
-						renew: function() {
-							return init();
-						},
-						drop: function(willReuse) {
-							drop && drop();
-							this.tell("drop", this);
-							// remove this instance from the instances array
-							instances.splice(instances.indexOf(this), 1);
-							if (!willReuse) {
-								$clear(this);
-							}
-						}
-					});
-
-					// copy our initial values to the model
-					if (!$isString(vals)) {
-						$mixin(modelVals, vals);
-					}
-
-					var init = function() {
-						// all model events are forwarded to their parent schema
-						model.talksTo(this);
-
-						instances.push(model);
-						model.tell("created", this);
-
-						return model;
-					};
-
-					return init();
-				}
-			});
-
-			schemaBank[type] = collection ? $make(schemaApi, collection) : schemaApi;
-
-
-			// make models from our new schema recyclable
-//			var _modelApi = {schema:1, get:1, set:1, drop:1, renew:1, _audience:1, _listeningFor:1};
-//			var key;
-//			$recyclable(type+"Model", function() {
-//				// constructor for model instance
-//				return $model(type);
-//
-//			}, function(model) {
-//				// reducer for model instance
-//				model.drop(true);
-//				model.ignoreAll();
-//				for (key in model) {
-//					if (!_modelApi[key]) {
-//						delete model[key];
-//					}
-//				}
-//				// reset the values on the model
-//				model.reset();
-//
-//				return model;
-//			});
-
-			$schema.tell("defined", {schema:type});
-
-		// error
-		} else {
-			return new Error("Error: valid schema type required.");
-		}
-	}
-	// make schema a speaker
-	$speak($schema);
-
-	function $model(type, vals) {
-		var schema = schemaBank[type];
-
-		if (!type || !$isString(type) || !schema) {
-			//throw new Error("$model: valid type string required");
-			return null;
-		} else if (vals && !$isPlainObject(vals)) {
-			throw new Error("$model: valid values object required");
-		} else {
-			return schema.newInstance(vals);
-		}
-	}
-
-	function $models(type) {
-		return $schema(type).getInstances();
-	}
-
-	function $isSchema(obj) {
-		return ($isFunction(obj.drop) && $isString(obj.type) && obj.getInstances && obj.newInstance);
-	}
-
-	function $isModel(obj) {
-		return ($isFunction(obj.drop) && $isString(obj.schema) && obj.set && obj.get);
-	}
-
-
-	// trim string -------------------------------------------------------
-	// type agnostic string trim, just returns the original val if its not a string
-	function $trim(str) {
-		if ($isString(str)) {
-			return str.trim();
-		} else {
-			return str;
-		}
-	}
-
-
-
-
-	// cache -------------------------------------------------------
-	$cache = $speak({
-
-		types: {
-			// add our default cache type for io requests without a typeId
-			io: {
-				bins: {}
-			}
-		},
-
-		// for 1 args the cacheKey is just the url, eg. "/contents"
-		// for 2 args a key is generated with the url and the req ,
-		// 		if the url was /user and post or get values were {name:"jim",age:25}
-		// 		then the key would be /user[name:jim,age:25]
-		getKey: function(url, req) {
-			if (!req) {
-				return url;
-			}
-
-			var cacheKey = [],
-				keys = [],
-				keyStrings = {};
-
-			$each(req, function(val, key) {
-				keys.push(key);
-				var str = ($isString(val) || $isNumber(val)) ? val : val.toString();
-				keyStrings[key] = key + ":" + str;
-			});
-
-			$each(keys.sort(), function(val) {
-				cacheKey.push(keyStrings[val]);
-			});
-
-			return url + "[" + cacheKey.join(",") + "]";
-		},
-
-		get: function(typeId, reqType, url, req) {
-			var len = arguments.length;
-
-			if (!len) {
-				return this.types;
-
-			} else if (typeId) {
-				var type = this.types[typeId];
-
-				if (len === 1) {
-					return type;
-
-				} else if (url){
-					var cacheKey = this.getKey(url, req),
-						bins = type.bins;
-
-					if(!(cacheKey in bins)) {
-						bins[cacheKey] = {
-							typeId: typeId,
-							key: cacheKey,
-							url: url,
-							req: req,
-							val: null,
-							setAt: new Date().getTime()
-						};
-					}
-					return bins[cacheKey];
-				}
-			}
-
-			throw new Error("$cache.get: invalid arguments");
-		},
-
-		// provide a typeId and a function with the signature
-		// function(bin, cacheKey) return true if the bin should be evicted
-		// an eviction notice will be told to the cache so others can listen in and respond as needed
-		// @return object - stats on how how many were evicted from how many and what remains
-		evict: function(typeId, evictionTest) {
-			var evicted = 0;
-				total = 0,
-				that = this;
-
-			$each(this.types[typeId].bins, function(bin, cacheKey) {
-				total++;
-				if (!evictionTest || evictionTest === true || ($isFunction(evictionTest) && evictionTest(bin, cacheKey)) ) {
-					// yup evict that mofo
-					evicted++;
-					that.tell(typeId + ":evict:" + cacheKey, bin);
-					delete that.types[typeId].bins[cacheKey];
-				}
-			});
-
-			return {
-				evicted: evicted,
-				total: total,
-				remain: total - evicted
-			};
-		},
-
-		set: function(typeId, url, req, val, metaData) {
-			var cacheKey = this.getKey(url, req),
-				bin = this.get(typeId, cacheKey);
-
-			$extend(bin, {
-				typeId: typeId,
-				key: cacheKey,
-				url: url,
-				req: req,
-				val: val,
-				setAt: $now()
-			}, metaData);
-
-			this.tell(typeId + ":set:" + cacheKey, bin);
-
-			return bin;
-		},
-
-		newType: function(typeId, customType) {
-			if(!this.types[typeId]) {
-				customType = customType || {};
-				customType.bins = {};
-				this.types[typeId] = customType;
-			}
-		},
-
-		newRemoteType: function(typeId, spec) {
-			spec.sync = function(req, handlers, forceRefresh) {
-				var bin = $cache.get(this.typeId, this.baseUrl, req);
-				if (forceRefresh || bin.val === null || (bin.ttl && ($now()-bin.set > this.ttl)) ) {
-					$io.call(this, baseUrl, req, this.dataType, this.reqType, handlers);
-				}
-				return bin;
-			};
-
-			spec.typeId = typeId;
-
-			var remoteType = $speak(spec);
-
-			this.newType(typeId, remoteType);
-
-			return remoteType;
-		}
-
-	});
-
-
-	function $isCache(obj) {
-		return (obj && obj.bins && obj.get && obj.set);
-	}
-
-
-
-
-	// dom -------------------------------------------------------
-	function $id(id) {
-		return document.getElementById(id);
-	}
-
-	// $tmpl -------------------------------------------------------
-	// just aliasing doT.js
-	// 2011, Laura Doktorova
-	// https://github.com/olado/doT
-	//
-	// doT.js is an open source component of http://bebedo.com
-	//
-	// doT is a custom blend of templating functions from jQote2.js
-	// (jQuery plugin) by aefxx (http://aefxx.com/jquery-plugins/jqote2/)
-	// and underscore.js (http://documentcloud.github.com/underscore/)
-	// plus extensions.
-	//
-	// Licensed under the MIT license.
-	//
-	var $tmpl = (function() {
-
-		var doT = { version : '0.1.7' };
-
-		doT.templateSettings = {
-			evaluate: 			/\{\{([\s\S]+?)\}\}/g,
-			interpolate: 		/\{\{=([\s\S]+?)\}\}/g,
-			encode: 			/\{\{!([\s\S]+?)\}\}/g,
-			use: 				/\{\{#([\s\S]+?)\}\}/g, //compile time evaluation
-			define: 			/\{\{##\s*([\w\.$]+)\s*(\:|=)([\s\S]+?)#\}\}/g, //compile time defs
-			conditionalStart: 	/\{\{\?([\s\S]+?)\}\}/g,
-			conditionalEnd: 	/\{\{\?\}\}/g,
-			varname: 'it',
-			strip : true,
-			append: true
-		};
-
-		function resolveDefs(c, block, def) {
-			return ((typeof block === 'string') ? block : block.toString())
-			.replace(c.define, function (match, code, assign, value) {
-				if (code.indexOf('def.') === 0) {
-					code = code.substring(4);
-				}
-				if (!(code in def)) {
-					if (assign === ':') {
-						def[code]= value;
-					} else {
-						eval("def[code]=" + value);
-					}
-				}
-				return '';
-			})
-			.replace(c.use, function(match, code) {
-				var v = eval(code);
-				return v ? resolveDefs(c, v, def) : v;
-			});
-		}
-
-		// todo jsperf with and without regex caching
-		doT.template = function(tmpl, c, def) {
-			c = c || doT.templateSettings;
-			var cstart = c.append ? "'+(" : "';out+=(", // optimal choice depends on platform/size of templates
-				cend  = c.append ? ")+'" : ");out+='";
-			var str = (c.use || c.define) ? resolveDefs(c, tmpl, def || {}) : tmpl;
-
-			str = ("var out='" +
-				((c.strip) ? str.replace(/\s*<!\[CDATA\[\s*|\s*\]\]>\s*|[\r\n\t]|(\/\*[\s\S]*?\*\/)/g, ''): str)
-				.replace(/\\/g, '\\\\')
-				.replace(/'/g, "\\'")
-				.replace(c.interpolate, function(match, code) {
-					return cstart + code.replace(/\\'/g, "'").replace(/\\\\/g,"\\").replace(/[\r\t\n]/g, ' ') + cend;
-				})
-				.replace(c.encode, function(match, code) {
-					return cstart + code.replace(/\\'/g, "'").replace(/\\\\/g, "\\").replace(/[\r\t\n]/g, ' ') + ").toString().replace(/&(?!\\w+;)/g, '&#38;').split('<').join('&#60;').split('>').join('&#62;').split('" + '"' + "').join('&#34;').split(" + '"' + "'" + '"' + ").join('&#39;').split('/').join('&#47;'" + cend;
-				})
-				.replace(c.conditionalEnd, function(match, expression) {
-					return "';}out+='";
-				})
-				.replace(c.conditionalStart, function(match, expression) {
-					var code = "if(" + expression + "){";
-					return "';" + code.replace(/\\'/g, "'").replace(/\\\\/g,"\\").replace(/[\r\t\n]/g, ' ') + "out+='";
-				})
-				.replace(c.evaluate, function(match, code) {
-					return "';" + code.replace(/\\'/g, "'").replace(/\\\\/g,"\\").replace(/[\r\t\n]/g, ' ') + "out+='";
-				})
-				+ "';return out;")
-				.replace(/\n/g, '\\n')
-				.replace(/\t/g, '\\t')
-				.replace(/\r/g, '\\r')
-				.split("out+='';").join('')
-				.split("var out='';out+=").join('var out=');
-
-			try {
-				return new Function(c.varname, str);
-			} catch (e) {
-				if (typeof console !== 'undefined') console.log("Could not create a template function: " + str);
-				throw e;
-			}
-		};
-
-		doT.compile = function(tmpl, def) {
-			return doT.template(tmpl, null, def);
-		};
-
-		return doT;
-	}());
-
-
-
-	// hyper-simplistic dom node api for html string building, used by $el for outputStrings mode
-	// EXPOSED FOR TESTING ONLY, DON'T USE THIS DIRECTLY, DOES NOT ESCAPE HTML IN STRINGS
-	var selfClosing = {area:1, base:1, basefont:1, br:1, col:1, frame:1, hr:1, img:1, input:1, link:1, meta:1, param:1};
-	var directProperties = {className:'class', htmlFor:'for'};
-	var booleanProperties = {checked: 1, defaultChecked: 1, disabled: 1, multiple: 1, selected: 1};
-
-	var $node = (function() {
-
-		var lt  = "<",  gt  = ">",
-			lts = "</", gts = "/>" ,
-			space = " ", equo = '="',
-			quo = '"';
-
-		// usage of trailing slash on self closing tags varies so mimic the platform
-		// this is mostly to help write passing tests
-		var selfClosingEnd = gts;
-		if ("document" in root) {
-			var div = document.createElement("div");
-			var img = document.createElement("img");
-			div.appendChild(img);
-			if (div.innerHTML === "<img>") {
-				selfClosingEnd = gt;
-			}
-		}
-
-		// children toString should not include commas
-		var childrenToString = function(node) {
-			var str = "";
-			$each(node, function(val) {
-				if (val || val === 0) {
-//					str += $isString(val) ? $escapeHTML(val) : val;
-					str += val;
-				}
-			});
-			return str;
-		};
-
-		var node = {
-			init: function() {
-				this.type = "";
-				this.attr = {};
-				this.children = [];
-				this.children.toString = function() {
-					return childrenToString(this);
-				}
-			},
-			nodeType: 1, // so we can pass the $isElement test
-			append: function(nodes) {
-				// no we don't do validation here, so sue me
-				// this will handle a single node or an array of nodes or a mixed array of nodes and arrays of nodes
-				this.children.splice.apply(this.children, $flat(this.children.length, 0, nodes));
-				return this;
-			},
-			set: function(key, value) {
-				if (key) {
-					if (!$isString(key)) {
-						var spec = key;
-							that = this;
-						// assume key is a hash of key value pairs to be added in to existing attr hash
-						if (spec.id) {
-							this.set("id", spec.id);
-							delete spec.id;
-						}
-
-						if (spec.className) {
-							this.set("className", spec["className"]);
-							delete spec["className"];
-						}
-
-						$each(spec, function(val, theKey) {
-							that.set(theKey, val);
-						});
-
-					} else {
-						// simple key value assignment
-						if (value) {
-							// add/edit attribute
-							// support alternate attribute names
-							key = directProperties[key] || key;
-							if (booleanProperties[key]) {
-								if (value) {
-									value = key;
-								} else {
-									delete this.attr[key];
-								}
-							}
-							this.attr[key] = value;
-						} else {
-							// remove the attribute
-							delete this.attr[key];
-						}
-					}
-				}
-				return this;
-			},
-
-			toString: function() {
-				// DONT CONSOLE.log "this" in here or do anything that will call toString on this
-				// it will create an infinite loop of tostring calling tostring in firefox, others??
-				var str = lt + this.type;
-				$each(this.attr, function(val, key) {
-					if (val) {
-						str += space + key + equo + val + quo;
-					}
-				});
-
-				if (selfClosing[this.type]) {
-					return str + selfClosingEnd;
-				} else {
-					return str + gt + this.children + lts + this.type + gt;
-				}
-			}
-		};
-
-
-
-		// for compatibility with $el dom builder in outputStrings mode
-		node.appendChild = node.append;
-		node.removeAttribute = node.setAttribute = node.set;
-
-		return function(type) {
-			// use new to reduce memory footprint for many nodes
-			var n = $new(node);
-			n.type = type || "div";
-			return n;
-		};
-
-	}());
-
-	// for compatibility with $el dom builder in outputStrings mode
-	var useDocument = root.document,
-		emptyString = "";
-
-	// create nodes in real DOM or microDom from one api
-	var $doc = {
-		hasRealDom: function() {
-			return !!root.document;
-		},
-		usesRealDom: function() {
-			return useDocument;
-		},
-		useRealDom: function(bool) {
-			useDocument = root.document ? bool : false;
-			return useDocument;
-		},
-		createTextNode: function(str) {
-			if (useDocument) {
-				return document.createTextNode(str);
-			} else {
-//				return $escapeHTML(str + emptyString);
-				return str + emptyString;
-			}
-		},
-		createElement: function(tag) {
-			if (useDocument) {
-				return document.createElement(tag);
-			} else {
-				return $node(tag);
-			}
-		}
-	};
-
-	var $el = (function() {
-		// dom builder see: http://blog.fastmail.fm/2012/02/20/building-the-new-ajax-mail-ui-part-2-better-than-templates-building-highly-dynamic-web-pages/
-		// modified to support dom node output or string output, for server land
-		var root = this;
-
-		var directProperties = {
-			'class': 		'className',
-			className: 		'className',
-			defaultValue: 	'defaultValue',
-			'for': 			'htmlFor',
-//			html: 			'innerHTML', // these work on real dom but not on fakeDom
-//			innerHTML: 		'innerHTML',
-//			text: 			'textContent',
-//			textContent: 	'textContent',
-			value: 			'value'
-		};
-
-		var booleanProperties = {
-			checked: 1,
-			defaultChecked: 1,
-			disabled: 1,
-			multiple: 1,
-			selected: 1,
-			autoplay: 1,
-			controls: 1,
-			loop: 1
-		};
-
-		function setProperty(node, key, value) {
-			var directProp = directProperties[key];
-			var noValue = (!value && value !== 0);
-			if (directProp && !noValue) {
-				node[directProp] = (noValue ? '' : '' + value);
-			} else if (booleanProperties[key]) {
-				// set the attribute if true or do not add it at all
-				if (value) {
-					node.setAttribute(key, key);
-				}
-			} else if (noValue) {
-				node.removeAttribute(key);
-			} else {
-				node.setAttribute(key, '' + value);
-			}
-		}
-
-		function appendChildren(node, children) {
-			if (!$isArray(children)) {
-				children = [children];
-			}
-			$each(children, function(child, key) {
-				if (child || child === 0) {
-					if ($isArray(child)) {
-						appendChildren(node, child);
-					} else {
-						if (!$isElement(child)) {
-							// handle other node types here
-							var d = document.createElement("div");
-							d.innerHTML = child;
-							$each(d.childNodes, function(val) {
-								node.appendChild(val);
-							});
-
-						} else {
-							node.appendChild(child);
-						}
-					}
-				}
-			});
-		}
-
-		var splitter = /(#|\.)/;
-
-		function create(selector, props, children) {
-
-			// this function is currently ugly and repeats code from elsewhere but
-			// it is also the fastest I have been able to achieve by 30-100%
-			if (!selector) {
-				throw new Error("selector required");
-			}
-
-			var outProps,
-				parts, name, len, node, i, j, l,
-				tag, id, className;
-
-			// support (selector, children) signature'
-			// support (tag, children) signature
-			if (typeof props === strType || $isArray(props)) {
-				children = props;
-				props = {};
-			}
-
-			// parse the selector and merge props
-			parts = selector.split(splitter);
-			tag = parts[0];
-			len = parts.length;
-
-			if (len > 2) {
-
-				outProps = {};
-				for (i=1, j=2, l=len; j<l; i+=2, j+=2) {
-					name = parts[j];
-					if (parts[i] === '#') {
-						id = name;
-					} else {
-						className = className ? (className + " " + name) : name;
-					}
-				}
-
-				if (id || className) {
-					// properties from selector override or append to those in props
-					if (props) 		{$mixin(outProps, props)}
-					if (id) 		{outProps.id = id;}
-					if (className) 	{outProps.className = (props && props.className) ? (className + " " + props.className) : className;} // append multiple classes
-					props = outProps;
-				}
-			}
-
-			id = className = null;
-
-			// create the node
-			node = $doc.createElement(tag);
-			if (!useDocument) {
-				props && node.set(props);
-				children && node.append(children);
-
-			} else {
-				if (props) {
-
-					props.id && setProperty(node, "id", props.id);
-					props.className && setProperty(node, "class", props.className);
-					$each(props, function(val, key) {
-						setProperty(node, key, val);
-					});
-				}
-				children && appendChildren(node, children);
-			}
-			return node;
-		}
-
-		return create;
-	}());
-
-
-	var $isSelector = (function() {
-		var maxLength = 0,
-			tags = {},
-			splitter = /(#|\.)/,
-			whitespace = /\s+/,
-			validTags = "a abbr acronym address applet area article aside audio b base basefont bdi bdo big\
-						blockquote body br button canvas caption center cite code col colgroup command datalist\
-						dd del details dfn dir div dl dt em embed fieldset figcaption figure font footer\
-						form frame frameset h1 h2 h3 h4 h5 h6 head header hgroup hr html i iframe img input ins keygen kbd\
-						label legend li link map mark menu meta meter nav noframes noscript object ol optgroup\
-						option output p param pre progress q rp rt ruby s samp script section select small source\
-						span strike strong style sub summary sup table tbody td textarea tfoot th thead time title\
-						tr track tt u ul var video wbr";
-						// tags list derived from http://www.w3schools.com/html5/html5_reference.asp
-
-		$each(validTags.split(whitespace), function(str) {
-			maxLength = Math.max(maxLength, str.length);
-			tags[str] = 1;
-		});
-
-		// its not perfect but should get the job done
-		function $isSelector(string) {
-
-			if (typeof string !== strType) {
-				return false;
-			}
-
-			// spaces are not valid in selectors, must be content, this should cover 90% of content
-			// a common case for content is innerHTML with tags so test for that if no space
-			if ((string.indexOf(" ") > -1) || (string.indexOf("<") > -1)) {
-				return false;
-			}
-
-			var parts = string.split(splitter),
-				tag = parts[0].toLowerCase();
-
-			// is it longer than any of the valid tags or is it not a valid tag?
-			if ((tag.length > maxLength) || !(tag in tags)) {
-				return false;
-			}
-
-			var partsLen = parts.length,
-				id = "", className = "",
-				i, j, l, name, type;
-
-			if (partsLen > 2) {
-				for (i=1, j=2, l=partsLen; j<l; i+=2, j+=2) {
-					name = parts[j];
-					type = parts[i];
-					if (type === "#") {
-						id = name;
-					} else {
-						className = className ? className + " " + name : name;
-					}
-				}
-			}
-
-			return {
-				tag: tag,
-				id: id,
-				className: className
-			};
-		}
-
-		$isSelector.addTag = function(str) {
-			maxLength = Math.max(maxLength, str.length);
-			tags[str] = one;
-		};
-
-		return $isSelector;
-	}());
-
-	/* $dom
-		dom instructions
-		array == generic container for dom instructions
-		object == attributes
-		string == dom selector or innerHTML
-
-		dom instruction patterns:
-
-			[selector (String)]
-			selectors begin with an html tag name optionally followed by #someId and zero or more .someClass
-			a selector can be followed by any instruction another selector, an object, an array, innerHTML string
-
-			[selector (String), innerHTML (String)]
-			any string that does not look like a selector is treated as innerHTML,
-			if your strings will look like a selector you can add non selector characters like so...
-			invalid as innerHTML: "strong", "menu", "footer"
-			valid as innerHTML: "<span>strong</span>", "menu "
-			innerHTML can only be followed by a selector string
-
-			[selector (String), children (Array)]
-			an array can only be followed by a selector string
-
-			[selector (String), attributes (Object)]
-			attributes eg. {title: "my title", value: 2}
-			an object can be followed by an array or a string (selector or innerHTML)
-
-			[selector (String), attributes (Object), children (Array)]
-
-			eg.
-
-	var dom = [
-		"div", {className: "todo " + data.done ? "done" : ""},[
-			"div.display", [
-				"input.check", {type: "checkbox", checked: data.done},
-				"label.todo-content", data.content,
-				"span.todo-destroy"
-			],
-
-			"div.edit", [
-				"input.todo-input", {type: "text", value: data.content}
-			],
-			"ul", $map(data.items, $value)
-		];
-	*/
-
-	var $dom = (function() {
-
-		function $dom(domInstructions, preProcessedSelector) {
-
-			if (!$isArray(domInstructions)) {
-				domInstructions = $slice(arguments);
-				preProcessedSelector = null;
-//				throw new Error("Unexpected type, expected array but saw " + $typeof(domInstructions));
-			}
-
-			var returnNodes = [],
-				tag, attributes, childNodes,
-				selector, arg, type,
-				id, className, step = 1, prevStep, thisStep,
-				i, len = domInstructions.length;
-
-			for (i=0; i<len; i++) {
-				arg = domInstructions[i];
-
-				prevStep = thisStep;
-				thisStep = step + "-" + $typeof(arg);
-
-				switch(thisStep) {
-
-					// new sibling node via selector or new sibling text -------------------------------------------
-					case "1-string":
-						selector = preProcessedSelector || $isSelector(arg);
-						if (selector) {
-							tag = selector.tag;
-							id = selector.id;
-							className = selector.className;
-							selector = preProcessedSelector = null;
-							attributes = {};
-							id && (attributes.id = id);
-							className && (attributes.className = className);
-
-							// create node with attributes now if final iteration
-							if (i === len-1) {
-								returnNodes.push($el(tag, attributes));
-							}
-
-							// we may have properties or children to add so move to step 2 for next arg
-							step = 2;
-
-
-						} else {
-							returnNodes.push(arg);
-							console.log("++++++++++++++++++++++", arg);
-							// stay on step 1 for next arg
-						}
-						continue;
-
-					case "1-element":
-						returnNodes.push(arg);
-						// final possible step so start back on 1 for next arg
-						step = 1;
-						continue;
-
-					// new sibling node/s via partial --------------------------------------------------------------
-					case "1-function":
-						returnNodes = returnNodes.concat(arg());
-						// stay on step one for next arg
-						continue;
-
-					// add/merge attributes ------------------------------------------------------------------------
-					case "2-object":
-//						attributes = $mixin(attributes, arg);
-						$each(arg, function(val, key) {
-							attributes[key] = val;
-						});
-						id && (attributes.id = id);
-						if (className) {
-							attributes.className = arg.className ? (className + " " + arg.className) : className;  // remember we appended a space in $isSelector
-						}
-						// create node with attributes now if final iteration
-						if (i === len-1) {
-							returnNodes.push($el(tag, attributes));
-						}
-
-						id = className = null;
-
-						// we may have a children to add so move to step 3 for next arg
-						step = 3;
-						continue;
-
-					// next sibling node via selector or child string ------------------------------------------------------------------
-					case "2-string":
-					case "3-string":
-					case "3-element":
-						selector = preProcessedSelector || $isSelector(arg);
-
-						// starting a new object
-						if (selector || selfClosing[tag]) {
-							// finish the previous object
-							returnNodes.push($el(tag, attributes));
-
-							// about to start over on step 1 lets save some work,
-							// no need to parse the selector string again
-							preProcessedSelector = selector;
-							i--; // iterate over this arg again
-
-							// child text
-						} else {
-							//create node with child text
-							returnNodes.push($el(tag, attributes, arg));
-						}
-
-						// both cases are final possible step so start back on 1 for next arg
-						step = 1;
-						continue;
-
-					// recursive child array -----------------------------------------------------------------------
-					case "2-array":
-					case "3-array":
-						if (selfClosing[tag]) {
-							throw new Error("Can not add children to " + tag);
-						}
-						// this is where we do our recursion
-						childNodes = $dom(arg);
-						// and push the result back into the final output
-						returnNodes.push($el(tag, attributes, childNodes));
-						// final possible step so start back on 1 for next arg
-						step = 1;
-						continue;
-
-					case "3-function":
-						// no children so done, functions in third position are treated as siblings
-						// function will get handled in step 1 after we finish up here
-						// to produce children functions can be wrapped in an array
-						returnNodes.push($el(tag, attributes));
-						returnNodes = returnNodes.concat(arg());
-						// final possible step so start back on 1 for next arg
-						step = 1;
-						continue;
-
-					default:
-						throw new TypeError("No such step + type combination: " + thisStep + " - previous was " + prevStep);
-				}
-
-			}
-
-			childNodes = attributes = null;
-
-			// we do this down here bc for function types we do a concat which overwrites returnNodes
-			returnNodes.toString = function() {
-				return this.join('');
-			};
-			return returnNodes;
-		}
-
-		return $dom;
-
-	}());
-
-	var parts = {};
-
-	/**
-	 *
-	 * @param name			string,
-	 * @param arg			function or object
-	 * @param preventOverwrite		bool
-	 * @description this function serves as a constructor, getter, setter and collection interface to partials
-	 * there are multiple signatures and a plural alias that makes more sense depending on what you want to do
-	 * $part("name", function(data){...}) returns undefined, saves the function under the given name so that it can be used via the following signatures
-	 * $parts() returns and object that contains all the partials by name
-	 * $parts("myPartial") returns a partial function(data) which if called returns a minidom
-	 * $parts("myPartial", dataObject)
-	 */
-	function $part(name, arg, preventOverwrite) {
-		if (arguments.length === 0) {
-			return parts;							// get all
-		} else if (!$isString(name)) {
-			throw new TypeError("Expected string for name but saw " + $typeof(name));
-		}
-
-		if (name in parts) {
-			if (!arg) {
-				return parts[name];					// get
-
-			} else if ($isFunction(arg)) {
-				if (!preventOverwrite) {
-					return parts[name] = arg;		// update
-				} else {
-					throw new Error("Partial already defined for " + name + ". use overwrite flag to update");
-				}
-			}	else if ($isObject(arg)) {
-				return function(data) {				// get instance with predefined default data object (great for nesting partials)
-					return parts[name](data || arg);
-				}
-			}
-
-		} else if ($isFunction(arg)) {
-			return parts[name] = arg;				// set
-		} else {
-			throw new Error("No such partial '"+name+"', expected a function but saw " + $typeof(arg));
-		}
-	}
-
-	$part.drop = function(name) {
-		delete parts[name];
-	};
-
-	$part.dropAll = function(name) {
-		parts = {};
-	};
-
-	// plural alias nice for collection methods
-	var $parts = $part;
-
-	function $render(name, data) {
-		return $parts(name)(data).toString();
-	}
-
-	// script helper for $part, $dom
-	var jsre = /^http|^\/|^\.|\.js$/i;
-	function $js(script) {
-		var val, attrs = {type: "text/javascript"};
-
-		if ($isFunction(script)) {
-			var scriptStr = script.toString();
-			scriptStr = scriptStr.substring(scriptStr.indexOf("{") + 1, scriptStr.lastIndexOf("}"));
-			val = $el("script", attrs, scriptStr);
-			console.log("----------", val, scriptStr);
-		} else if ($isString(script)) {
-			if (script.match(jsre)) {
-				attrs.src = script;
-				val = $el("script", attrs);
-			} else {
-				val = $el("script", attrs, script);
-			}
-		} else if ($isPlainObject(script)) {
-			val = $el("script", $mixin(attrs, script));
-		}
-
-		return val;
-	}
-
-	// escapeHTML -------------------------------------------------------
-	// from backbone.js
-	var $escapeHTML = (function() {
-
-		// create the regexes and strings only once
-		var amp = 		/&(?!\w+;|#\d+;|#x[\da-f]+;)/gi, ampStr = '&amp;',
-			lt = 		/</g, ltStr = '&lt;',
-			gt = 		/>/g, gtStr = '&gt;',
-			quot = 		/"/g, quotStr = '&quot;',
-			squot = 	/'/g, squotStr = '&#x27;',
-			fslash = 	/\//g, fslashStr = '&#x2F;';
-
-		// the escape function
-		return function(string) {
-			if (typeof string == strType) {
-				return string.replace(amp, ampStr).replace(lt, ltStr).replace(gt, gtStr).replace(quot, quotStr).replace(squot, squotStr); //.replace(fslash, fslashStr);
-			} else {
-				return string;
-			}
-		};
-	}());
-
 	// from backbone.js
 	// Generate a unique integer id (unique within the entire client session).
 	// Useful for temporary DOM ids.
@@ -3059,265 +1273,6 @@
 	function $uniqueId(prefix) {
 		var id = idCounter++;
 		return prefix ? prefix + id : id;
-	}
-
-	// from backbone.js
-	// Cached regex to split keys for `delegate`.
-	var eventSplitter = /^(\S+)\s*(.*)$/;
-
-	/**
-	 * @param name - (string) the name of the view
-	 * @param parent - a DOM node
-	 * @param model - a product of $schema
-	 * @param templateOrRenderFn - a doT template string or a render
-	 * function(data, changes, view) which must return a dom node, the results of which will
-	 * be appended to the parent node
-	 * @description getter = single argument signature pass just the type string and get the
-	 * view constructor
-	 *
-	 */
-	var viewConstructorBank = {};
-	function $view(type, node, model, templateOrRenderFn, events) {
-
-		var existing = viewConstructorBank[type],
-			ctorArgs = arguments, instances = [];
-
-		// constructor getter
-		if (type && arguments.length === 1 && existing) {
-			return existing;
-
-		// init a new view instance of the given, existing type
-		// passing the provided model data object in the 2nd argument
-		} else if (type && arguments.length === 2 && existing) {
-			var modelData = node;
-			if (modelData.defaults || modelData.node || modelData.model || modelData.events) {
-				throw new Error("Invalid Arguments!");
-			}
-			return existing(modelData);
-
-		// return a view constructor
-		} else if ($isString(type) && !existing) {
-			var constructor = function(modelData) {
-				var renderer, update, drop, viewNode, viewModel;
-				var view = $speak({
-						drop: function() {
-							view.model.ignore(update); 					// unsubscribe our model
-							drop && $isFunction(drop) && drop(); 	// call the custom drop method if it exists
-							$(view.node).remove(); 					// this will unbind event handlers
-							view.tell("drop");						// emit our drop event
-							$clear(view);							// final house cleaning
-						},
-						update: function() {
-							update({}, "update", view.model);
-						}
-					});
-
-				if (node && ctorArgs.length === 2 && $isObject(node)) {
-					var spec = ctorArgs[1];
-					events = spec.events;
-					viewNode = spec.node;
-					viewModel = spec.model;
-					drop = spec.drop;
-					templateOrRenderFn = spec.template || spec.render;
-					$extend(view, spec);
-				}
-
-				if ($isString(viewNode)) { viewNode = $el(viewNode); }
-
-				if ($isString(viewModel)) { viewModel = $model(viewModel, modelData); }
-
-				if (!$isElement(viewNode)) {
-					console.log(spec, viewNode, ctorArgs, $doc.usesRealDom());
-					throw new Error("$view: parent must be a DOM node");
-				}
-
-				if (!viewModel || !$isModel(viewModel)) {
-					throw new Error("$view: model argument must be a product of $model");
-				}
-
-				view.type = type;
-				view.id = $uniqueId(type+"View");
-				view.node = viewNode;
-				view.model = viewModel;
-
-				// define our renderer and render functions
-				if ($isString(templateOrRenderFn)) {
-					// in the case of a template we use extra param for template settings
-					renderer = $tmpl(templateOrRenderFn);
-
-					update = function(changes, type, rmodel) {
-						view.node.innerHTML = renderer(rmodel.get());
-						return view.node;
-					};
-
-				} else if ($isFunction(templateOrRenderFn)) {
-					var oldContent;
-					update = function(changes, type, rmodel) {
-						var content = templateOrRenderFn(rmodel.get(), changes, view);
-
-						if (content) {
-							if ($isElement(content)) {
-								if (oldContent) {
-									view.node.replaceChild(content, oldContent);
-								} else {
-									view.node.appendChild(content);
-								}
-								oldContent = content;
-
-							} else {
-								view.node.innerHTML = content;
-							}
-						}
-
-						return view.node;
-					};
-
-				} else {
-					throw new Error("$view: template must be a template string or render function");
-				}
-
-				view.model.listen("change", update);
-
-				view.init && $isFunction(view.init) && view.init();
-
-				// from backbone.js
-				// Set callbacks, where `this.callbacks` is a hash of
-				//
-				// *{"event selector": "callback"}*
-				//
-				//   {
-				//    'mousedown .title': 'edit',
-				//    'click .button':   'save'
-				//   }
-				//
-				// pairs. Callbacks will be bound to the view, with `this` set properly.
-				// Uses event delegation for efficiency.
-				// Omitting the selector binds the event to `this.el`.
-				// This only works for delegate-able events: not `focus`, `blur`, and
-				// not `change`, `submit`, and `reset` in Internet Explorer.
-				//view.delegateEvents = function(events) {
-				if (events) {
-					$(view.node).unbind('.delegateEvents' + view.id);
-					for (var key in events) {
-						var methodName = events[key];
-						var match = key.match(eventSplitter);
-						var eventName = match[1], selector = match[2];
-						var method = function() {view[methodName]();};
-						eventName += '.delegateEvents' + view.id;
-						if (selector === '') {
-							$(view.node).bind(eventName, method);
-						} else {
-							$(view.node).delegate(selector, eventName, method);
-						}
-					}
-				}
-
-				instances.push(view);
-
-				return view;
-			};
-
-			$mixin(constructor, {
-				drop: function() {
-					this.dropInstances();
-					instances = existing = null;
-					delete viewConstructorBank[type];
-					$clear(this);
-					$view.tell("drop", {constructor: type});
-				},
-
-				getInstances: function() {
-					// return a copy of the instances array not the real thing
-					return instances;
-				},
-
-				dropInstances: function(filter) {
-					var _instances = instances;
-
-					if (filter) {
-						_instances = $filter(instances, filter);
-					}
-
-					$each(_instances, function(instance) {
-						instance.drop();
-					});
-
-					return this;
-				}
-			});
-
-			viewConstructorBank[type] = constructor;
-
-			return constructor;
-
-		} else {
-			console.log(arguments);
-			throw new Error("Invalid Arguments!");
-		}
-	};
-
-	function $views(type) {
-		if (type && type in viewConstructorBank) {
-			return viewConstructorBank[type];
-		} else {
-			return viewConstructorBank;
-		}
-	}
-
-	var $isView = function(view) {
-		return view && view.drop && $isFunction(view.drop) && view.node && view.model;
-	};
-
-
-	// ------------------------------- exports -------------------------------
-
-	function $queue(worker, concurrency) {
-		var workers = 0;
-		var q = {
-			tasks: [],
-			concurrency: concurrency,
-			saturated: null,
-			empty: null,
-			drain: null,
-			push: function(data, callback) {
-				if(data.constructor !== Array) {
-					data = [data];
-				}
-				_async.each(data, function(task) {
-					q.tasks.push({
-						data: task,
-						callback: typeof callback === funType ? callback : null
-					});
-					if (q.saturated && q.tasks.length == concurrency) {
-						q.saturated();
-					}
-					_async.nextTick(q.process);
-				});
-			},
-			process: function() {
-				if (workers < q.concurrency && q.tasks.length) {
-					var task = q.tasks.shift();
-					if(q.empty && q.tasks.length == 0) q.empty();
-					workers += 1;
-					worker(task.data, function () {
-						workers -= 1;
-						if (task.callback) {
-							task.callback.apply(task, arguments);
-						}
-						if(q.drain && q.tasks.length + workers == 0) q.drain();
-						q.process();
-					});
-				}
-			},
-			length: function() {
-				return q.tasks.length;
-			},
-			running: function() {
-				return workers;
-			}
-		};
-
-		return q;
 	}
 
 
@@ -3383,25 +1338,15 @@
 		$isError: $isError,
 		$typeof: $typeof,
 
-		// objects
-		$isEmpty: $isEmpty,
-		$has: $has,
-		$pick: $pick,
-		$keys: $keys,
-		$values: $values,
+		// string
+		$trim: $trim,
 
-		$new: $new,
-		$walk: $walk,
-		$copy: $copy,
-		$merge: $merge,
-		$extend: $extend,
-		$mixin: $mixin,
-		$make: $make,
+		// functions
+		$bind: $bind,
 
 		// collections
 		$each: $each,
 		$for: $each,
-
 		$map: $map,
 		$reduce: $reduce,
 		$find: $find,
@@ -3419,7 +1364,9 @@
 		$min: $min,
 		$shuffle: $shuffle,
 		$sortBy: $sortBy,
+		$naturalSort: $naturalSort,
 		$groupBy: $groupBy,
+		$countBy: $countBy,
 		$sortedIndex: $sortedIndex,
 		$size: $length,
 		$length: $length,
@@ -3429,68 +1376,26 @@
 		$splice: $splice,
 		$clear: $clear,
 
-		// async
-		$async: _async,
-		$parallel: $parallel,
-		$series: $series,
-
-		// functions
-		$bind: $bind,
-
-		// time
-		$now: $now,
-		$timeAgo: $timeAgo,
-		$timer: $timer,
+		// objects
+		$isEmpty: $isEmpty,
+		$has: $has,
+		$pick: $pick,
+		$keys: $keys,
+		$values: $values,
+		$new: $new,
+		$walk: $walk,
+		$copy: $copy,
+		$merge: $merge,
+		$extend: $extend,
+		$mixin: $mixin,
+		$make: $make,
 
 		// messaging
 		$speak: $speak,
 		$isSpeaker: $isSpeaker,
 
-		// recycling
-		$recycleBin: $recycleBin,
-		$recyclable: $recyclable,
-		$recycle: $recycle,
-		$reuse: $reuse,
-
-		// traits
-		$component: $component,
-		$compose: $compose,
-		$decompose: $decompose,
-
-		// models
-		$schema: $schema,
-		$define: $schema,
-		$model: $model,
-		$models: $models,
-		$isSchema: $isSchema,
-		$isModel: $isModel,
-
-		// views
-		$view: $view,
-		$views: $views,
-		$isView: $isView,
-
-		// string
-		$trim: $trim,
-
 		// misc
-		$uniqueId: $uniqueId,
-		$queue: $queue,
-
-		// html
-		$id: $id,
-		$tmpl: $tmpl,
-		$node: $node,
-		$doc: $doc,
-		$el: $el,
-		$isSelector: $isSelector,
-		$dom: $dom,
-		$part: $part,
-		$js: $js,
-		$script: $js,
-		$parts: $parts,
-		$render: $render,
-		$escapeHTML: $escapeHTML
+		$uniqueId: $uniqueId
 	};
 
 	loot.addExport = function(name, obj) {
@@ -3530,70 +1435,3 @@
 	this.loot = loot;
 	loot(this);
 }());
-
-// example of adding an external plugin/extension
-loot.extend("$io", $speak(function(url, req, dataType, reqType) {
-
-	var key = $cache.getKey(url, req),
-		parent = $isSpeaker(this) ? this : $io,
-		typeId = parent.typeId || "io",
-		lastArg = arguments[arguments.length-1],
-		handlers = (!lastArg || $isString(lastArg) || $isBoolean(lastArg)) ? {} : lastArg,
-		startH = handlers.start,
-		successH = handlers.success,
-		errorH = handlers.error,
-		useCache = typeId !== "io",
-		bin = useCache ? $cache.get(typeId, url, req) : null;
-
-	var xhr = $.ajax({
-			dataType: 	$isString(dataType) ? dataType : "json",
-			type: 		$isString(reqType) ? reqType : "post",
-			url: 		url,
-			data: 		req,
-
-			success: function(val, textStatus, xhr) {
-				var msg = useCache
-						? $cache.set(typeId, url, req, val, {xhr: xhr})
-						: {val: val, xhr: xhr, url: url, req: req};
-
-				if ($isFunction(successH)) {
-					successH.call(parent, msg, typeId + ":success:" + url);
-				}
-
-				parent.tell(typeId + ":success:" + url, msg);
-			},
-
-			error: function(xhr, textStatus, error) {
-				var err = {
-					status: textStatus,
-					key: key,
-					error: error,
-					req: req,
-					xhr: xhr
-				};
-
-				if (useCache) {
-					err.bin = bin;
-					err.key = key;
-				}
-
-				if ($isFunction(errorH)) {
-					errorH.call(parent, err, typeId + ":error:" + url);
-				}
-
-				parent.tell(typeId + ":error:" + url, err);
-			}
-		});
-
-	if (useCache) {
-		bin.xhr = xhr;
-	}
-
-	if ($isFunction(startH)) {
-		startH.call(parent, bin, typeId + ":start:" + url);
-	}
-
-	parent.tell(typeId + ":start:" + url, bin);
-
-	return bin;
-}));

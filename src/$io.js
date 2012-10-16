@@ -1,3 +1,6 @@
+/**
+ * @require loot cache
+ */
 loot.extend("$io", loot.exports.$speak(function(url, req, dataType, reqType) {
 
 	var key = $cache.getKey(url, req),
@@ -8,7 +11,7 @@ loot.extend("$io", loot.exports.$speak(function(url, req, dataType, reqType) {
 		startH = handlers.start,
 		successH = handlers.success,
 		errorH = handlers.error,
-		useCache = (typeId === "io") ? false : true,
+		useCache = (typeId !== "io"),
 		bin = useCache ? $cache.get(typeId, url, req) : null;
 
 	var xhr = $.ajax({
