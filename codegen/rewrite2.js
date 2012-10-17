@@ -9,6 +9,10 @@
 			window.tree.destroy();
 			window.tree = null;
 		}
+		if (window.tree2) {
+			window.tree2.destroy();
+			window.tree2 = null;
+		}
 
 		if (typeof syntax === 'undefined' && syntax2 === 'undefined') {
 			return;
@@ -22,41 +26,66 @@
 		$id('collapse2').onclick = function () { window.tree2.collapseAll(); };
 		$id('expand2').onclick = function () { window.tree2.expandAll(); };
 
-
-
-		function isArray(o) {
-			return (typeof Array.isArray === 'function') ? Array.isArray(o) :
-				Object.prototype.toString.apply(o) === '[object Array]';
+		if(syntax){
+			tree.buildTreeFromObject(astToTree('Program body', syntax.body));
+			tree.render();
+			tree.subscribe("focusChanged", sourceTreeNodeHilightHandler);
 		}
 
-		function convert(name, node) {
-			var result, i, key, value, child;
 
-			switch (typeof node) {
-			case 'string':
+		if(syntax2){
+			tree2.buildTreeFromObject(astToTree('Program body', syntax2.body));
+			tree2.render();
+//		tree2.subscribe("clickEvent", sourceTreeNodeClickHandler);
+		}
+
+		// json views
+
+//		$("#json1").html(JSON.stringify(syntax.body, null, 4));
+//		$("#json2").html(JSON.stringify(syntax2.body, null, 4));
+	}
+
+	function astToTree(name, node) {
+		var result, i, key, value;
+
+		switch ($typeof(node)) {
+			case "string":
+			case "number":
+			case "regexp":
+			case "boolean":
 				return {
 					type: 'Text',
 					label: name + ': ' + node
 				};
+				break;
 
-			case 'number':
-			case 'boolean':
-				return {
+			case "array":
+				result = {
 					type: 'Text',
-					label: name + ': ' + String(node)
+					label: name,
+					expanded: true,
+					children: []
 				};
+				if (node.length === 2 && name === 'range') {
+					result.label = name + ': [' + node[0] + ', ' + node[1] + ']';
+				} else {
+					result.label = result.label + ' [' + node.length + ']';
+					$each(node, function(value, key) {
+						var child = astToTree(key, value);
+						if ($isArray(child.children) && child.children.length === 1) {
+							result.children.push(child.children[0]);
+						} else {
+							result.children.push(child);
+						}
+					});
+				}
+				return result;
 
-			case 'object':
+			case "object":
 				if (!node) {
 					return {
 						type: 'Text',
 						label: name + ': null'
-					};
-				}
-				if (node instanceof RegExp) {
-					return {
-						type: 'Text',
-						label: name + ': ' + node.toString()
 					};
 				}
 				result = {
@@ -65,78 +94,43 @@
 					expanded: true,
 					children: []
 				};
-				if (isArray(node)) {
-					if (node.length === 2 && name === 'range') {
-						result.label = name + ': [' + node[0] + ', ' + node[1] + ']';
-					} else {
-						result.label = result.label + ' [' + node.length + ']';
-						for (i = 0; i < node.length; i += 1) {
-							key = String(i);
-							value = node[i];
-							child = convert(key, value);
-							if (isArray(child.children) && child.children.length === 1) {
-								result.children.push(child.children[0]);
-							} else {
-								result.children.push(convert(key, value));
+
+				if (typeof node.type !== 'undefined') {
+					result.children.push({
+						type: 'Text',
+						label: node.type,
+						expanded: true,
+						children: []
+					});
+					for (key in node) {
+						if (Object.prototype.hasOwnProperty.call(node, key)) {
+							if (key !== 'type') {
+								value = node[key];
+								result.children[0].children.push(astToTree(key, value));
 							}
 						}
 					}
 				} else {
-					if (typeof node.type !== 'undefined') {
-						result.children.push({
-							type: 'Text',
-							label: node.type,
-							expanded: true,
-							children: []
-						});
-						for (key in node) {
-							if (Object.prototype.hasOwnProperty.call(node, key)) {
-								if (key !== 'type') {
-									value = node[key];
-									result.children[0].children.push(convert(key, value));
-								}
-							}
-						}
-					} else {
-						for (key in node) {
-							if (Object.prototype.hasOwnProperty.call(node, key)) {
-								value = node[key];
-								result.children.push(convert(key, value));
-							}
+					for (key in node) {
+						if (Object.prototype.hasOwnProperty.call(node, key)) {
+							value = node[key];
+							result.children.push(astToTree(key, value));
 						}
 					}
 				}
+
 				return result;
 
 			default:
 				break;
-			}
-
-			return {
-				type: 'Text',
-				label: '?'
-			};
 		}
 
-		if(syntax){
-			tree.buildTreeFromObject(convert('Program body', syntax.body));
-			tree.render();
-			tree.subscribe("focusChanged", sourceTreeNodeHilightHandler);
-		}
-
-
-		if(syntax2){
-			tree2.buildTreeFromObject(convert('Program body', syntax2.body));
-			tree2.render();
-//		tree2.subscribe("clickEvent", sourceTreeNodeClickHandler);
-		}
-
-
-		// json views
-
-//		$("#json1").html(JSON.stringify(syntax.body, null, 4));
-//		$("#json2").html(JSON.stringify(syntax2.body, null, 4));
+		return {
+			type: 'Text',
+			label: '?'
+		};
 	}
+
 
 	var hilight;
 
@@ -198,16 +192,24 @@
 		options = {
 			comment: document.getElementById('comment').checked,
 			raw: document.getElementById('raw').checked,
-			range: false,
-			loc: false
+			range: false, //document.getElementById('range').checked,
+			loc: false //document.getElementById('loc').checked
+		};
+
+		var options2 = {
+			comment: document.getElementById('comment').checked,
+			raw: document.getElementById('raw').checked,
+			range: document.getElementById('range').checked,
+			loc: document.getElementById('loc').checked
 		};
 
 		try {
+			var syntaxForTree = window.esprima.parse(code, options2);
 			syntax = window.esprima.parse(code, options);
 			code2 = window.editor2.getValue();
 			var process = eval(code2);
 			var newSyntax = process(syntax);
-			
+
 			if (logAST) {
 				console.log("original AST", JSON.stringify(syntax), syntax);
 				console.log("generated AST", JSON.stringify(newSyntax), newSyntax);
@@ -215,26 +217,19 @@
 			}
 			code = window.escodegen.generate(newSyntax, { indent: indent });
 		} catch(e) {
-			setText('error', e.toString());
 			//swallow if first attempt fails
 		}
 
 		try { //regardless of status of first attempt, try with macros expanded
 			var macros = window.editor4.getValue();
 			afterMacroExpandSyntax = window.esprima.parse( macros + code, options);
-			updateTree(syntax, afterMacroExpandSyntax);
-			setText('error', "");
+			updateTree(syntaxForTree, afterMacroExpandSyntax);
 		} catch(e) { //no can do, display error
 			setText('error', e.toString());
 		} finally {
 			code = window.escodegen.generate(afterMacroExpandSyntax, { indent: indent });
 			window.editor3.setValue(code);
 		}
-
-
-	//		(function () {
-				console.log(eval(code), code);
-	//		}())
 	}
 
 

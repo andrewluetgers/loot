@@ -238,7 +238,6 @@
 		node.appendChild = node.append;
 		node.removeAttribute = node.setAttribute = node.set;
 
-		console.log($node);
 		return function(type) {
 			// use new to reduce memory footprint for many nodes
 			var n = $new(node);
@@ -438,7 +437,6 @@
 
 			} else {
 				if (props) {
-
 					props.id && setProperty(node, "id", props.id);
 					props.className && setProperty(node, "class", props.className);
 					$each(props, function(val, key) {
