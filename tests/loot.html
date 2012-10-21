@@ -1027,6 +1027,48 @@
 				allYourBase: "are belong to us"
 			};
 
+			// theoretical new api
+//			$define("agent", {
+//				defaults: {
+//					first: "Fox",
+//					last: "Mulder",
+//					fooNum: 1,
+//					barnum: 0,
+//					fullName: {
+//						get: function(model) {
+//							return this.first + " " + this.last;
+//						},
+//						set: function(val, model) {
+//							var parts = val.split(" ");
+//							model.set({
+//								first: parts[0],
+//								last: parts[1]
+//							});
+//						}
+//					}
+//				},
+//				validators: {
+//					isString: function(val, key) {
+//						return $isString(val);
+//					},
+//					isTruthy: function(val) {
+//						return !!val;
+//					},
+//					isNumber: function(val, key) {
+//						return $isNumber(val);
+//					},
+//					lessThan10: function(val) {
+//						return ($length(val) < 10);
+//					}
+//				},
+//				rules: {
+//					first: verify.isString,
+//					last: {
+//						isString: "must be a string",
+//					},
+//				}
+//			});
+
 			
 
 			$define("testSchema");

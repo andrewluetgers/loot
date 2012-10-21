@@ -65,7 +65,7 @@
 					var spec = ctorArgs[1];
 					events = spec.events;
 					viewNode = spec.node;
-					viewModel = spec.model;
+					viewModel = $isModel(modelData) ? modelData : spec.model;
 					drop = spec.drop;
 					templateOrRenderFn = spec.template || spec.render;
 					$extend(view, spec);

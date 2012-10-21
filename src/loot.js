@@ -1193,12 +1193,6 @@
 			 * @description will forward all messages to the provided speaker by adding it to our _audience
 			 */
 			talksTo: function(speaker) {
-
-//				if (speaker === window) {
-//					console.log(this, arguments);
-//					throw new Error("WTF");
-//				}
-
 				if (this !== speaker && this._audience.indexOf(speaker) === -1) {
 					this._audience.push($speak(speaker));
 				}
@@ -1225,6 +1219,9 @@
 
 
 		function speak(obj) {
+			if (obj === root) {
+				throw new Error("cannot make js context root a speaker");
+			}
 			if (obj && obj.hasOwnProperty("_listeningFor") && obj.hasOwnProperty("_audience")) {
 				// already a publisher, do noting
 				return obj;

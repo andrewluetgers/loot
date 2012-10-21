@@ -6,7 +6,9 @@ module.exports = function(grunt) {
 
 	// Project configuration.
 	grunt.initConfig({
+
 		pkg: '<json:package.json>',
+
 		meta: {
 			banner: "/*\n"+
 					" * <%= pkg.fullName %> <%= pkg.version %> <%= grunt.template.today('mm-dd-yyyy') %>\n"+
@@ -42,7 +44,7 @@ module.exports = function(grunt) {
 					"src/loot.js"
 
 					// mvc stuff
-					,"src/$model.js", "src/$view.js", "src/$collection.js", "src/$dom.js", "src/$time.js"
+					,"src/$model.js", "src/$view.js", "src/$collection.js", "src/$dom.js", "src/$time.js", "src/$route.js"
 
 					// async/data io
 //					,"src/$async.js", "src/$cache.js", "src/$io.js"
@@ -52,6 +54,7 @@ module.exports = function(grunt) {
 				],
 				dest: "dist/<%= pkg.name %>-<%= pkg.version %>.js"
 			}
+
 		},
 
 		min: {
@@ -70,7 +73,7 @@ module.exports = function(grunt) {
 		},
 
 		watch: {
-			files: ['grunt.js', 'tests/**/*.js', 'src/**/*.js'],
+			files: ['grunt.js', 'src/**.js', 'src/**/*.js'],
 			tasks: 'default'
 		}
 	});

@@ -4,29 +4,41 @@
  */
 
 (function() {
-	var compare = function(a, b) {
-		if (a < b) return -1;
-		if (a > b) return 1;
-		return 0;
-	};
 
-	var collectionAPI = $speak({
-		items: [],
+	var collectionAPI = {
+		init: function() {
+			// make sure our values are unique across instances
+			this.items = [];
+			this.node = null;
+			this.view = null;
+			this.schema = null;
+		},
 		add: function(val) {
+//			console.log(val);
 			// supports batch add
 			var items = $isArray(val) ? val : [val];
 
+			var that = this;
 			$each(items, function(item) {
 				// can add a view or model depending on how the collection is setup
-				if (this.view) {
+				if (that.view) {
 					// make sure we insert a view instance not a config obj
-					item = $isView(item) ? item : this.view(item);
+					if ($isModel(item)) {
+//						console.log("adding view with model", item);
+						// support overriding view model on view construction
+						item = that.view(item);
+//						console.log("makin a view", item);
+					} else {
+//						console.log("adding view", item);
+						item = $isView(item) ? item : that.view(item);
+					}
 				} else {
 					// make sure we insert a model instance not a config obj
-					item = $isModel(item) ? item : this.schema(item);
+//					console.log("adding model", item);
+					item = $isModel(item) ? item : that.schema(item);
 				}
-				this.items.push(item);
-			}, this);
+				that.items.push(item);
+			});
 
 			//resort regroup
 			if (this.sortIterator) {	this.items = $sortBy(this.items, this.sortIterator)}
@@ -38,9 +50,14 @@
 		},
 
 		sortBy: function(val) {
-			var iterator = $isFunction(val) ? val : function(obj) { return obj.model.get()[val]; };
+//			console.log(this);
+			var iterator = $isFunction(val) ? val : function(obj) {
+//				console.log(obj, val);
+				return obj.model.get()[val];
+			};
 			this.sortIterator = iterator;
 			this.items = $sortBy(this.items, iterator);
+//			console.log(val, this.items);
 			this.tell("change:sortBy");
 			return this;
 		},
@@ -77,23 +94,25 @@
 			});
 			this.tell("change:dropAll");
 			return this;
+		},
+
+		draw: function() {
+			if ($isElement(this.node)) {
+				this.node.innerHTML = "";
+				$each(this.items, function(view) {
+					if (view && $isElement(view.node)) {
+//						console.log(that.node.id);
+						this.node.appendChild(view.node);
+					}
+				}, this);
+			}
+//			console.log("DRAW!", this, this.items, this.node.id, this.view.getInstances());
+			return this;
 		}
 
-	});
+	};
 
 	// used for view collections
-	var draw = function() {
-		var node = this.node;
-		if ($isElement(node)) {
-			node.innerHTML = "";
-			$each(this.items, function(view) {
-				if (view && $isElement(view.node)) {
-					node.appendChild(view.node);
-				}
-			});
-		}
-		return this;
-	};
 
 	// $collection function creates a collection instance
 	loot.extend("$collection", function(spec) {
@@ -105,18 +124,19 @@
 			throw new Error("$collection: Expected an object with a schema or view property");
 		}
 
-		var collection = $extend($new(collectionAPI), spec);
+		var collection = $speak($extend($new(collectionAPI), spec));
 
 		// make sure we have a valid view constructor
 		if (view) {
 			view = $isString(view) ? $views(view) : view;
 			if ($isViewConstructor(view)) {
 				collection.view = view;
-				collection.draw = spec.draw || draw;
+				collection.draw = spec.draw ? spec.draw : collection.draw;
 			} else {
 				throw new Error("$collection: Invalid view type or constructor function");
 			}
 		} else if (schema) {
+			delete collection.draw;
 			schema = $isString(schema) ? $schema(schema) : schema;
 			if ($isSchema(schema)) {
 				collection.schema = schema;

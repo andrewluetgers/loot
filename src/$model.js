@@ -26,7 +26,10 @@
 			return results;
 
 		} else {
-			return modelVals;
+			// object map ftw
+			return $map(modelVals, function(val, key) {
+				return $isFunction(val) ? modelVals[key]() : val;
+			});
 		}
 	}
 
@@ -41,58 +44,57 @@
 	}
 
 	function modelApiSet(modelVals, _key, _val) {
-		var obj = _key,
-			val, key,
+		var val, key, obj,
 			changes = {},
-			validate = this.validate,
-			validateFn,
+			validate = this.validate || {},
+			defaults = this.defaults,
+			validators,
 			validationFailures,
-			failed;
+			failures = {},
+			dynValErr = "cannot set dynamic property ";
 
-		// if using single item syntax convert it to multi-item syntax so we only need one implementation
-		if (typeof obj === "string") {
-			// set single item to
-			if (_val === undefined) {
-				modelVals[_key] = _val;
-				return;
-			} else {
-				obj = {};
-				obj[_key] = _val;
-			}
+		// handle single and multi-property syntax
+		if (typeof _key === "string") {
+			obj = {};
+			obj[_key] = _val;
+		} else {
+			obj = _key;
 		}
 
-		// generate our changes
-		if (!validate) {
-			// lets not check for validators if we don't have to
-			for (key in obj) {
-				changes[key] = obj[key];
+		// validate and generate our changes
+		for (key in obj) {
+			if (!obj.hasOwnProperty(key)) {
+				continue;
 			}
-		} else {
-			// we have validators so check them and log failures
-			validationFailures = {};
+			val = obj[key];
+			if ($isFunction(defaults[key])) {
+				failures[key] = dynValErr + key;
 
-			for (key in obj) {
-				val = obj[key];
-				validateFn = validate[key];
-
-				if(validateFn) {
-					var validationResult = validateFn(val);
-					if (validationResult === true) {
-						changes[key] = val;
-					} else {
-						failed = true;
-						validationFailures[key] = validationResult;
+			// check for validator fn also no need to validate if we are deleting (val === undefined)
+			} else if((validators = validate[key]) && (val !== undefined)) {
+				// handle single validator fn or expect an array
+				validators = $isFunction(validators) ? [validators] : validators;
+				validationFailures = {};
+				$each(validators, function(validateFn, k) {
+					var result = validateFn(val);
+					if (result === true) {
+						validationFailures[k] = result;
 					}
+				});
+				if ($length(validationFailures)) {
+					failures[key] = validationFailures;
 				} else {
 					changes[key] = val;
 				}
+			} else {
+				changes[key] = val;
 			}
 		}
 
-		if (failed) {
+		if ($length(failures)) {
 			this.tell("validationFailed", {
 				passed: changes,
-				failed: validationFailures
+				failed: failures
 			});
 		} else {
 			// no errors! merge our changes into the model values
@@ -106,7 +108,7 @@
 	// define a type of object or data model
 	function $schema(type, options, collection) {
 		var existingSchema = schemaBank[type],
-			instances = [];
+			instances = [], ctorArgs = arguments;
 
 		// schema getter
 		if (arguments.length === 0) {
@@ -172,6 +174,8 @@
 						throw new Error("drop must be a function");
 					}
 
+//					console.log(type, this, arguments);
+
 					// model instance api
 					var model = $extend(modelProto, {
 						schema: type,
@@ -210,12 +214,15 @@
 						$mixin(modelVals, vals);
 					}
 
+					var that = this;
 					var init = function() {
 						// all model events are forwarded to their parent schema
-						model.talksTo(this);
+						model.talksTo(that);
+
+//						console.log("model init", model, that);
 
 						instances.push(model);
-						model.tell("created", this);
+						model.tell("created", that);
 
 						return model;
 					};
