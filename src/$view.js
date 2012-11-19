@@ -4,9 +4,6 @@
  */
 
 (function() {
-	// from backbone.js
-	// Cached regex to split keys for `delegate`.
-	var eventSplitter = /^(\S+)\s*(.*)$/;
 
 	/**
 	 * @param name - (string) the name of the view
@@ -42,7 +39,7 @@
 			// return a view constructor
 		} else if ($isString(type) && !existing) {
 			var constructor = function(modelData) {
-				var renderer, update, drop, viewNode, viewModel;
+				var renderer, update, drop, viewNode, viewModel, viewCollection;
 				var view = $speak({
 					drop: function() {
 						view.model.ignore(update); 					// unsubscribe our model
@@ -66,6 +63,7 @@
 					events = spec.events;
 					viewNode = spec.node;
 					viewModel = $isModel(modelData) ? modelData : spec.model;
+					modelCollection = $isCollection(modelData) ? modelData : spec.collection;
 					drop = spec.drop;
 					templateOrRenderFn = spec.template || spec.render;
 					$extend(view, spec);
@@ -75,19 +73,22 @@
 
 				if ($isString(viewModel)) { viewModel = $model(viewModel, modelData); }
 
+				if ($isString(modelCollection)) { modelCollection = $collections(modelCollection);}
+
 				if (!$isElement(viewNode)) {
 					console.log(spec, viewNode, ctorArgs, $doc.usesRealDom());
-					throw new Error("$view: parent must be a DOM node");
+					throw new Error("$view: node must be a DOM node");
 				}
 
-				if (!viewModel || !$isModel(viewModel)) {
+				if ((viewModel && !$isModel(viewModel))
+				|| (modelCollection && !$isCollection(modelCollection))) {
 					throw new Error("$view: model argument must be a product of $model");
 				}
 
 				view.type = type;
 				view.id = $uniqueId(type+"View");
 				view.node = viewNode;
-				view.model = viewModel;
+				view.model = modelCollection || viewModel;
 
 				// define our renderer and render functions
 				if ($isString(templateOrRenderFn)) {
@@ -125,40 +126,50 @@
 					throw new Error("$view: template must be a template string or render function");
 				}
 
-				view.model.listen("change", update);
+				if (modelCollection) {
+					// there are more events to watch for with a collection of models
+					// so we need to handle both the "change:type" events from the collection
+					// and the "change" events from its child models
+					//
+					// this changes the signature we can provide to the update function which will affect how
+					// what data is provided to the render function, in both cases the render function's
+					// data argument (the first one) will be the result of calling get on the collection
+					// by default this is the array of collection.items
+					//
+					// if the collection changes the update method will be called with the following arguments
+					// 		changes = the collection instead of the usual which is any specific model or any specific changed values
+					// 		type = "change:someaction"
+					//		model = the value of view.model which is actually the collection instead of the usual which is an actual model instance
+
+					// if a model in the collection changes the update method will be called with the following arguments
+					// 		changes = the changed model instance NOT the changed values as is the case with models bound to views
+					// 		type = "change"
+					//		model = the value of view.model which is actually the collection vs an actual model instance
+					//
+					var matchRe = /^change/;
+					view.model.listen("*", function(changes, type, model) {
+						// we only want change or change:someaction events
+						// the regex could be more specific but this works for now
+						if (type.match(matchRe)) {
+							update(model, type, this);
+						}
+					});
+				} else {
+					// the arguments passed to update will be
+					// 		changes = an object of just the properties on the model that have changed
+					// 		type = "change"
+					// 		model = the changed model
+					//
+					// the view render function will be provided with the result of calling get on the model
+					view.model.listen("change", update);
+				}
 
 				view.init && $isFunction(view.init) && view.init();
 
-				// from backbone.js
-				// Set callbacks, where `this.callbacks` is a hash of
-				//
-				// *{"event selector": "callback"}*
-				//
-				//   {
-				//    'mousedown .title': 'edit',
-				//    'click .button':   'save'
-				//   }
-				//
-				// pairs. Callbacks will be bound to the view, with `this` set properly.
-				// Uses event delegation for efficiency.
-				// Omitting the selector binds the event to `this.el`.
-				// This only works for delegate-able events: not `focus`, `blur`, and
-				// not `change`, `submit`, and `reset` in Internet Explorer.
-				//view.delegateEvents = function(events) {
-				if (events) {
-					$(view.node).unbind('.delegateEvents' + view.id);
-					for (var key in events) {
-						var methodName = events[key];
-						var match = key.match(eventSplitter);
-						var eventName = match[1], selector = match[2];
-						var method = function() {view[methodName]();};
-						eventName += '.delegateEvents' + view.id;
-						if (selector === '') {
-							$(view.node).bind(eventName, method);
-						} else {
-							$(view.node).delegate(selector, eventName, method);
-						}
-					}
+				events && $bindEventSpec(view);
+
+				if ($isPlainObject(view.listeners)) {
+					$speak.util.bindListenerSpec(view, view.listeners);
 				}
 
 				instances.push(view);
@@ -217,8 +228,10 @@
 			if (type && id) {
 				return viewConstructorBank[type].getInstance(id);
 			} else {
-			return viewConstructorBank[type];
+				return viewConstructorBank[type];
 			}
+		} else if (!arguments.length) {
+			return undefined;
 		} else {
 			return viewConstructorBank;
 		}

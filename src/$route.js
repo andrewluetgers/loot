@@ -2,6 +2,26 @@
  * $route.js
  * @require loot
  */
+/*
+	a lightweight URL router written in Javascript. The routing is based on the path after the hash (#)
+	in the URL, thus providing pure client-side navigation for AJAX applications.
+
+	Consider a simple scenario: myshop.com wants to implement pure AJAX-navigation between products using jsRouter.
+	1. Register the routes in your application
+		function onRootInvoked() { ... }
+		function onProductsInvoked() { ... }
+		$route('Root', '', onRootInvoked);
+		$route('Products', 'products/:productId', onProductsInvoked, { productId: 0 });
+
+	2. Use normal anchor tags or the navigateTo() method to invoke the routes
+		<a href="#products">Products</a>
+		$loadRoute('Products', { productId: 343434 });
+
+	3. The callbacks gets triggered by the matched route
+		http://myshop.com/ triggers onRootInvoked
+		http://myshop.com/#products will trigger onProductsInvoked with productId set to 0
+		http://myshop.com/#products/7724 will trigger onProductsInvoked with arguments containing the productId
+*/
 
 (function() {
 	// modified from http://jsrouter.codeplex.com/
@@ -37,7 +57,7 @@
 		if (route.defaults) {
 			for (var key in route.defaults) {
 				if (args && args[key] !== undefined) continue;
-				var regExp = new RegExp("\\{" + key + "}", "gi");
+				var regExp = new RegExp("\\:" + key, "gi");
 				path = path.replace(regExp, '');
 			}
 		}
@@ -45,7 +65,7 @@
 			for (var key in args) {
 				var keyVal = args[key],
 					value = encodeURIComponent(keyVal),
-					regExp = new RegExp("\\{" + key + "}", "gi");
+					regExp = new RegExp("\\:" + key, "gi");
 				path = path.replace(regExp, value);
 			}
 		}
@@ -58,7 +78,7 @@
 			pathSegments = path.split('/');
 
 		for (var i = 0, segment, match; i < pathSegments.length && (segment = route.segments[i]); i++) {
-			if ((match = /{(\w+)}/.exec(segment)) != null) {
+			if ((match = /:(\w+)/.exec(segment)) != null) {
 				if (pathSegments[i] == '' && values[match[1]]) {
 					continue; // skip empty values when the value is already set to a default value
 				}
@@ -75,7 +95,7 @@
 
 		var regexp = ['^'];
 		for (var i = 0, segment, match; (segment = pathSegments[i]) !== undefined; i++) {
-			if ((match = /{(\w+)}/.exec(segment)) != null) {
+			if ((match = /:(\w+)/.exec(segment)) != null) {
 				var argName = match[1];
 
 				// add a backslash, except for the first segment
@@ -132,7 +152,7 @@
 		}
 
 		var route = getCurrentRoute();
-		if (route && route.callback && typeof route.callback == 'function') {
+		if (route && route.callback) {
 			// update state
 			currentRoute = route;
 			currentPath = window.location.hash;
@@ -141,26 +161,19 @@
 		}
 	}
 
-	function init() {
-		if (window.onhashchange) {
-			window.bind('hashchange', onHashChanged)
-		} else {
-			hashListenerInterval = setInterval(onHashChanged, 100);
-		}
-		isReady = true;
-	}
-
 	function $route(routeName, pathPattern, callback, defaults) {
-		if (arguments.length === 1) {
-			$routes(routeName);
-
-		} else if (arguments.length === 2) {
-			routeTable.push({
-				name: routeName,
-				pathPattern: routeName,
-				callback: pathPattern,
-				defaults: defaults
-			});
+		if (arguments.length === 2) {
+			if ($isFunction(pathPattern)) {
+				// define a simple route
+				routeTable.push({
+					name: routeName,
+					pathPattern: routeName,
+					callback: pathPattern,
+					defaults: defaults
+				});
+			} else {
+				throw new Error("incomplete arguments");
+			}
 
 		} else {
 			routeTable.push({
@@ -172,18 +185,52 @@
 		}
 	}
 
-	function $routes(routeName, values) {
-		if (!arguments.length) {
+	function $routes(routeName) {
+		if (!routeName) {
 			return routeTable;
 		} else {
-			var route = getRoute(routeName);
-			var path = fillPath(route, values || route.values);
-			window.location.hash = path;
+			return routeTable[routeName];
 		}
 	}
 
-//	$(init);	// hook up events, expects jquery style ready callback
+	function $loadRoute(routeName, values) {
+		var route = getRoute(routeName);
+		var path = fillPath(route, values || route.values);
+		window.location.hash = path;
+	}
 
+	var routerApi = $speak({
+		getCurrentRoute: function() { return currentRoute;},
+		getCurrentPath: function() { return currentPath;}
+	});
+
+	function $router(spec) {
+		// copy our spec
+		var router = $extend(routerApi, spec);
+
+		if (spec && spec.routes) {
+			$each(spec.routes, function(fn, key) {
+				$route(key, function(attrs) {
+					if ($isString(fn)) {
+						fn = router[fn];
+					} else if (!$isFunction(fn)) {
+						throw new Error("invalid route callback value");
+					}
+					fn.apply(router, $slice(arguments));
+				});
+			});
+		} else {
+			throw new Error("routes property required");
+		}
+
+		if ($isPlainObject(router.listeners)) {
+			$bindListenerSpec(router);
+		}
+
+		return router;
+ 	}
+
+	// hook up events
 	if (window.onhashchange) {
 		window.bind('hashchange', onHashChanged)
 	} else {
@@ -194,8 +241,10 @@
 	// expose methods
 	loot.extend({
 		$route: $route,
+		$router: $router,
 		$routes: $routes,
-		$loadRoute: $routes
+		$loadRoute: $loadRoute,
+		$currentRoute: getCurrentRoute
 	});
 
 }());

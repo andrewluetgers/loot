@@ -429,6 +429,8 @@
 
 			id = className = null;
 
+			tag = tag || "div";
+
 			// create the node
 			node = $doc.createElement(tag);
 			if (!useDocument) {
@@ -705,7 +707,7 @@
 						continue;
 
 					default:
-						throw new TypeError("No such step + type combination: " + thisStep + " - previous was " + prevStep);
+						throw new TypeError("$dom: No such step + type combination: " + thisStep + " - previous was " + prevStep);
 				}
 
 			}
@@ -729,7 +731,6 @@
 	 *
 	 * @param name			string,
 	 * @param arg			function or object
-	 * @param preventOverwrite		bool
 	 * @description this function serves as a constructor, getter, setter and collection interface to partials
 	 * there are multiple signatures and a plural alias that makes more sense depending on what you want to do
 	 * $part("name", function(data){...}) returns undefined, saves the function under the given name so that it can be used via the following signatures
@@ -737,7 +738,7 @@
 	 * $parts("myPartial") returns a partial function(data) which if called returns a minidom
 	 * $parts("myPartial", dataObject)
 	 */
-	function $part(name, arg, preventOverwrite) {
+	function $part(name, arg) {
 		if (arguments.length === 0) {
 			return parts;							// get all
 		} else if (!$isString(name)) {
@@ -749,12 +750,9 @@
 				return parts[name];					// get
 
 			} else if ($isFunction(arg)) {
-				if (!preventOverwrite) {
-					return parts[name] = arg;		// update
-				} else {
-					throw new Error("Partial already defined for " + name + ". use overwrite flag to update");
-				}
-			}	else if ($isObject(arg)) {
+				return parts[name] = arg;			// update
+
+			} else if ($isObject(arg)) {
 				return function(data) {				// get instance with predefined default data object (great for nesting partials)
 					return parts[name](data || arg);
 				}
@@ -762,6 +760,7 @@
 
 		} else if ($isFunction(arg)) {
 			return parts[name] = arg;				// set
+
 		} else {
 			throw new Error("No such partial '"+name+"', expected a function but saw " + $typeof(arg));
 		}
@@ -828,6 +827,75 @@
 		};
 	}());
 
+
+	// modified from backbone.js
+	// Set callbacks, where `this.callbacks` is a hash of
+	//
+	// *{"event selector": "callback"}*
+	//
+	//   {
+	//    'mousedown .title': 'edit',
+	//    'click .button':   'save'
+	//   }
+	//
+	// pairs. Callbacks will be bound to the view, with `this` set properly.
+	// Uses event delegation for efficiency.
+	// Omitting the selector binds the event to `this.el`.
+	// This only works for delegate-able events: not `focus`, `blur`, and
+	// not `change`, `submit`, and `reset` in Internet Explorer.
+	//view.delegateEvents = function(events) {
+
+	var $bindEventSpec = (function() {
+		// from backbone.js
+		// Cached regex to split keys for `delegate`.
+		var eventSplitter = /^(\S+)\s*(.*)$/;
+
+		return function(context) {
+
+			var node, events, id;
+
+			if (arguments.length == 3) {
+				node = arguments[0];
+				events = arguments[1];
+				context = arguments[2];
+			} else {
+				node = context.node;
+				events = context.events;
+			}
+
+			id = context.id || "";
+
+			if (!$isElement(node) || !events) {
+				console.log(node, events, context);
+				throw new Error("invalid arguments");
+			}
+
+			$(node).unbind('.delegateEvents' + id);
+
+			$each(events, function(val, key) {
+				var match = key.match(eventSplitter),
+					eventName = match[1] + '.delegateEvents' + id,
+					selector = match[2],
+					fn = $isFunction(val) ? val : context[val],
+					cb;
+
+				if ($isFunction(fn)) {
+					cb = function(e) {fn.call(this, e, context);};
+
+					if (selector === '') {
+						$(node).bind(eventName, cb);
+					} else {
+						$(node).on(eventName, selector, cb);
+					}
+				} else {
+					console.log(fn, val, key);
+					throw new Error("No such callback " + val);
+				}
+			});
+		};
+	}());
+
+
 	loot.extend({
 		$id: $id,
 		$tmpl: $tmpl,
@@ -841,7 +909,8 @@
 		$script: $js,
 		$parts: $parts,
 		$render: $render,
-		$escapeHTML: $escapeHTML
+		$escapeHTML: $escapeHTML,
+		$bindEventSpec: $bindEventSpec
 	});
 
 }());

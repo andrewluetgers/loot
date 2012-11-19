@@ -8,7 +8,9 @@
 	var schemaBank = {};
 
 	function modelApiGet(modelVals, _key) {
-		var len = arguments.length, val;
+		var len = arguments.length,
+			val;
+
 		if (len == 2 && $isString(_key)) {
 			val = modelVals[_key];
 			// supports computed values
@@ -40,6 +42,31 @@
 			} else {
 				delete modelVals[key];
 			}
+		}
+	}
+
+	function parseInput(val, key, fn, model) {
+		fn = $isString(fn) ? this[fn] : fn;
+		if ($isFunction(fn)) {
+			return fn.call(model, val, key);
+		}
+		return val;
+	}
+
+	function parseInputs(vals) {
+		var parse = this.parse,
+			model = this;
+
+		if (parse) {
+			$each(parse, function(fn, key) {
+				if (key in vals) {
+					vals[key] = parseInput(vals[key], key, fn, model);
+				} else if (key === "*") {
+					$each(vals, function(v, k) {
+						vals[k] = parseInput(v, k, fn, model);
+					});
+				}
+			});
 		}
 	}
 
@@ -183,11 +210,7 @@
 						// the following get and set facade allows us to have a unique closure for modelVals and modelProto
 						// without having copies of the larger modelApiSet and modelApiGet functions on each model instance hopefully saving some memory usage
 						get: function(key) {
-							if (arguments.length) {
-								return modelApiGet.apply(this, $flat(modelVals, $slice(arguments))); // todo can we do this in a better way
-							} else {
-								return modelVals;
-							}
+							return modelApiGet.apply(this, $flat(modelVals, $slice(arguments))); // todo can we do this in a better way
 						},
 						set: function(key, val) {
 							return modelApiSet.call(this, modelVals, key, val);
@@ -198,14 +221,12 @@
 						renew: function() {
 							return init();
 						},
-						drop: function(willReuse) {
+						drop: function() {
 							drop && drop();
 							this.tell("drop", this);
 							// remove this instance from the instances array
 							instances.splice(instances.indexOf(this), 1);
-							if (!willReuse) {
-								$clear(this);
-							}
+							$clear(this);
 						}
 					});
 
@@ -214,8 +235,11 @@
 						$mixin(modelVals, vals);
 					}
 
+					parseInputs.call(model, vals);
+
 					var that = this;
 					var init = function() {
+
 						// all model events are forwarded to their parent schema
 						model.talksTo(that);
 
@@ -267,11 +291,11 @@
 	}
 
 	function $isSchema(obj) {
-		return ($isFunction(obj.drop) && $isString(obj.type) && obj.getInstances && obj.newInstance);
+		return (obj && $isFunction(obj.drop) && $isString(obj.type) && obj.getInstances && obj.newInstance);
 	}
 
 	function $isModel(obj) {
-		return ($isFunction(obj.drop) && $isString(obj.schema) && obj.set && obj.get);
+		return (obj && $isFunction(obj.drop) && $isString(obj.schema) && obj.set && obj.get);
 	}
 
 	loot.extend({

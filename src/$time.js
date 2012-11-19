@@ -248,7 +248,7 @@
 		var	token = /d{1,4}|m{1,4}|yy(?:yy)?|([HhMsTt])\1?|[LloSZ]|"[^"]*"|'[^']*'/g,
 			timezone = /\b(?:[PMCEA][SDP]T|(?:Pacific|Mountain|Central|Eastern|Atlantic) (?:Standard|Daylight|Prevailing) Time|(?:GMT|UTC)(?:[-+]\d{4})?)\b/g,
 			timezoneClip = /[^-+\dA-Z]/g,
-			pad = function (val, len) {
+			pad = function(val, len) {
 				val = String(val);
 				len = len || 2;
 				while (val.length < len) val = "0" + val;
@@ -256,7 +256,10 @@
 			};
 
 		// Regexes and supporting functions are cached through closure
-		return function (date, mask, utc, langCode) {
+		return function(date, mask, utc, langCode) {
+			if (!date) {
+				return date + "";
+			}
 			var dF = $dateFormat;
 			langCode = langCode || dF.defaultLang;
 			var lang = dF.lang[langCode];
@@ -269,7 +272,7 @@
 
 			// Passing date through Date applies Date.parse, if necessary
 			date = date ? new Date(date) : new Date;
-			if (isNaN(date)) throw SyntaxError("invalid date");
+			if (!$isDate(date)) throw SyntaxError("invalid date");
 
 			mask = String(dF.masks[mask] || mask || dF.masks["default"]);
 
