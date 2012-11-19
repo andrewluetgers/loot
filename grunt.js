@@ -39,7 +39,7 @@ module.exports = function(grunt) {
 		concat: {
 			dist: {
 				src: [
-					'<banner>',
+					"<banner>",
 					// core functionality
 					"src/loot.js"
 
@@ -47,19 +47,25 @@ module.exports = function(grunt) {
 					,"src/$model.js", "src/$view.js", "src/$collection.js", "src/$dom.js", "src/$time.js", "src/$route.js"
 
 					// async/data io
-//					,"src/$async.js", "src/$cache.js", "src/$io.js"
+					,"src/$async.js" //, "src/$cache.js", "src/$io.js"
 
 					// experimental
 //					,"src/$components.js", "src/$reuse.js"
 				],
 				dest: "dist/<%= pkg.name %>-<%= pkg.version %>.js"
+			},
+
+			dev: {
+				src: ["<config:concat.dist.src>", "src/dev.js"],
+				dest: "dist/<%= pkg.name %>-<%= pkg.version %>-dev.js"
+
 			}
 
 		},
 
 		min: {
 			dist: {
-				src: ['<banner>', '<config:concat.dist.dest>'],
+				src: ["<banner>", "<config:concat.dist.dest>"],
 				dest: "dist/<%= pkg.name %>-<%= pkg.version %>-min.js"
 			}
 		},
