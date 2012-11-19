@@ -204,6 +204,31 @@
 		};
 	}
 
+	// Returns a function, that, as long as it continues to be invoked, will not
+	// be triggered. The function will be called after it stops being called for
+	// N milliseconds. If `immediate` is passed, trigger the function on the
+	// leading edge, instead of the trailing.
+	function $debounce(fn, wait, immediate) {
+		var timeout;
+		return function() {
+			var context = this,
+				args = arguments,
+				later = function() {
+					timeout = null;
+					if (!immediate) {
+						fn.apply(context, args);
+					}
+				};
+
+			if (immediate && !timeout) {
+				fn.apply(context, args);
+			}
+			clearTimeout(timeout);
+			timeout = setTimeout(later, wait);
+		};
+	}
+
+
 	// Is a given array, string, or object empty?
 	// An "empty" object has no enumerable own-properties.
 	function $isEmpty(obj) {
@@ -416,7 +441,7 @@
 	// Delegates to **ECMAScript 5**'s native "some" if available
 	function $any(obj, iterator, context) {
 		var result = false;
-
+		if (obj == null) return result;
 		if (nativeSome && obj.some === nativeSome) {
 			return obj.some(iterator, context);
 		}
@@ -1002,7 +1027,6 @@
 
 
 
-
 	// messaging -------------------------------------------------------
 
 	// API note
@@ -1026,20 +1050,18 @@
 				var i, len, listener, lMax,
 					wildCardListeners,
 					topicSpecificListeners,
+					allListeners,
 					audience = this._audience,
 					originalSpeaker = speaker || this,
 					selectiveHearing = this.selectiveHearing;
 
 				if (!selectiveHearing || ($isFunction(selectiveHearing) && this.selectiveHearing(message, topic, originalSpeaker)) ) {
-					topicSpecificListeners = (topic !== "*") ? this._listeningFor[topic] || [] : []; //$reuse.array();
+					topicSpecificListeners = (topic !== "*") ? this._listeningFor[topic] || [] : [];
 					wildCardListeners = this._listeningFor["*"];
+					allListeners = wildCardListeners ? topicSpecificListeners.concat(wildCardListeners) : topicSpecificListeners ;
 
-					if (wildCardListeners) {
-						topicSpecificListeners = topicSpecificListeners.concat(wildCardListeners);
-					}
-
-					for(i=0, len=topicSpecificListeners.length; i<len; i++) {
-						listener = topicSpecificListeners[i];
+					for(i=0, len=allListeners.length; i<len; i++) {
+						listener = allListeners[i];
 						lMax = listener.maxResponses;
 						listener.responses++;
 
@@ -1083,7 +1105,7 @@
 					if (topicIsString && responderType === "function") {
 
 						// don't add something twice
-						var topicSpecificListeners = (topic !== "*") ? this._listeningFor[topic] || [] : []; //$reuse.array();
+						var topicSpecificListeners = this._listeningFor[topic] || [];
 						$each(topicSpecificListeners, function(listener) {
 							if(listener.responder === responder) {
 								handlerExistsForTopic = true;
@@ -1112,6 +1134,8 @@
 						if ($isFunction(listener)) {
 							// maxResponses is not supported in object map signature
 							that.listen(topic, listener);
+						} else {
+							throw new Error("Invalid parameters, expected: (string, function) but saw (" + $typeof(topic) + ", " + $typeof(listener) +")");
 						}
 					});
 				}
@@ -1251,6 +1275,19 @@
 		return !!(obj && $isFunction(obj.tell) && $isFunction(obj.listen));
 	}
 
+	function $bindListenerSpec(speaker) {
+		var spec = speaker.listeners;
+		if (!$isSpeaker(speaker)) {
+			$speak(speaker);
+		}
+		$each(spec, function(fn, event) {
+			if (!$isFunction(fn)) {
+				fn = speaker[fn];
+			}
+			speaker.listen(event, fn);
+		});
+	}
+
 
 	// from backbone.js
 	// Generate a unique integer id (unique within the entire client session).
@@ -1329,6 +1366,7 @@
 
 		// functions
 		$bind: $bind,
+		$debounce: $debounce,
 
 		// collections
 		$each: $each,
@@ -1363,6 +1401,7 @@
 		$clear: $clear,
 
 		// objects
+		$hasOwnProperty: hasOwnProperty,
 		$isEmpty: $isEmpty,
 		$has: $has,
 		$pick: $pick,
@@ -1379,6 +1418,7 @@
 		// messaging
 		$speak: $speak,
 		$isSpeaker: $isSpeaker,
+		$bindListenerSpec: $bindListenerSpec,
 
 		// misc
 		$uniqueId: $uniqueId
