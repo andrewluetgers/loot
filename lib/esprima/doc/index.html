@@ -15,6 +15,10 @@ pre.prettyprint {
     font-size: 13px;
     line-height: 19px;
 }
+
+table td {
+    text-align: left;
+}
 </style>
 </head>
 <body onload="prettyPrint()">
@@ -37,7 +41,7 @@ pre.prettyprint {
 <h2 id="usage">Basic Usage</h2>
 
 <p>Esprima runs on web browsers (IE 6+, Firefox 1+, Safari 3+, Chrome 1+, Konqueror 4.6+, Opera 8+) as well as
-<a href="http://nodejs.org">Node.js</a>.</p>
+<a href="http://www.mozilla.org/rhino">Rhino</a> and <a href="http://nodejs.org">Node.js</a>.</p>
 
 <h3>In a web browser</h3>
 
@@ -63,6 +67,18 @@ require(['esprima'], function (parser) {
 });
 </pre>
 
+<p>Since Esprima is available as a <a href="http://twitter.github.com/bower/">Bower</a> component, it can be installed with:</p>
+
+<pre class="prettyprint lang-bsh">
+bower install esprima
+</pre>
+
+<p>Obviously, it can be used with <a href="http://yeoman.io/packagemanager.html">Yeoman</a> as well:</p>
+
+<pre class="prettyprint lang-bsh">
+yeoman install esprima
+</pre>
+
 <h3>With Node.js</h3>
 
 <p>Esprima is available as a Node.js <a href="https://npmjs.org/package/esprima">package</a>, install it using npm:</p>
@@ -80,7 +96,18 @@ console.log(JSON.stringify(esprima.parse('var answer = 42'), null, 4));
 
 <h3>With Rhino</h3>
 
-<p>Note: This would be available soon.</p>
+<p>Load the source file from another script:</p>
+
+<pre class="prettyprint lang-js">
+load('/path/to/esprima.js');
+</pre>
+
+<p>The module <code>esprima</code> will be available as part of the global object:</p>
+
+<pre class="prettyprint lang-js">
+var syntax = esprima.parse('42');
+print(JSON.stringify(syntax, null, 2));
+</pre>
 
 <h3>Parsing Interface</h3>
 
@@ -92,21 +119,67 @@ esprima.parse(code, options);
 
 <p>The output of the parser is the syntax tree formatted in <a href="http://www.json.org">JSON</a>, see the following <a href="#ast">Syntax Tree Format</a> section.</p>
 
-<p>Available options so far:
+<p>Available options so far (by default, every option <b>false</b>):</p>
 
-<ul>
-    <li>loc: When set to true, line and column-based location info will be added to each syntax node.</li>
-    <li>range: When set to true, an index-based location range array will be added to each syntax node.</li>
-    <li>raw: When set to true, every literal has an additional property called raw which stores the actual verbatim source.</li>
-    <li>tokens: When set to true, an extra list of array is included in the output, containing all found tokens during parsing.</li>
-    <li>comment: When set to true, there will be additional array containing the list of all found line and block comments.</li>
-</ul>
+<table>
+    <tr>
+        <th>Option</th>
+        <th>When set to true</th>
+    </tr>
+    <tr>
+        <td>loc</td>
+        <td>Nodes have line and column-based location info</td>
+    </tr>
+    <tr>
+        <td>range</td>
+        <td>Nodes have an index-based location range (array)</td>
+    </tr>
+    <tr>
+        <td>raw</td>
+        <td>Literals have extra property which stores the verbatim source</td>
+    </tr>
+    <tr>
+        <td>tokens</td>
+        <td>An extra array containing all found tokens</td>
+    </tr>
+    <tr>
+        <td>comment</td>
+        <td>An extra array containing all line and block comments</td>
+    </tr>
+    <tr>
+        <td>tolerant</td>
+        <td>An extra array containing all errors found,
+        attempts to continue parsing when an error is encountered</td>
+    </tr>
+</table>
 
-<p>By default, every option mentioned above is <b>false</b>.</p>
 
 <p>The easiest way to see the different output based on various option settings is to use the <a href="../demo/parse.html">online parser demo</a>.
 
 <h2 id="examples">Examples</h2>
+
+<h3 id="nestedternary">Detect Nested Ternary Conditionals</h3>
+
+<p>The script <code>detectnestedternary.js</code> in the <code>examples/</code> subdirectory is using Esprima to look for a ternary conditional, i.e. <a href="http://en.wikipedia.org/wiki/%3F:">operator ?:</a>, which is immediately followed (in one of its code paths) by another ternary conditional. The script can be invoked from the command-line with Node.js:</p>
+
+<pre class="prettyprint lang-bsh">
+node detectnestedternary.js /some/path
+</pre>
+
+<p>An example code fragment which will be flagged by this script as having a nested ternary conditional:</p>
+
+<pre class="prettyprint lang-js">
+var str = (age < 1) ? "baby" :
+    (age < 5) ? "toddler" :
+    (age < 18) ? "child": "adult";
+</pre>
+
+<p>which will yield the following report:</p>
+
+<pre>
+  Line 1 : Nested ternary for "age &lt 1"
+  Line 2 : Nested ternary for "age &lt 5"
+</pre>
 
 <h3 id="booleantrap">Find Possible Boolean Traps</h3>
 
@@ -256,6 +329,12 @@ The syntax tree will be printed out to the console. This can be used in the test
 
 <h3 id="tests">Test Workflow</h3>
 
+<p>Before running the tests, prepare the tools via:</p>
+
+<pre class="prettyprint lang-bsh">
+npm install
+</pre>
+
 <h4 id="unittests">Unit tests</h4>
 
 <p>Browser-based unit testing is available by opening <code>test/index.html</code> in the source tree. The online version is <a href="http://esprima.org/test">esprima.org/test</a>.</p>
@@ -302,18 +381,6 @@ The syntax tree will be printed out to the console. This can be used in the test
 
 <pre class="prettyprint lang-bsh">/path/to/v8/shell test/benchmark.js</pre>
 
-<p>The current corpus for the benchmarks:</p>
-
-<ul>
-    <li>jQuery (version 1.7.1 and 1.6.4)</li>
-    <li>jQuery Mobile (version 1.0)</li>
-    <li>Prototype (version 1.7.0.0 and 1.6.1)</li>
-    <li>Ext Core (version 3.1.0 and 3.0.0)</li>
-    <li>MooTools (version 1.4.1 and 1.3.2)</li>
-    <li>Backbone (version 0.5.3)</li>
-    <li>Underscore (version 1.2.3)</li>
-</ul>
-
 <h4>Speed comparison tests</h4>
 
 <p>Available by opening <code>test/compare.html</code>. The online version is <a href="http://esprima.org/test/compare.html">esprima.org/test/compare.html</a>.</p>
@@ -321,15 +388,6 @@ The syntax tree will be printed out to the console. This can be used in the test
 <p>Note: Because the corpus is fetched via XML HTTP Request, the benchmarks test needs to be served via a web server and not local file.</p>
 
 <p><strong>Warning</strong>: Since each parser has a different format for the syntax tree, the speed is not fully comparable (the cost of constructing different result is not taken into account). These tests exist only to ensure that Esprima parser is not ridiculously slow, e.g. one magnitude slower compare to other parsers.</p>
-
-<p>The current corpus for the speed comparison tests:</p>
-
-<ul>
-    <li>jQuery version 1.7.1</li>
-    <li>Prototype version 1.7.0.0</li>
-    <li>MooTools version 1.4.1</li>
-    <li>Ext Core version 3.1.0</li>
-</ul>
 
 <h4>Manual tests</h4>
 
