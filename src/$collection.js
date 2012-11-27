@@ -80,6 +80,12 @@
 			}
 		},
 
+		getAll: function(prop) {
+			return $map(this.items, function(item) {
+				return item.get(prop);
+			});
+		},
+
 		// returns model values
 		// todo: how does this relate to pluck?
 		getValues: function(i, key) {

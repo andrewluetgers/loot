@@ -71,7 +71,7 @@
 				}
 
 				while (running < limit && started < arr.length) {
-					iterator(arr[started], function (err) {
+					iterator(function (err) {
 						if (err) {
 							callback(err);
 							callback = function() {};
@@ -84,7 +84,7 @@
 								replenish();
 							}
 						}
-					});
+					}, arr[started]);
 					started++;
 					running++;
 				}
@@ -177,6 +177,37 @@
 	// $parallel([func1, func2, func3], callback)
 	// $parallel(objectOrArray, iterator, callback)
 	// $parallel(objectOrArray, limit, iterator, callback)
+//	function $parallel(tasks, callback) {
+//		var len = arguments.length,
+//			type = typeof callback;
+//
+//		// first signature: a set of async functions to call, is converted to second signature format, no final callback is used
+//		if ($isFunction(tasks)) {
+//			tasks = $slice(arguments);
+//			callback = function(){};
+//		}
+//
+//		// second signature: array of functions and final callback
+//		if ( ($isArray(tasks) && $isFunction(tasks[0])) || ($isPlainObject(tasks) && $isFunction($values(tasks)[0])) ) {
+//			$async.tasks(tasks, callback);
+//
+//			// third signature: async map
+//		} else if (type === "function") {
+//			var iterator = callback;
+//			callback = arguments[2];
+//			$async.map(tasks, iterator, callback);
+//
+//			// fourth signature: async for each limit
+//		} else if (len === 4 && type === "number") {
+//			var limit = callback;
+//			var iterator = arguments[2];
+//			callback = arguments[3];
+//			$async.eachLimit(tasks, limit, iterator, callback);
+//
+//		} else {
+//			throw new TypeError();
+//		}
+//	}
 	function $parallel(tasks, callback) {
 		var len = arguments.length,
 			type = typeof callback;
@@ -192,17 +223,13 @@
 			$async.tasks(tasks, callback);
 
 			// third signature: async map
-		} else if (type === "function") {
-			var iterator = callback;
-			callback = arguments[2];
-			$async.map(tasks, iterator, callback);
+		} else if (len === 3 && type === "function") {
+			$async.map.apply($async, $slice(arguments));
 
 			// fourth signature: async for each limit
-		} else if (len === 4 && type === numType) {
-			var limit = callback;
-			var iterator = arguments[2];
-			callback = arguments[3];
-			$async.eachLimit(tasks, limit, iterator, callback);
+		} else if (len === 4 && type === "number") {
+			console.log($slice(arguments));
+			$async.eachLimit.apply($async, $slice(arguments));
 
 		} else {
 			throw new TypeError();
@@ -262,14 +289,14 @@
 					var task = q.tasks.shift();
 					if($isFunction(q.empty) && q.tasks.length == 0) q.empty();
 					workers += 1;
-					worker(task.data, function () {
+					worker(function () {
 						workers -= 1;
 						if (task.callback) {
 							task.callback.apply(task, arguments);
 						}
 						if($isFunction(q.drain) && q.tasks.length + workers == 0) q.drain();
 						q.process();
-					});
+					}, task.data);
 				}
 			},
 			length: function() {

@@ -2,6 +2,7 @@
 	"name": 		"loot",
 	"fullName": 	"loot.js",
 	"version": 		"0.3.0",
+	"private": 		true,
 	"author": 		"Andrew Luetgers",
 	"description": 	"a bunch of js functions i like to use as globals starting with $",
 	"home": 		"https://github.com/andrewluetgers/loot",
@@ -10,7 +11,7 @@
 		"url": 			"https://github.com/andrewluetgers/loot.git"
 	},
 	"license": 		"MIT",
-	"dependencies": {
+	"devDpendencies": {
 		"grunt-cp":  "0.1.x",
 		"grunt-rm":  "0.0.x",
 		"grunt-replace":  "0.3.x"
