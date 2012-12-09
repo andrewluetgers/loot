@@ -3,11 +3,13 @@
  */
 loot.extend("$io", loot.exports.$speak(function(url, req, dataType, reqType) {
 
+	console.log(this);
+
 	var key = $cache.getKey(url, req),
 		parent = $isSpeaker(this) ? this : $io,
 		typeId = parent.typeId || "io",
 		lastArg = arguments[arguments.length-1],
-		handlers = (!lastArg || $isString(lastArg) || $isBoolean(lastArg)) ? {} : lastArg,
+		handlers = $isPlainObject(lastArg) ? lastArg : {},
 		startH = handlers.start,
 		successH = handlers.success,
 		errorH = handlers.error,
@@ -16,7 +18,7 @@ loot.extend("$io", loot.exports.$speak(function(url, req, dataType, reqType) {
 
 	var xhr = $.ajax({
 			dataType: 	$isString(dataType) ? dataType : "json",
-			type: 		$isString(reqType) ? reqType : "post",
+			type: 		$isString(reqType) ? reqType : "GET",
 			url: 		url,
 			data: 		req,
 

@@ -28,7 +28,6 @@
 			return results;
 
 		} else {
-			// object map ftw
 			return $map(modelVals, function(val, key) {
 				return $isFunction(val) ? modelVals[key]() : val;
 			});

@@ -42,7 +42,7 @@
 				var renderer, update, drop, viewNode, viewModel, viewCollection;
 				var view = $speak({
 					drop: function() {
-						view.model.ignore(update); 					// unsubscribe our model
+						view.model.ignore(update); 				// unsubscribe our model
 						drop && $isFunction(drop) && drop(); 	// call the custom drop method if it exists
 						$(view.node).remove(); 					// this will unbind event handlers
 						view.parentNode && view.parentNode.removeChild(view.node);
@@ -54,6 +54,12 @@
 					},
 					draw: function() {
 						view.update(view.model.get(), view.type, view.model);
+					},
+					get: function() {
+						view.model.get.apply(view.model, $slice(arguments));
+					},
+					set: function() {
+						view.model.set.apply(view.model, $slice(arguments));
 					}
 				});
 
@@ -231,9 +237,9 @@
 				return viewConstructorBank[type];
 			}
 		} else if (!arguments.length) {
-			return undefined;
-		} else {
 			return viewConstructorBank;
+		} else {
+			return undefined;
 		}
 	}
 

@@ -80,6 +80,7 @@
 	function $isNull		(obj) { 	return obj === null;}
 	function $isNaN			(obj) { 	return obj !== obj;}
 	function $isElement		(obj) { 	return !!(obj && obj.nodeType == 1);}
+	function $isTextNode	(obj) { 	return !!(obj && obj.nodeType == 3);}
 	function $isObject		(obj) { 	return obj === Object(obj); }
 	function $isBoolean		(obj) { 	return obj === true || obj === false || toString.call(obj) == "[object Boolean]";}
 	function $isUndefined	(obj) { 	return typeof obj === "undefined";}
@@ -93,6 +94,11 @@
 	function $isArguments	(obj) { 	return toString.call(obj) === "[object Arguments]";}
 	if (!$isArguments(arguments)) {
 		$isArguments = function(obj) { 	return !!(obj && $has(obj, "callee"));};
+	}
+
+	function $isNodeList 	(obj) {
+		// http://stackoverflow.com/questions/151348/how-to-check-if-an-object-is-an-instance-of-a-nodelist-in-ie
+		return ("NodeList" in root && obj instanceof NodeList || (typeof obj.length === 'number' && obj.item !== "undefined"));
 	}
 
 	var $isArray = nativeIsArray ||
@@ -255,20 +261,22 @@
 		return result;
 	}
 
-	var $keys = nativeKeys || function(obj) {
-		if (obj !== Object(obj)) throw new TypeError('Invalid object');
-		var keys = [];
-		for (var key in obj) if ($has(obj, key)) keys[keys.length] = key;
-		return keys;
+	function _parts(obj, vals) {
+		if (obj !== Object(obj)) throw new TypeError('Invalid object, expected an object or array.');
+		var parts = [];
+		if (vals) {
+			$each(obj, function(val) {parts.push(val)});
+		} else {
+			$each(obj, function(val, key) {parts.push(key)});
+		}
+		return parts;
 	};
 
-	// Retrieve the values of an object's properties.
-	function $values(obj) {
-		if (obj !== Object(obj)) throw new TypeError('Invalid object');
-		var vals = [];
-		for (var key in obj) if ($has(obj, key)) vals[vals.length] = obj[key];
-		return vals;
-	}
+	// Retrieve an array the keys of an object's owned properties.
+	function $keys(obj) {return _parts(obj)}
+
+	// Retrieve and array of the values of an object's owned properties.
+	function $vals(obj) {return _parts(obj, true)}
 
 	// Collection Functions (work on objects and arrays) -------------------------------------------------------
 
@@ -280,7 +288,7 @@
 
 		// switched breaker to string "break" for better self documentation when used
 		function each(obj, iterator, context) {
-			var i, l, key;
+			var i, l, key, array;
 			if (!obj) return;
 			if (typeof obj === "number") {
 				var arr = [];
@@ -290,7 +298,16 @@
 				}
 			}
 			if (obj.length === +obj.length) {
-				for (i = 0, l = obj.length; i < l; i++) {
+				if ($isNodeList(obj)) {
+					// properly handle node-list iteration
+					// http://stackoverflow.com/questions/2735067/how-to-convert-a-dom-node-list-to-an-array-in-javascript
+					array = [];
+					for (var i = obj.length >>> 0; i--;) {
+						array[i] = obj[i];
+					}
+					obj = array;
+				}
+				for (i = 0; i < obj.length; i++) {
 					if (iterator.call(context, obj[i], i, obj) === breaker) return;
 				}
 			} else {
@@ -1346,6 +1363,7 @@
 		$isNull: $isNull,
 		$isNaN: $isNaN,
 		$isElement: $isElement,
+		$isTextNode: $isTextNode,
 		$isObject: $isObject,
 		$isPlainObject: $isPlainObject,
 		$isEmptyObject: $isEmptyObject,
@@ -1357,9 +1375,11 @@
 		$isDate: $isDate,
 		$isRegExp: $isRegExp,
 		$isArguments: $isArguments,
+		$isNodeList: $isNodeList,
 		$isArray: $isArray,
 		$isError: $isError,
 		$typeof: $typeof,
+
 
 		// string
 		$trim: $trim,
@@ -1406,7 +1426,8 @@
 		$has: $has,
 		$pick: $pick,
 		$keys: $keys,
-		$values: $values,
+		$values: $vals,
+		$vals: $vals,
 		$new: $new,
 		$walk: $walk,
 		$copy: $copy,

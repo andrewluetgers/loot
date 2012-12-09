@@ -56,39 +56,41 @@
 			next();
 		},
 
-		eachLimit: function (arr, limit, iterator, callback) {
-			callback = callback || function () {};
-			if (!arr.length || limit <= 0) {
-				return callback();
-			}
-			var completed = 0;
-			var started = 0;
-			var running = 0;
+		eachLimit: function (obj, limit, iterator, callback) {
+			var vals = $vals(obj),
+				keys = $keys(obj),
+				len = $length(vals),
+				completed = 0,
+				started = 0,
+				running = 0;
 
-			(function replenish() {
-				if (completed === arr.length) {
+			callback = callback || function () {};
+
+			function next(err) {
+				if (err) {
+					callback(err);
+					callback = function() {};
+				} else {
+					completed++;
+					running--;
+					console.log(">>>", completed, len);
+					(completed === len) ? callback() : replenish();
+				}
+			}
+
+			function replenish() {
+				if (completed === len || limit <= 0) {
 					return callback();
 				}
 
-				while (running < limit && started < arr.length) {
-					iterator(function (err) {
-						if (err) {
-							callback(err);
-							callback = function() {};
-						} else {
-							completed++;
-							running--;
-							if (completed === arr.length) {
-								callback();
-							} else {
-								replenish();
-							}
-						}
-					}, arr[started]);
+				while (running < limit && started < len) {
 					started++;
 					running++;
+					iterator(next, vals[started-1], keys[started-1]);
 				}
-			})();
+			}
+
+			replenish();
 		},
 
 		// nextTick implementation with browser-compatible fallback
@@ -150,7 +152,7 @@
 	$async.tasks = function(tasks, callback) {
 		var iterator = function (push, task, key, result, obj) {
 			if (task && $isFunction(task)) {
-				task(push, key, result);
+				task(push, result, key);
 			} else {
 				throw new Error("expected a function but saw " + typeof task);
 			}
@@ -173,41 +175,6 @@
 	};
 
 
-	// $parallel(func1, func2, func3)
-	// $parallel([func1, func2, func3], callback)
-	// $parallel(objectOrArray, iterator, callback)
-	// $parallel(objectOrArray, limit, iterator, callback)
-//	function $parallel(tasks, callback) {
-//		var len = arguments.length,
-//			type = typeof callback;
-//
-//		// first signature: a set of async functions to call, is converted to second signature format, no final callback is used
-//		if ($isFunction(tasks)) {
-//			tasks = $slice(arguments);
-//			callback = function(){};
-//		}
-//
-//		// second signature: array of functions and final callback
-//		if ( ($isArray(tasks) && $isFunction(tasks[0])) || ($isPlainObject(tasks) && $isFunction($values(tasks)[0])) ) {
-//			$async.tasks(tasks, callback);
-//
-//			// third signature: async map
-//		} else if (type === "function") {
-//			var iterator = callback;
-//			callback = arguments[2];
-//			$async.map(tasks, iterator, callback);
-//
-//			// fourth signature: async for each limit
-//		} else if (len === 4 && type === "number") {
-//			var limit = callback;
-//			var iterator = arguments[2];
-//			callback = arguments[3];
-//			$async.eachLimit(tasks, limit, iterator, callback);
-//
-//		} else {
-//			throw new TypeError();
-//		}
-//	}
 	function $parallel(tasks, callback) {
 		var len = arguments.length,
 			type = typeof callback;
@@ -223,12 +190,11 @@
 			$async.tasks(tasks, callback);
 
 			// third signature: async map
-		} else if (len === 3 && type === "function") {
+		} else if ((len === 2 || len === 3) && type === "function") {
 			$async.map.apply($async, $slice(arguments));
 
 			// fourth signature: async for each limit
 		} else if (len === 4 && type === "number") {
-			console.log($slice(arguments));
 			$async.eachLimit.apply($async, $slice(arguments));
 
 		} else {
@@ -249,9 +215,7 @@
 
 		// second signature: array of functions and final callback
 		if ( ($isArray(tasks) && $isFunction(tasks[0])) || ($isPlainObject(tasks) && $isFunction($values(tasks)[0])) ) {
-			console.log("tasksSeries", tasks, callback);
 			$async.tasksSeries(tasks, callback);
-
 			// third signature: async mapSeries
 		} else {
 			//var iterator = callback;

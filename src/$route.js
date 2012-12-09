@@ -23,7 +23,7 @@
 		http://myshop.com/#products/7724 will trigger onProductsInvoked with arguments containing the productId
 */
 
-(function() {
+(function(root) {
 	// modified from http://jsrouter.codeplex.com/
 
 	var routeTable = [],
@@ -231,10 +231,12 @@
  	}
 
 	// hook up events
-	if (window.onhashchange) {
+	// todo support node
+	if (root.onhashchange) {
 		window.bind('hashchange', onHashChanged)
 	} else {
-		hashListenerInterval = setInterval(onHashChanged, 100);
+		// todo fix fallback
+		//hashListenerInterval = setInterval(onHashChanged, 100);
 	}
 	isReady = true;
 
@@ -247,4 +249,5 @@
 		$currentRoute: getCurrentRoute
 	});
 
-}());
+}(this));
+

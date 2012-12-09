@@ -343,7 +343,7 @@
 				} else {
 					if (!$isElement(child)) {
 						// handle other node types here
-						var val, d = document.createElement("div");
+						var d = document.createElement("div");
 						d.innerHTML = child;
 						$each(d.childNodes, function(val) {
 							node.appendChild(val);
@@ -578,7 +578,6 @@
 			if (!$isArray(domInstructions)) {
 				domInstructions = $slice(arguments);
 				preProcessedSelector = null;
-	//				throw new Error("Unexpected type, expected array but saw " + $typeof(domInstructions));
 			}
 
 			var returnNodes = [],
@@ -592,6 +591,8 @@
 
 				prevStep = thisStep;
 				thisStep = step + "-" + $typeof(arg);
+
+				console.log(thisStep, arg);
 
 				switch(thisStep) {
 
@@ -615,32 +616,69 @@
 							// we may have properties or children to add so move to step 2 for next arg
 							step = 2;
 
-
 						} else {
 							returnNodes.push(arg);
 	//							console.log("++++++++++++++++++++++", arg);
 							// stay on step 1 for next arg
 						}
-						continue;
+						break;
 
 					case "1-element":
 						returnNodes.push(arg);
-						// final possible step so start back on 1 for next arg
-						step = 1;
-						continue;
+						// stay on step one for next arg
+						break;
 
 					// new sibling node/s via partial --------------------------------------------------------------
 					case "1-function":
+						// todo use object expansion here to allow more return types
 						returnNodes = returnNodes.concat(arg());
 						// stay on step one for next arg
-						continue;
+						break;
+
+					// array unwrapping kinda like macro expansion  -----------------------------------------------------------------------
+					case "1-array":
+						//replace array with its contents and re-run the step
+						len += arg.length-1;
+						domInstructions.splice.apply(domInstructions, [i, 1].concat(arg));
+						console.log("expand array", domInstructions);
+						i--;
+						// stay on step one for next arg
+						break;
+
+//					case "1-object":
+//						//replace object with array of its contents and re-run the step
+//						childNodes = $dom(arg);
+//						domInstructions.splice.apply(domInstructions, [i, 1].concat(childNodes));
+//						console.log("expand object", domInstructions);
+//						i--;
+//						// stay on step one for next arg
+////						break;
 
 					// add/merge attributes ------------------------------------------------------------------------
 					case "2-object":
-	//						attributes = $mixin(attributes, arg);
+						// grab the first value out of the object to test if it is not actually children
+						var _val;
+						$each(arg, function(val) {
+							_val = val;
+							return "break";
+						});
+
+						// oop! looks like we actually want to treat the object as children here
+						if ($isArray(_val) || $isSelector(_val)) {
+							console.log("object as children", domInstructions);
+							// final possible step so start back on 1 for next arg
+							// this is where we do recursion, see also 2-array
+							childNodes = $dom($values(arg));
+							// and push the result back into the final output
+							returnNodes.push($el(tag, attributes, childNodes));
+							step = 1;
+							break;
+						}
+
 						$each(arg, function(val, key) {
 							attributes[key] = val;
 						});
+
 						id && (attributes.id = id);
 						if (className) {
 							attributes.className = arg.className ? (className + " " + arg.className) : className;  // remember we appended a space in $isSelector
@@ -654,9 +692,12 @@
 
 						// we may have a children to add so move to step 3 for next arg
 						step = 3;
-						continue;
+						break;
 
 					// next sibling node via selector or child string ------------------------------------------------------------------
+					case "2-number":
+					case "3-number":
+						arg += ""; // convert to string and fall through to next block
 					case "2-string":
 					case "3-string":
 					case "3-element":
@@ -680,7 +721,7 @@
 
 						// both cases are final possible step so start back on 1 for next arg
 						step = 1;
-						continue;
+						break;
 
 					// recursive child array -----------------------------------------------------------------------
 					case "2-array":
@@ -688,13 +729,13 @@
 						if (selfClosing[tag]) {
 							throw new Error("Can not add children to " + tag);
 						}
-						// this is where we do our recursion
+						// this is where we do our recursion, see also 2-object
 						childNodes = $dom(arg);
 						// and push the result back into the final output
 						returnNodes.push($el(tag, attributes, childNodes));
 						// final possible step so start back on 1 for next arg
 						step = 1;
-						continue;
+						break;
 
 					case "3-function":
 						// no children so done, functions in third position are treated as siblings
@@ -704,10 +745,12 @@
 						returnNodes = returnNodes.concat(arg());
 						// final possible step so start back on 1 for next arg
 						step = 1;
-						continue;
+						break;
 
 					default:
-						throw new TypeError("$dom: No such step + type combination: " + thisStep + " - previous was " + prevStep);
+						var errMsg = "$dom: No such step + type combination: " + thisStep + " - previous was " + prevStep + ", " + arg;
+						console.log(errMsg, arg, returnNodes);
+						throw new TypeError(errMsg);
 				}
 
 			}
@@ -733,7 +776,7 @@
 	 * @param arg			function or object
 	 * @description this function serves as a constructor, getter, setter and collection interface to partials
 	 * there are multiple signatures and a plural alias that makes more sense depending on what you want to do
-	 * $part("name", function(data){...}) returns undefined, saves the function under the given name so that it can be used via the following signatures
+	 * $part("name", function(data){...}) returns the provided function, saves the function under the given name so that it can be used via the following signatures
 	 * $parts() returns and object that contains all the partials by name
 	 * $parts("myPartial") returns a partial function(data) which if called returns a minidom
 	 * $parts("myPartial", dataObject)
