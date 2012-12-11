@@ -592,7 +592,7 @@
 				prevStep = thisStep;
 				thisStep = step + "-" + $typeof(arg);
 
-				console.log(thisStep, arg);
+//				console.log(thisStep, arg);
 
 				switch(thisStep) {
 
@@ -640,7 +640,7 @@
 						//replace array with its contents and re-run the step
 						len += arg.length-1;
 						domInstructions.splice.apply(domInstructions, [i, 1].concat(arg));
-						console.log("expand array", domInstructions);
+//						console.log("expand array", domInstructions);
 						i--;
 						// stay on step one for next arg
 						break;
@@ -665,7 +665,7 @@
 
 						// oop! looks like we actually want to treat the object as children here
 						if ($isArray(_val) || $isSelector(_val)) {
-							console.log("object as children", domInstructions);
+//							console.log("object as children", domInstructions);
 							// final possible step so start back on 1 for next arg
 							// this is where we do recursion, see also 2-array
 							childNodes = $dom($values(arg));

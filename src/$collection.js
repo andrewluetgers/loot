@@ -107,11 +107,12 @@
 		},
 
 		getGroupSortIterator: function(val) {
+
 			return function(obj) {
-				if ($isFunction(obj.get)) {
-					return obj.get()[val];
-				} else if ($isModel(obj.model)) {
+				if ($isModel(obj.model)) {
 					return obj.model.get()[val];
+				} else if ($isFunction(obj.get)) {
+					return obj.get()[val];
 				} else {
 					return obj[val];
 				}
@@ -243,6 +244,16 @@
 		}
 
 		collectionBank[name] = collection;
+
+		collection.listen("*", function(msg, type) {
+			console.log("navPath collection", type, msg);
+			if (type !== "change" && type.match("change")) {
+				collection.tell("change", {
+					msg: msg,
+					type: type
+				});
+			}
+		});
 
 		return collection;
 	}

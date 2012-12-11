@@ -274,20 +274,37 @@
 			//throw new Error("$model: valid type string required");
 			return null;
 		} else if (vals && !$isPlainObject(vals)) {
-			throw new Error("$model: valid values object required");
+			console.log(type, vals);
+			throw new Error("$model: valid values object required for " + type);
 		} else {
 			return schema.newInstance(vals);
 		}
 	}
 
-	function $models(type) {
+	function $models(type, id) {
 		var models = $schema();
 		if (!arguments.length) {
 			return models;
 		} else if (type in models) {
-			return models[type].getInstances();
+			var instances = models[type].getInstances(), ret;
+			if (id) {
+				$each(instances, function(inst) {
+					if (inst.get("id") == id) {
+						ret = inst;
+					}
+				});
+				return ret;
+			} else {
+				return instances;
+			}
 		}
 	}
+
+	$models.getInstanceCounts = function() {
+		return $map($models(), function(model) {
+			return model.getInstances().length;
+		});
+	};
 
 	function $isSchema(obj) {
 		return (obj && $isFunction(obj.drop) && $isString(obj.type) && obj.getInstances && obj.newInstance);

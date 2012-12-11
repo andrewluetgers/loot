@@ -1320,7 +1320,7 @@
 				console.log("each callback", arguments);
 				ok(true, "callback fired");
 				ok(error === "error", "error was handled");
-				ok(obj === work, "second argument in final callback is the object iterated over");
+				same(obj, work, "second argument in final callback is same as the object iterated over");
 				same(finishOrder2, [1], "finish order was as expected");
 			});
 
@@ -1423,7 +1423,7 @@
 				ok(valObj === 1, "second argument for iterator function is the value");
 				ok(keyObj === 0, "third argument for iterator function is the key/index");
 				ok(resultsObj === result, "fourth argument for iterator function is the result");
-				ok(objObj === work, "fifth argument for iterator function is the object/array being iterated over");
+				same(objObj, work, "fifth argument for iterator function is same as the object/array being iterated over");
 				start();
 			});
 		});
@@ -1513,12 +1513,14 @@
 			
 			$parallel(func1, func2, func3);
 
-			$parallel([func1, func2, func3], function(err, result, work) {
-				console.log("$parallel 2", arguments);
-				same(result, [2,4,6], "result is as expected");
-				same(runOrder, [2,2,3,3,1,1], "run order is as expected");
-				ok(true, "array of functions with callback signature: all functions ran");
-			});
+			setTimeout(function() {
+				$parallel([func1, func2, func3], function(err, result, work) {
+					console.log("$parallel 2", arguments);
+					same(result, [2,4,6], "result is as expected");
+					same(runOrder, [2,3,1,2,3,1], "run order is as expected");
+					ok(true, "array of functions with callback signature: all functions ran");
+				});
+			}, 200);
 
 			var runOrder1 = [];
 			var delays = [100, 1, 10];
@@ -1539,26 +1541,28 @@
 
 			var runOrder2 = [];
 			var work2 = [5,6,7];
-			$parallel(work2, function(next, val, key, obj) {
-				key = key*1;
-				console.log("$parallel 4", arguments);
-				setTimeout(function() {
-					run(key);
-					ok($isNumber(val) && val > 4, "val param is correct");
-					ok($isNumber(key) && key < 3, "key param is correct");
-					runOrder2.push(key);
-					obj[key] = val * 2;
-					next(null, val * 2);
-				}, delays[key]);
-			}, function(err, result) {
-				console.log("finish", arguments);
-				ok(true, "array of functions with callback signature: all functions ran");
-				same(runOrder2, [1,2,0], "run order is as expected");
-				same(result, [10,12,14], "result is as expected");
-				start();
-			});
+			setTimeout(function() {
+				$parallel(work2, function(next, val, key, obj) {
+					key = key*1;
+					console.log("$parallel 4", arguments);
+					setTimeout(function() {
+						run(key);
+						ok($isNumber(val) && val > 4, "val param is correct");
+						ok($isNumber(key) && key < 3, "key param is correct");
+						runOrder2.push(key);
+						obj[key] = val * 2;
+						next(null, val * 2);
+					}, delays[key]);
+				}, function(err, result) {
+					console.log("finish", arguments);
+					ok(true, "array of functions with callback signature: all functions ran");
+					same(runOrder2, [1,2,0], "run order is as expected");
+					same(result, [10,12,14], "result is as expected");
+					start();
+				});
 
-			console.log("done with $parallel");
+				console.log("done with $parallel");
+			}, 500);
 
 		});
 
