@@ -1054,6 +1054,8 @@
 
 	var $speak = (function() {
 
+		var reMatch = /^\/(.+)\/([ig]*)$/;
+
 		var aSpeaker = {
 
 			/** tell
@@ -1064,7 +1066,12 @@
 			 */
 			tell: function(topic, message, speaker) {
 
+				if (typeof topic !== "string") {
+					throw new TypeError("expected string but saw " + topic);
+				}
+
 				var i, len, listener, lMax,
+					regexpListeners,
 					wildCardListeners,
 					topicSpecificListeners,
 					allListeners,
@@ -1074,8 +1081,13 @@
 
 				if (!selectiveHearing || ($isFunction(selectiveHearing) && this.selectiveHearing(message, topic, originalSpeaker)) ) {
 					topicSpecificListeners = (topic !== "*") ? this._listeningFor[topic] || [] : [];
+					regexpListeners = $filter(this._listeningFor["_regexp"], function(listener) {
+						return topic.match(listener.regexp);
+					});
 					wildCardListeners = this._listeningFor["*"];
-					allListeners = wildCardListeners ? topicSpecificListeners.concat(wildCardListeners) : topicSpecificListeners ;
+					// exact matching listener topics have highest priority, then regexp listeners, then wildcard listeners
+					allListeners = regexpListeners ? topicSpecificListeners.concat(regexpListeners) : topicSpecificListeners ;
+					allListeners = wildCardListeners ? allListeners.concat(wildCardListeners) : allListeners ;
 
 					for(i=0, len=allListeners.length; i<len; i++) {
 						listener = allListeners[i];
@@ -1101,7 +1113,7 @@
 
 			/** listen
 			 * @param topic (string|regex) will call the given responder if received topic === topic param
-			 * or in the case of a regex topic param if the receivedTopic.match(topicParam)
+			 * or in the case of a regex topic param if the receivedTopic.match(topicParam), "*" also serves as a catch-all
 			 * @param responder (function) having the signature function(message, topic, originalSpeaker) execution scope is that of the handling speaker
 			 * @param maxResponses (number) optional - number of times the responder will be called before being removed
 			 */
@@ -1109,9 +1121,16 @@
 
 				var that = this,
 					topicType = typeof topic,
-					topicIsString = (topicType == "string"),
+					topicIsString = topicType === "string",
+					topicIsRegex = (topic+"").match(reMatch), // support regexps as strings
+					topicKey = topicIsRegex ? "_regexp" : topic,
+					listener,
 					handlerExistsForTopic = false,
-					responderType = typeof responder;
+					responderType = typeof responder,
+					responderIsFunction = responderType === "function";
+
+				// turn our regexp topic string into an actual regexp
+				topic = (topicIsString && topicIsRegex) ? new RegExp(topicIsRegex[1], topicIsRegex[2]) : topic;
 
 				if (arguments.length > 1) {
 
@@ -1119,10 +1138,10 @@
 						throw new Error("Invalid parameter: expected a number but saw " + typeof maxResponses);
 					}
 
-					if (topicIsString && responderType === "function") {
+					if (responderIsFunction && (topicIsString || topicIsRegex)) {
 
 						// don't add something twice
-						var topicSpecificListeners = this._listeningFor[topic] || [];
+						var topicSpecificListeners = this._listeningFor[topicKey] || [];
 						$each(topicSpecificListeners, function(listener) {
 							if(listener.responder === responder) {
 								handlerExistsForTopic = true;
@@ -1131,13 +1150,16 @@
 						});
 
 						if (!handlerExistsForTopic) {
-							topicSpecificListeners.push({
+							listener = {
 								responder: responder,
 								responses: 0,
-								maxResponses: maxResponses
-							});
+								maxResponses: maxResponses,
+								regexp: topicIsRegex ? topic : null
+							};
 
-							this._listeningFor[topic] = topicSpecificListeners;
+							topicSpecificListeners.push(listener);
+
+							this._listeningFor[topicKey] = topicSpecificListeners;
 						}
 
 					} else {
@@ -1145,7 +1167,7 @@
 					}
 
 				// handle listen({event:handler, event2:handler2, ...}) signature
-				} else if (typeof topic === "object") {
+				} else if (topicType === "object") {
 					// call self for each function if given a map of callbacks instead of a single function
 					$each(topic, function(listener, topic) {
 						if ($isFunction(listener)) {
@@ -1187,14 +1209,33 @@
 			 * @param topic (string)
 			 */
 			listeningFor: function(topic, ignoreCatchall) {
-				var topicSpecificListeners = (topic !== "*") ? this._listeningFor[topic] || [] : []; //$reuse.array();
-				var wildCardListeners = this._listeningFor["*"];
 
-				if (!ignoreCatchall && wildCardListeners) {
-					topicSpecificListeners = topicSpecificListeners.concat(wildCardListeners);
+				if (topic) {
+					var ret = {};
+					var topicSpecificListeners = (topic !== "*") ? this._listeningFor[topic] || [] : [];
+
+					if ($length(topicSpecificListeners)) {
+						ret[topic] = topicSpecificListeners;
+					}
+
+					var regexpListeners = $filter(this._listeningFor["_regexp"], function(listener) {
+						return topic && topic.match(listener.regexp);
+					});
+
+					if ($length(regexpListeners)) {
+						ret["_regexp"] = regexpListeners;
+					}
+
+					var catchall = this._listeningFor["*"];
+					if (!ignoreCatchall && catchall && catchall.length) {
+						ret["*"] = regexpListeners;
+					}
+
+					return ret;
+
+				} else {
+					return this._listeningFor;
 				}
-
-				return topicSpecificListeners;
 			},
 
 			/** ignore
@@ -1206,24 +1247,48 @@
 			 * only that instance of the responder that is bound to the given topic will be ignored
 			 */
 			ignore: function(ignoreable, responder) {
-				var test;
-				if(ignoreable) {
-					if ($isString(ignoreable)) {
-						// reject listeners by topic + reponder
-						if (responder && $isFunction(responder)) {
-							test = function(listener) { return ((listener.topic === ignoreable) && (listener.responder === responder))};
-						// reject listeners by topic
+				var test,
+					responderIsFunction = $isFunction(responder),
+					ignoreString = typeof ignoreable === "string",
+					ignoreIsRegex = (ignoreable+"").match(reMatch); // support regexps as strings
+
+				if (ignoreable) {
+
+					if (ignoreIsRegex) {
+
+						if (responderIsFunction) {
+							// clear all listeners for this regex that use the provided function
+							test = function(listener) {return listener.responder+"" === ignoreable+"" && listener.responder === responder;};
 						} else {
-							test = function(listener) { return (listener.topic === ignoreable)};
+							// clear all listeners for this regex
+							test = function(listener) {return listener.regexp+"" === ignoreable+"";};
 						}
-					} else {
-						// reject listeners by responder function
-						test = function(listener) { return (listener.responder === ignoreable)};
+						this._listeningFor["_regexp"] = $reject(this._listeningFor["_regexp"], test);
+
+					} else if (ignoreString) {
+
+						if (responderIsFunction) {
+							// clear all listeners for this topic that use the provided function
+							this._listeningFor[ignoreable] = $reject(this._listeningFor[ignoreable], function(listener) {
+								return listener.responder === responder;
+							});
+						} else {
+							// clear all listeners for this topic
+							delete this._listeningFor[ignoreable];
+						}
+
+					} else if (typeof ignoreable === "function") {
+						// clear all listeners that use the provided function
+						this._listeningFor = $map(this._listeningFor, function(listeners) {
+							return $reject(listeners, function(listener) {
+								return listener.responder === ignoreable;
+							});
+						});
 					}
-					this._listeningFor = $reject(this._listeningFor, test);
 
 				} else {
-					$clear(this._listeningFor); // remove all elements
+					// clear all listeners
+					$clear(this._listeningFor);
 				}
 
 				return this;
