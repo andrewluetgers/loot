@@ -41,17 +41,24 @@ module.exports = function(grunt) {
 				src: [
 					"<banner>",
 					// core functionality
-					"src/loot.js"
+					"src/loot.js",
 
-					// mvc stuff
-					,"src/$model.js", "src/$view.js", "src/$collection.js", "src/$dom.js", "src/$time.js", "src/$route.js"
+					// JSONselect
+					"src/$select.js",
 
-					// async/data io
-					,"src/$async.js" //, "src/$cache.js", "src/$io.js"
+					// misc utils
+					"src/$time.js", "src/$async.js", "src/$cache.js", "src/$io.js",
+
+					// DOM and templating
+					"src/$dom.js",
+
+					// architectural legos
+					"src/$model.js", "src/$view.js", "src/$collection.js", "src/$route.js"
 
 					// experimental
 //					,"src/$components.js", "src/$reuse.js"
 				],
+
 				dest: "dist/<%= pkg.name %>-<%= pkg.version %>.js"
 			},
 

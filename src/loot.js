@@ -63,9 +63,7 @@
 
 	// All **ECMAScript 5** native function implementations that we hope to use
 	// are declared here.
-	var nativeForEach 			= ArrayProto.forEach,
-//		nativeMap  				= ArrayProto.map,
-		nativeReduce 			= ArrayProto.reduce,
+	var nativeReduce 			= ArrayProto.reduce,
 //		nativeReduceRight 		= ArrayProto.reduceRight,
 		nativeFilter 			= ArrayProto.filter,
 		nativeEvery 			= ArrayProto.every,
@@ -278,50 +276,83 @@
 	// Retrieve and array of the values of an object's owned properties.
 	function $vals(obj) {return _parts(obj, true)}
 
+
+	function $range(start, stop, step) {
+		if (arguments.length <= 1) {
+			stop = start || 0;
+			start = 0;
+		}
+		step = arguments[2] || 1;
+
+		var len = Math.max(Math.ceil((stop - start) / step), 0);
+		var idx = 0;
+		var range = new Array(len);
+
+		while(idx < len) {
+			range[idx++] = start;
+			start += step;
+		}
+
+		return range;
+	}
+
 	// Collection Functions (work on objects and arrays) -------------------------------------------------------
+
+	function nodeListToArray(obj) {
+		// properly handle node-list iteration
+		// http://stackoverflow.com/questions/2735067/how-to-convert-a-dom-node-list-to-an-array-in-javascript
+		var array = [];
+		for (var i = obj.length >>> 0; i--;) {
+			array[i] = obj[i];
+		}
+		return array;
+	}
 
 	// The cornerstone, an `each` implementation, aka `forEach`.
 	// Handles objects with the built-in `forEach`, arrays, and raw objects.
 	// Delegates to **ECMAScript 5**'s native `forEach` if available.
-	var breaker = "break";
+	var breaker = "break", continuer = "continue";
 	var $each = (function() {
 
 		// switched breaker to string "break" for better self documentation when used
-		function each(obj, iterator, context) {
-			var i, l, key, array;
+		function each(obj, iterator, context, asMap) {
+			var i, results, key, array, val,
+				breaker = breaker,
+				continuer = continuer;
+
 			if (!obj) return;
+
 			if (typeof obj === "number") {
-				var arr = [];
-				for (i = 0, l = parseInt(obj); i < l; i++) {
-					arr[i] = i;
-					if (iterator.call(context, i, i, arr) === breaker) return;
-				}
+				obj = $range(obj);
 			}
+
 			if (obj.length === +obj.length) {
-				if ($isNodeList(obj)) {
-					// properly handle node-list iteration
-					// http://stackoverflow.com/questions/2735067/how-to-convert-a-dom-node-list-to-an-array-in-javascript
-					array = [];
-					for (var i = obj.length >>> 0; i--;) {
-						array[i] = obj[i];
-					}
-					obj = array;
+				array = $isNodeList(obj) ? nodeListToArray(obj) : obj;
+				results = [];
+				for (i = 0; i < array.length; i++) {
+					val = iterator.call(context, array[i], i, array);
+					if (val === continuer) continue;
+					if (val === breaker) break;
+					asMap && (results[results.length] = val);
 				}
-				for (i = 0; i < obj.length; i++) {
-					if (iterator.call(context, obj[i], i, obj) === breaker) return;
-				}
+
 			} else {
+				results = {};
 				for (key in obj) {
 					if (hasOwnProperty.call(obj, key)) {
-						if (iterator.call(context, obj[key], key, obj) === breaker) return;
+						val = iterator.call(context, obj[key], key, obj);
+						if (val === continuer) continue;
+						if (val === breaker) break;
+						asMap && (results[key] = val);
 					}
 				}
 			}
+
+			return asMap ? results : undefined;
 		}
 
 		each.break = each.breaker = breaker;
-		each.nativeForEach = nativeForEach;
-		each.hasOwnProperty = hasOwnProperty;
+		each.continue = each.continuer = continuer;
 
 		return each;
 
@@ -329,33 +360,19 @@
 
 
 	// Return the results of applying the iterator to each element.
-	// Delegates to **ECMAScript 5**'s native "map" if available.
-
-
 	function $map(obj, iterator, context) {
-
-		var results = [];
-
-		if (obj) {
-			if ($isArray(obj) || $isNumber(obj)) {
-				$each(obj, function(value, index, list) {
-					results[results.length] = iterator.call(context, value, index, list);
-				});
-				if (obj.length === +obj.length) results.length = obj.length;
-			} else {
-				results = {};
-				$each(obj, function(value, key, list) {
-					results[key] = iterator.call(context, value, key, list);
-				});
-			}
-		}
-
-		return results;
+		return $each(obj, iterator, context, true);
 	}
 
-	function $value(val) {return val;}
+	function $value(val) {return val}
 
- // **Reduce** builds up a single result from a list of values, aka `inject`,
+	function $maybe(val) {
+		return $reject(val, function(v) {
+			return v;
+		});
+	}
+
+ 	// **Reduce** builds up a single result from a list of values, aka `inject`,
 	// or `foldl`. Delegates to **ECMAScript 5**'s native `reduce` if available.
 	function $reduce(obj, iterator, memo, context) {
 		var initial = arguments.length > 2;
@@ -402,17 +419,13 @@
 		if ($isArray(obj)) {
 			// array mode
 			$each(obj, function(value, index, list) {
-				if (iterator.call(context, value, index, list)) {
-					results[results.length] = value;
-				}
+				if (iterator.call(context, value, index, list)) results[results.length] = value;
 			});
 		} else {
 			// object mode
 			results = {};
 			$each(obj, function(value, key, list) {
-				if (iterator.call(context, value, key, list)) {
-					results[key] = value;
-				}
+				if (iterator.call(context, value, key, list)) results[key] = value;
 			});
 		}
 		return results;
@@ -670,9 +683,26 @@
 	}
 
 
-	// Trim out all falsey values from an array or object.
+	function $head(obj, n) {
+		n = n > 0 && $isNumber(n) ? n : 1;
+		return $map(obj, function(val) {return (n-- > 0) ? val : "break"});
+	}
+
+	function $tail(obj, n) {
+		n = n > 0 && $isNumber(n) ? n : 1;
+		var i = 0,
+			len = $length(obj),
+			start = len < n ? 0 : len - n;
+
+		return $map(obj, function(val) {
+			return (i++ < start) ? "continue" : val;
+		});
+	}
+
+
+	// Trim out all falsey non-zero values from an array or object.
 	function $compact(obj) {
-		return $filter(obj, function(value){ return !!value; });
+		return $filter(obj, function(val){ return !!val || $isNumber(val)});
 	}
 
 	// flatten arrays recursively
@@ -967,7 +997,6 @@
 	 * @param prototype
 	 * @param extender/s
 	 * @param mixin/s
-	 * @author ATL
 	 */
 	function $make(prototype, extender, mixin) {
 
@@ -1457,6 +1486,7 @@
 		$each: $each,
 		$for: $each,
 		$map: $map,
+		$range: $range,
 		$reduce: $reduce,
 		$find: $find,
 		$filter: $filter,
@@ -1464,6 +1494,7 @@
 		$every: $all,
 		$all: $all,
 		$any: $any,
+		$maybe: $maybe,
 		$includes: $includes,
 		$contains: $includes,
 		$invoke: $invoke,
@@ -1479,6 +1510,8 @@
 		$sortedIndex: $sortedIndex,
 		$size: $length,
 		$length: $length,
+		$head: $head,
+		$tail: $tail,
 		$compact: $compact,
 		$flat: $flat,
 		$slice: $slice,

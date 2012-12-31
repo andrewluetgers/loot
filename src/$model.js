@@ -53,19 +53,34 @@
 	}
 
 	function parseInputs(vals) {
-		var parse = this.parse,
-			model = this;
+		var parse = this.parseInput,
+			model = this,
+			newVals = $isArray(vals) ? [] : {};
 
 		if (parse) {
 			$each(parse, function(fn, key) {
 				if (key in vals) {
-					vals[key] = parseInput(vals[key], key, fn, model);
+					newVals[key] = parseInput(vals[key], key, fn, model);
 				} else if (key === "*") {
 					$each(vals, function(v, k) {
-						vals[k] = parseInput(v, k, fn, model);
+						newVals[k] = parseInput(v, k, fn, model);
 					});
 				}
 			});
+
+			return newVals;
+		}
+
+		return vals;
+	}
+
+	function parseData(vals) {
+		var parse = this.parse,
+			model = this;
+		if (parse) {
+			return parse.call(model, vals);
+		} else {
+			return vals;
 		}
 	}
 
@@ -197,7 +212,7 @@
 					var drop = options.drop;
 
 					if (drop && !$isFunction(drop)) {
-						throw new Error("drop must be a function");
+						throw new Error("if drop is provided it must be a function");
 					}
 
 //					console.log(type, this, arguments);
@@ -229,12 +244,14 @@
 						}
 					});
 
-					// copy our initial values to the model
+					vals = parseInputs.call(model, vals);
+
+					vals = parseData.call(model, vals);
+
+					// copy our parsed initial values to the model
 					if (!$isString(vals)) {
 						$mixin(modelVals, vals);
 					}
-
-					parseInputs.call(model, vals);
 
 					var that = this;
 					var init = function() {

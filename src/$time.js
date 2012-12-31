@@ -85,7 +85,7 @@
 
 		var timeAgo = function(date, compareTo, langCode) {
 
-			date = normalizeDateInput(date);
+			date = normalizeDateInput(date || $now());
 			compareTo = normalizeDateInput(compareTo || new Date);
 			langCode = langCode || this.defaultLang;
 			var lang = this.formats[langCode];
@@ -359,11 +359,29 @@
 		}
 	};
 
+	function $secondsToTime(s) {
+		var h, m, s, ms;
+		ms = Math.round((parseFloat(s) % 1)*1000);
+		s = parseInt(s, 10);
+		h  = Math.floor( s / ( 60 * 60 ) );
+		s -= h * ( 60 * 60 );
+		m  = Math.floor( s / 60 );
+		s -= m * 60;
+
+		return {h: h, m: m, s: s, ms: ms};
+	}
+
+	function $millisToTime(ms) {
+		return $secondsToTime(parseInt(ms, 10)/1000);
+	}
+
 	loot.extend({
 		$now: $now,
 		$date: $dateFormat,
 		$timeAgo: $timeAgo,
-		$timer: $timer
+		$timer: $timer,
+		$secondsToTime: $secondsToTime,
+		$millisToTime: $millisToTime
 	});
 
 }());
