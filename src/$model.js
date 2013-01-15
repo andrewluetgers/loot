@@ -8,13 +8,14 @@
 	var schemaBank = {};
 
 	function modelApiGet(modelVals, _key) {
-		var len = arguments.length,
+		var model = this, // this is set as the model via apply
+			len = arguments.length,
 			val;
 
 		if (len == 2 && $isString(_key)) {
-			val = modelVals[_key];
+			val = modelVals[_key]	;
 			// supports computed values
-			return $isFunction(val) ? modelVals[_key]() : val;
+			return $isFunction(val) ? modelVals[_key](model) : val;
 
 		} else if (len > 2 || $isArray(_key)) {
 			var results = {}, keys = $flat($slice(arguments, 1));
@@ -22,14 +23,14 @@
 				if (key in modelVals) {
 					val = modelVals[key];
 					// supports computed values
-					results[key] = $isFunction(val) ? modelVals[key]() : val;
+					results[key] = $isFunction(val) ? modelVals[key](model) : val;
 				}
 			});
 			return results;
 
 		} else {
 			return $map(modelVals, function(val, key) {
-				return $isFunction(val) ? modelVals[key]() : val;
+				return $isFunction(val) ? modelVals[key](model) : val;
 			});
 		}
 	}
@@ -291,22 +292,28 @@
 			//throw new Error("$model: valid type string required");
 			return null;
 		} else if (vals && !$isPlainObject(vals)) {
-			console.log(type, vals);
 			throw new Error("$model: valid values object required for " + type);
 		} else {
 			return schema.newInstance(vals);
 		}
 	}
 
-	function $models(type, id) {
-		var models = $schema();
-		if (!arguments.length) {
+	function $models(type, key, val) {
+		var models = $schema(),
+			len = arguments.length;
+
+		if (len === 2) {
+			val = key;
+			key = "id";
+		}
+
+		if (!len) {
 			return models;
 		} else if (type in models) {
 			var instances = models[type].getInstances(), ret;
-			if (id) {
+			if (len > 1) {
 				$each(instances, function(inst) {
-					if (inst.get("id") == id) {
+					if (inst.get(key) == val) {
 						ret = inst;
 					}
 				});

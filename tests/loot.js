@@ -1,6 +1,155 @@
 
 module("loot");
 
+test("$sortBy", function() {
+
+	expect(3);
+
+
+	var simpleData = [
+		{index: 0, orig: 0, alpha: "aaa"},
+		{index: 3, orig: 1, alpha: "aab"},
+		{index: 1, orig: 2, alpha: "aba"},
+		{index: 5, orig: 3, alpha: "baa"},
+		{index: 4, orig: 4, alpha: "aac"},
+		{index: 1, orig: 5, alpha: "aca"},
+		{index: 2, orig: 6, alpha: "caa"},
+		{index: 0, orig: 7, alpha: "aa"},
+		{index: 5, orig: 8, alpha: "ab"},
+		{index: 20, orig: 9, alpha: "ac"},
+		{index: 10, orig: 10, alpha: "ca"},
+		{index: 4, orig: 11, alpha: "a"},
+		{index: 5, orig: 12, alpha: "b"},
+		{index: 100, orig: 13, alpha: "c"}
+	];
+
+	var simpleDataSortedOnIndex = [
+		{index: 0, orig: 0, alpha: "aaa"},
+		{index: 0, orig: 7, alpha: "aa"},
+		{index: 1, orig: 2, alpha: "aba"},
+		{index: 1, orig: 5, alpha: "aca"},
+		{index: 2, orig: 6, alpha: "caa"},
+		{index: 3, orig: 1, alpha: "aab"},
+		{index: 4, orig: 4, alpha: "aac"},
+		{index: 4, orig: 11, alpha: "a"},
+		{index: 5, orig: 3, alpha: "baa"},
+		{index: 5, orig: 8, alpha: "ab"},
+		{index: 5, orig: 12, alpha: "b"},
+		{index: 10, orig: 10, alpha: "ca"},
+		{index: 20, orig: 9, alpha: "ac"},
+		{index: 100, orig: 13, alpha: "c"}
+	];
+
+	var simpleDataSortedOnAlpha = [
+		{index: 4, orig: 11, alpha: "a"},
+		{index: 0, orig: 7, alpha: "aa"},
+		{index: 0, orig: 0, alpha: "aaa"},
+		{index: 3, orig: 1, alpha: "aab"},
+		{index: 4, orig: 4, alpha: "aac"},
+		{index: 5, orig: 8, alpha: "ab"},
+		{index: 1, orig: 2, alpha: "aba"},
+		{index: 20, orig: 9, alpha: "ac"},
+		{index: 1, orig: 5, alpha: "aca"},
+		{index: 5, orig: 12, alpha: "b"},
+		{index: 5, orig: 3, alpha: "baa"},
+		{index: 100, orig: 13, alpha: "c"},
+		{index: 10, orig: 10, alpha: "ca"},
+		{index: 2, orig: 6, alpha: "caa"}
+	];
+
+	var data = [
+		{"type": "Workflow", "label": "General Rowcount FileStem_10", "skip": "false", "submitTS": "2012-11-09T04:15:59Z", "stopTS": 1352434588000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:28Z", "startTS": 1352434571000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_11", "skip": "false", "submitTS": "2012-11-09T04:16:00Z", "stopTS": 1352434615000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:55Z", "startTS": 1352434572000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_12", "skip": "false", "submitTS": "2012-11-09T04:16:01Z", "stopTS": 1352434580000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:19Z", "startTS": 1352434573000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_13", "skip": "false", "submitTS": "2012-11-09T04:16:02Z", "stopTS": 1352434589000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:29Z", "startTS": 1352434573000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_14", "skip": "false", "submitTS": "2012-11-09T04:16:03Z", "stopTS": 1352434590000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:29Z", "startTS": 1352434573000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_15", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_16", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_17", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_18", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_19", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_20", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_21", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_22", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_23", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_24", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_25", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_26", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_27", "skip": "false", "submitTS": "2012-11-09T04:16:04Z", "stopTS": 1352434582000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:22Z", "startTS": 1352434573000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_28", "skip": "false", "submitTS": "2012-11-09T04:16:05Z", "stopTS": 1352434583000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:23Z", "startTS": 1352434574000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_29", "skip": "false", "submitTS": "2012-11-09T04:16:06Z", "stopTS": 1352434579000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:18Z", "startTS": 1352434574000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_3", "skip": "false", "submitTS": "2012-11-09T04:16:07Z", "stopTS": 1352434580000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:19Z", "startTS": 1352434574000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_30", "skip": "false", "submitTS": "2012-11-09T04:16:08Z", "stopTS": 1352434611000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:51Z", "startTS": 1352434574000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_31", "skip": "false", "submitTS": "2012-11-09T04:16:09Z", "stopTS": 1352434615000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:55Z", "startTS": 1352434603000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_32", "skip": "false", "submitTS": "2012-11-09T04:16:10Z", "stopTS": 1352434608000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:48Z", "startTS": 1352434604000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_33", "skip": "false", "submitTS": "2012-11-09T04:16:11Z", "stopTS": 1352434674000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:54Z", "startTS": 1352434604000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_34", "skip": "false", "submitTS": "2012-11-09T04:16:12Z", "stopTS": 1352434695000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:18:15Z", "startTS": 1352434604000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_35", "skip": "false", "submitTS": "2012-11-09T04:16:13Z", "stopTS": 1352434629000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:09Z", "startTS": 1352434604000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_36", "skip": "false", "submitTS": "2012-11-09T04:16:14Z", "stopTS": 1352434664000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:43Z", "startTS": 1352434605000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_37", "skip": "false", "submitTS": "2012-11-09T04:16:15Z", "stopTS": 1352434643000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:23Z", "startTS": 1352434605000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_38", "skip": "false", "submitTS": "2012-11-09T04:16:16Z", "stopTS": 1352434851000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:20:51Z", "startTS": 1352434605000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_4", "skip": "false", "submitTS": "2012-11-09T04:16:17Z", "stopTS": 1352434623000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:03Z", "startTS": 1352434619000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_5", "skip": "false", "submitTS": "2012-11-09T04:16:18Z", "stopTS": 1352434637000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:17Z", "startTS": 1352434633000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_6", "skip": "false", "submitTS": "2012-11-09T04:16:19Z", "stopTS": 1352434643000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:22Z", "startTS": 1352434634000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_7", "skip": "false", "submitTS": "2012-11-09T04:16:20Z", "stopTS": 1352434639000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:18Z", "startTS": 1352434635000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_8", "skip": "false", "submitTS": "2012-11-09T04:16:21Z", "stopTS": 1352434652000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:32Z", "startTS": 1352434649000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_9", "skip": "false", "submitTS": "2012-11-09T04:16:22Z", "stopTS": 1352434657000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:36Z", "startTS": 1352434650000},
+		{"type": "Notification", "label": "Notification", "skip": "false", "submitTS": "2012-11-09T04:15:59Z", "stopTS": 1352434559000, "status": "SUCCESS", "message": "MAKE SURE CUSTSEG, PH and SCORE FILES ARE ALL DONE", "links": null, "startTS": 1352434559000},
+		{"type": "Workflow", "label": "XZ-08- The Counts Report", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null}
+	];
+
+	var sortedData1 = [
+		{"type": "Workflow", "label": "General Rowcount FileStem_15", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_16", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_17", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_18", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_19", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_20", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_21", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_22", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_23", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_24", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_25", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_26", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "XZ-08- The Counts Report", "skip": "true", "submitTS": null, "stopTS": null, "status": "SKIPPED", "runUrl": null, "links": null},
+		{"type": "Workflow", "label": "General Rowcount FileStem_10", "skip": "false", "submitTS": "2012-11-09T04:15:59Z", "stopTS": 1352434588000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:28Z", "startTS": 1352434571000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_11", "skip": "false", "submitTS": "2012-11-09T04:16:00Z", "stopTS": 1352434615000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:55Z", "startTS": 1352434572000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_12", "skip": "false", "submitTS": "2012-11-09T04:16:01Z", "stopTS": 1352434580000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:19Z", "startTS": 1352434573000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_13", "skip": "false", "submitTS": "2012-11-09T04:16:02Z", "stopTS": 1352434589000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:29Z", "startTS": 1352434573000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_14", "skip": "false", "submitTS": "2012-11-09T04:16:03Z", "stopTS": 1352434590000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:29Z", "startTS": 1352434573000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_27", "skip": "false", "submitTS": "2012-11-09T04:16:04Z", "stopTS": 1352434582000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:22Z", "startTS": 1352434573000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_28", "skip": "false", "submitTS": "2012-11-09T04:16:05Z", "stopTS": 1352434583000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:23Z", "startTS": 1352434574000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_29", "skip": "false", "submitTS": "2012-11-09T04:16:06Z", "stopTS": 1352434579000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:18Z", "startTS": 1352434574000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_3", "skip": "false", "submitTS": "2012-11-09T04:16:07Z", "stopTS": 1352434580000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:19Z", "startTS": 1352434574000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_30", "skip": "false", "submitTS": "2012-11-09T04:16:08Z", "stopTS": 1352434611000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:51Z", "startTS": 1352434574000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_31", "skip": "false", "submitTS": "2012-11-09T04:16:09Z", "stopTS": 1352434615000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:55Z", "startTS": 1352434603000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_32", "skip": "false", "submitTS": "2012-11-09T04:16:10Z", "stopTS": 1352434608000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:16:48Z", "startTS": 1352434604000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_33", "skip": "false", "submitTS": "2012-11-09T04:16:11Z", "stopTS": 1352434674000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:54Z", "startTS": 1352434604000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_34", "skip": "false", "submitTS": "2012-11-09T04:16:12Z", "stopTS": 1352434695000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:18:15Z", "startTS": 1352434604000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_35", "skip": "false", "submitTS": "2012-11-09T04:16:13Z", "stopTS": 1352434629000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:09Z", "startTS": 1352434604000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_36", "skip": "false", "submitTS": "2012-11-09T04:16:14Z", "stopTS": 1352434664000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:43Z", "startTS": 1352434605000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_37", "skip": "false", "submitTS": "2012-11-09T04:16:15Z", "stopTS": 1352434643000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:23Z", "startTS": 1352434605000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_38", "skip": "false", "submitTS": "2012-11-09T04:16:16Z", "stopTS": 1352434851000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:20:51Z", "startTS": 1352434605000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_4", "skip": "false", "submitTS": "2012-11-09T04:16:17Z", "stopTS": 1352434623000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:03Z", "startTS": 1352434619000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_5", "skip": "false", "submitTS": "2012-11-09T04:16:18Z", "stopTS": 1352434637000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:17Z", "startTS": 1352434633000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_6", "skip": "false", "submitTS": "2012-11-09T04:16:19Z", "stopTS": 1352434643000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:22Z", "startTS": 1352434634000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_7", "skip": "false", "submitTS": "2012-11-09T04:16:20Z", "stopTS": 1352434639000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:18Z", "startTS": 1352434635000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_8", "skip": "false", "submitTS": "2012-11-09T04:16:21Z", "stopTS": 1352434652000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:32Z", "startTS": 1352434649000},
+		{"type": "Workflow", "label": "General Rowcount FileStem_9", "skip": "false", "submitTS": "2012-11-09T04:16:22Z", "stopTS": 1352434657000, "status": "SUCCESS", "links": null, "publishTS": "2012-11-09T04:17:36Z", "startTS": 1352434650000},
+		{"type": "Notification", "label": "Notification", "skip": "false", "submitTS": "2012-11-09T04:15:59Z", "stopTS": 1352434559000, "status": "SUCCESS", "message": "MAKE SURE CUSTSEG, PH and SCORE FILES ARE ALL DONE", "links": null, "startTS": 1352434559000}
+	];
+	
+	var simple1 = $sortBy(simpleData, "index");
+	same(simple1, simpleDataSortedOnIndex, "basic number sort");
+
+	var simple2 = $sortBy(simpleData, "alpha");
+	same(simple2, simpleDataSortedOnAlpha, "basic string sort (a vs b vs aa vs acb etc.)");
+
+	var sorted1 = $sortBy(data, "status");
+	same(sorted1, sortedData1, "basic string sort (SKIPPED vs SUCCESS)");
+
+});
+
 test("$new", function() {
 
 	expect(12);

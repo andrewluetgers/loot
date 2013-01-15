@@ -13,7 +13,7 @@
 		$route('Root', '', onRootInvoked);
 		$route('Products', 'products/:productId', onProductsInvoked, { productId: 0 });
 
-	2. Use normal anchor tags or the navigateTo() method to invoke the routes
+	2. Use normal anchor tags or the $loadRoute method to invoke the routes
 		<a href="#products">Products</a>
 		$loadRoute('Products', { productId: 343434 });
 
@@ -194,6 +194,10 @@
 	}
 
 	function $loadRoute(routeName, values) {
+		if (!arguments.length) {
+			onHashChanged();
+			return;
+		}
 		var route = getRoute(routeName);
 		var path = fillPath(route, values || route.values);
 		window.location.hash = path;
@@ -232,9 +236,11 @@
 
 	// hook up events
 	// todo support node
-	if (root.onhashchange) {
-		window.bind('hashchange', onHashChanged)
+	if ("onhashchange" in root) {
+//		console.log("hashchange supported");
+		$(window).on('hashchange', onHashChanged);
 	} else {
+//		console.log("fallback");
 		// todo fix fallback
 		//hashListenerInterval = setInterval(onHashChanged, 100);
 	}

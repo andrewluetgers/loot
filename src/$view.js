@@ -109,7 +109,7 @@
 				} else if ($isFunction(templateOrRenderFn)) {
 					var oldContent;
 					update = function(changes, type, rmodel) {
-						var content = templateOrRenderFn.call(view, rmodel.get(), changes, view);
+						var content = templateOrRenderFn.call(view, rmodel && rmodel.get(), changes, view);
 
 						if (content) {
 							if ($isElement(content)) {
@@ -160,7 +160,7 @@
 							update(model, type, this);
 						}
 					});
-				} else {
+				} else if (view.model) {
 					// the arguments passed to update will be
 					// 		changes = an object of just the properties on the model that have changed
 					// 		type = "change"

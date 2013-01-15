@@ -311,14 +311,13 @@
 	// The cornerstone, an `each` implementation, aka `forEach`.
 	// Handles objects with the built-in `forEach`, arrays, and raw objects.
 	// Delegates to **ECMAScript 5**'s native `forEach` if available.
-	var breaker = "break", continuer = "continue";
 	var $each = (function() {
 
 		// switched breaker to string "break" for better self documentation when used
 		function each(obj, iterator, context, asMap) {
 			var i, results, key, array, val,
-				breaker = breaker,
-				continuer = continuer;
+				breaker = each.break,
+				continuer = each.continue;
 
 			if (!obj) return;
 
@@ -328,21 +327,21 @@
 
 			if (obj.length === +obj.length) {
 				array = $isNodeList(obj) ? nodeListToArray(obj) : obj;
-				results = [];
+				asMap && (results = []);
 				for (i = 0; i < array.length; i++) {
-					val = iterator.call(context, array[i], i, array);
-					if (val === continuer) continue;
-					if (val === breaker) break;
+					val = iterator.call(context, array[i], i, array, results);
+					if (val === continuer) {continue}
+					if (val === breaker) {break}
 					asMap && (results[results.length] = val);
 				}
 
 			} else {
-				results = {};
+				asMap && (results = {});
 				for (key in obj) {
 					if (hasOwnProperty.call(obj, key)) {
-						val = iterator.call(context, obj[key], key, obj);
-						if (val === continuer) continue;
-						if (val === breaker) break;
+						val = iterator.call(context, obj[key], key, obj, results);
+						if (val === continuer) {continue}
+						if (val === breaker) {break}
 						asMap && (results[key] = val);
 					}
 				}
@@ -351,8 +350,8 @@
 			return asMap ? results : undefined;
 		}
 
-		each.break = each.breaker = breaker;
-		each.continue = each.continuer = continuer;
+		each.break = each.breaker = "break";
+		each.continue = each.continuer = "continue";
 
 		return each;
 
@@ -461,7 +460,7 @@
 		if (obj == null) return result;
 		if (nativeEvery && obj.every === nativeEvery) return obj.every(iterator, context);
 		$each(obj, function(value, index, list) {
-			if (!(result = result && iterator.call(context, value, index, list))) return breaker;
+			if (!(result = result && iterator.call(context, value, index, list))) return $each.breaker;
 		});
 		return result;
 	}
@@ -495,7 +494,7 @@
 		if (nativeIndexOf && obj.indexOf === nativeIndexOf) {
 			return obj.indexOf(target) != -1;
 		}
-			found = $any(obj, function(value) {
+		found = $any(obj, function(value) {
 			return value === target;
 		});
 		return found;
@@ -504,7 +503,7 @@
 
 	// Invoke a method (with arguments) on every item in a collection.
 	function $invoke(obj, method) {
-	var args = $slice(arguments, 2);
+		var args = $slice(arguments, 2);
 		return $map(obj, function(value) {
 			return ($isFunction(method) ? method || value : value[method]).apply(value, args);
 		});
@@ -512,7 +511,7 @@
 
 	// Convenience version of a common use case of `map`: fetching a property.
 	function $pluck(obj, key) {
-		return $map(obj, function(value){ return value[key]; });
+		return $map(obj, function(v){ return v[key]; });
 	}
 
 	// Return the maximum element or (element-based computation).
@@ -551,8 +550,23 @@
 	}
 
 	// Sort the object's values by a criterion produced by an iterator.
-	function $sortBy(obj, val, context) {
-		var iterator = $isFunction(val) ? val : function(obj) { return obj[val]; };
+	// allows custom sort functions, if the sort function returns undefined it will use index position to sort
+	// this allows default behavior of using index for values that are equal and overriding of default behavior in custom sort functions
+	function lookupIterator(value) {
+		return $isFunction(value) ? value : function(obj){ return obj[value]; };
+	}
+
+	function $sortBy(obj, val, context, sortFn) {
+		var iterator = lookupIterator(val),
+			sortVal;
+
+		sortFn = sortFn || function(a, b) {
+			if (a !== b) {
+				if (a > b || a === void 0) return 1;
+				if (a < b || b === void 0) return -1;
+			}
+		};
+
 		return $pluck($map(obj, function(value, index, list) {
 			return {
 				value : value,
@@ -560,71 +574,60 @@
 				criteria : iterator.call(context, value, index, list)
 			};
 		}).sort(function(left, right) {
-			var a = left.criteria, b = right.criteria;
-				if (a !== b) {
-					if (a > b || a === void 0) return 1;
-					if (a < b || b === void 0) return -1;
-				}
+			sortVal = sortFn(left.criteria, right.criteria);
+			if (sortVal !== undefined) {
+				return sortVal;
+			} else {
 				return left.index < right.index ? -1 : 1;
+			}
 		}), 'value');
 	}
 
-
-	var $naturalSort = (function() {
-
-		/*
-		 * Natural Sort algorithm for Javascript - Version 0.6 - Released under MIT license
-		 * Author: Jim Palmer (based on chunking idea from Dave Koelle)
-		 * Contributors: Mike Grier (mgrier.com), Clint Priest, Kyle Adams, guillermo
-		 * http://www.overset.com/2008/09/01/javascript-natural-sort-algorithm/
-		 * http://js-naturalsort.googlecode.com/svn/trunk/naturalSort.js
-		 */
-		function naturalSort (a, b) {
-			var re = /(^-?[0-9]+(\.?[0-9]*)[df]?e?[0-9]?$|^0x[0-9a-f]+$|[0-9]+)/gi,
-				sre = /(^[ ]*|[ ]*$)/g,
-				dre = /(^([\w ]+,?[\w ]+)?[\w ]+,?[\w ]+\d+:\d+(:\d+)?[\w ]?|^\d{1,4}[\/\-]\d{1,4}[\/\-]\d{1,4}|^\w+, \w+ \d+, \d{4})/,
-				hre = /^0x[0-9a-f]+$/i,
-				ore = /^0/,
-			// convert all to strings and trim()
-				x = a.toString().replace(sre, '') || '',
-				y = b.toString().replace(sre, '') || '',
-			// chunk/tokenize
-				xN = x.replace(re, '\0$1\0').replace(/\0$/,'').replace(/^\0/,'').split('\0'),
-				yN = y.replace(re, '\0$1\0').replace(/\0$/,'').replace(/^\0/,'').split('\0'),
-			// numeric, hex or date detection
-				xD = parseInt(x.match(hre)) || (xN.length != 1 && x.match(dre) && Date.parse(x)),
-				yD = parseInt(y.match(hre)) || xD && y.match(dre) && Date.parse(y) || null;
-			// first try and sort Hex codes or Dates
-			if (yD)
-				if ( xD < yD ) return -1;
-				else if ( xD > yD )	return 1;
-			// natural sorting through split numeric strings and default strings
-			for(var cLoc=0, numS=Math.max(xN.length, yN.length); cLoc < numS; cLoc++) {
-				// find floats not starting with '0', string or 0 if not defined (Clint Priest)
-				oFxNcL = !(xN[cLoc] || '').match(ore) && parseFloat(xN[cLoc]) || xN[cLoc] || 0;
-				oFyNcL = !(yN[cLoc] || '').match(ore) && parseFloat(yN[cLoc]) || yN[cLoc] || 0;
-				// handle numeric vs string comparison - number < string - (Kyle Adams)
-				if (isNaN(oFxNcL) !== isNaN(oFyNcL)) return (isNaN(oFxNcL)) ? 1 : -1;
-				// rely on string comparison if different types - i.e. '02' < 2 != '02' < '2'
-				else if (typeof oFxNcL !== typeof oFyNcL) {
-					oFxNcL += '';
-					oFyNcL += '';
-				}
-				if (oFxNcL < oFyNcL) return -1;
-				if (oFxNcL > oFyNcL) return 1;
+	/*
+	 * Natural Sort algorithm for Javascript - Version 0.7 - Released under MIT license
+	 * Author: Jim Palmer (based on chunking idea from Dave Koelle)
+	 * http://www.overset.com/2008/09/01/javascript-natural-sort-algorithm/
+	 * http://js-naturalsort.googlecode.com/svn/trunk/naturalSort.js
+	 */
+	function $naturalSort (a, b) {
+		var re = /(^-?[0-9]+(\.?[0-9]*)[df]?e?[0-9]?$|^0x[0-9a-f]+$|[0-9]+)/gi,
+			sre = /(^[ ]*|[ ]*$)/g,
+			dre = /(^([\w ]+,?[\w ]+)?[\w ]+,?[\w ]+\d+:\d+(:\d+)?[\w ]?|^\d{1,4}[\/\-]\d{1,4}[\/\-]\d{1,4}|^\w+, \w+ \d+, \d{4})/,
+			hre = /^0x[0-9a-f]+$/i,
+			ore = /^0/,
+			i = function(s) { return $naturalSort.insensitive && (''+s).toLowerCase() || ''+s },
+		// convert all to strings strip whitespace
+			x = i(a).replace(sre, '') || '',
+			y = i(b).replace(sre, '') || '',
+		// chunk/tokenize
+			xN = x.replace(re, '\0$1\0').replace(/\0$/,'').replace(/^\0/,'').split('\0'),
+			yN = y.replace(re, '\0$1\0').replace(/\0$/,'').replace(/^\0/,'').split('\0'),
+		// numeric, hex or date detection
+			xD = parseInt(x.match(hre)) || (xN.length != 1 && x.match(dre) && Date.parse(x)),
+			yD = parseInt(y.match(hre)) || xD && y.match(dre) && Date.parse(y) || null,
+			oFxNcL, oFyNcL;
+		// first try and sort Hex codes or Dates
+		if (yD)
+			if ( xD < yD ) return -1;
+			else if ( xD > yD ) return 1;
+		// natural sorting through split numeric strings and default strings
+		for(var cLoc=0, numS=Math.max(xN.length, yN.length); cLoc < numS; cLoc++) {
+			// find floats not starting with '0', string or 0 if not defined (Clint Priest)
+			oFxNcL = !(xN[cLoc] || '').match(ore) && parseFloat(xN[cLoc]) || xN[cLoc] || 0;
+			oFyNcL = !(yN[cLoc] || '').match(ore) && parseFloat(yN[cLoc]) || yN[cLoc] || 0;
+			// handle numeric vs string comparison - number < string - (Kyle Adams)
+			if (isNaN(oFxNcL) !== isNaN(oFyNcL)) { return (isNaN(oFxNcL)) ? 1 : -1; }
+			// rely on string comparison if different types - i.e. '02' < 2 != '02' < '2'
+			else if (typeof oFxNcL !== typeof oFyNcL) {
+				oFxNcL += '';
+				oFyNcL += '';
 			}
-			return 0;
+			if (oFxNcL < oFyNcL) return -1;
+			if (oFxNcL > oFyNcL) return 1;
 		}
+		return 0;
+	}
 
-		return function(arr, by) {
-			if ($isArray(arr)) {
-				return arr.sort(naturalSort);
-			} else {
-				throw new Error("expected arry but saw " + $typeof(arr));
-			}
-		}
-
-	}());
 
 	// An internal function to generate lookup iterators.
 	var lookupIterator = function(value) {
@@ -734,6 +737,37 @@
 				delete obj[key];
 			}
 		}
+	}
+
+	function $ex(a) {
+		var args = (arguments.length === 1 && $isArray(a)) ? a : $slice(arguments),
+			len = args.length,
+			last = 0,
+			nextFn,
+			fn = args.shift(),
+			applyArgs = [],
+			val,
+			res;
+
+		while (last <= len) {
+			for (var i=0; i<args.length; i++) {
+				val = args.shift();
+				last++;
+				if ($isFunction(val)) {
+					nextFn = val;
+					break;
+				} else {
+					applyArgs.push(val);
+				}
+			}
+			if (!fn) break;
+			res = fn.apply(null, applyArgs);
+			applyArgs = [res];
+			fn = nextFn;
+			nextFn = null;
+		}
+
+		return res;
 	}
 
 
@@ -1498,6 +1532,7 @@
 		$includes: $includes,
 		$contains: $includes,
 		$invoke: $invoke,
+		$ex: $ex,
 		$pluck: $pluck,
 		$value: $value,
 		$max: $max,

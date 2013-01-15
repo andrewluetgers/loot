@@ -49,9 +49,7 @@
 			if (this.sortIterator) {	this.items = $sortBy(this.items, this.sortIterator);}
 			if (this.groupByIterator) {	this.items = $groupBy(this.items, this.groupByIterator);}
 			if (this.isReversed) {		this.items.reverse();}
-			if (!silent) {
-				this.tell("change:add", items);
-			}
+			if (!silent) {				this.tell("change:add", items);}
 
 			return this;
 		},
@@ -70,11 +68,19 @@
 		},
 
 		// returns model instances
-		get: function(i) {
-			if ($isNumber(i)) {
-				return this.items[i];
-			} else if (i === "last") {
-				return this.items[this.items.length-1];
+		get: function(key, val) {
+			if ($isNumber(key)) {
+				return this.items[key];
+			} else if (arguments.length === 2 && $isString(key)) {
+				var match, model;
+				$each(this.items, function(it) {
+					model = it.model || it;
+					if (model.get(key) == val) {
+						match = it;
+						return $each.break;
+					}
+				});
+				return match;
 			} else {
 				return this.items;
 			}
@@ -93,8 +99,6 @@
 			if ($isNumber(i)) {
 				i = (i < 0) ? (len + i) % len : i;
 				model = this.items[i];
-			} else if (i === "last") {
-				model = this.items[len-1];
 			}
 
 			if (model) {
@@ -107,7 +111,6 @@
 		},
 
 		getGroupSortIterator: function(val) {
-
 			return function(obj) {
 				if ($isModel(obj.model)) {
 					return obj.model.get()[val];
@@ -208,13 +211,13 @@
 
 		// make sure we have a valid view constructor
 		if (view) {
-//			// console.log(view, $views(view));
+//			console.log(view, $views(view));
 			view = $isString(view) ? $views(view) : view;
 			if ($isViewConstructor(view)) {
 				collection.view = view;
 				collection.draw = spec.draw ? spec.draw : collection.draw;
 			} else {
-//				// console.log(collection, view);
+				console.log(collection, view);
 				throw new Error("$collection: Invalid view type or constructor function");
 			}
 		} else if (schema) {
@@ -223,6 +226,7 @@
 			if ($isSchema(schema)) {
 				collection.schema = schema;
 			} else {
+				console.log(collection, schema);
 				throw new Error("$collection: Invalid schema type or constructor function ");
 			}
 		}
@@ -246,7 +250,6 @@
 		collectionBank[name] = collection;
 
 		collection.listen("*", function(msg, type) {
-			console.log("navPath collection", type, msg);
 			if (type !== "change" && type.match("change")) {
 				collection.tell("change", {
 					msg: msg,
