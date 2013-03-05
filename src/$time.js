@@ -359,16 +359,32 @@
 		}
 	};
 
-	function $secondsToTime(s) {
-		var h, m, s, ms;
-		ms = Math.round((parseFloat(s) % 1)*1000);
-		s = parseInt(s, 10);
+	function $secondsToTime(_s) {
+		var h, m, s, ms, pad, f1, f2, f3;
+		ms = Math.round((parseFloat(_s) % 1)*1000);
+		s = parseInt(_s, 10);
 		h  = Math.floor( s / ( 60 * 60 ) );
 		s -= h * ( 60 * 60 );
 		m  = Math.floor( s / 60 );
 		s -= m * 60;
 
-		return {h: h, m: m, s: s, ms: ms};
+		pad = function(v) {return (v > 9) ? v : "0"+v;};
+
+		f1 = $map([h, m], pad).join(":");
+
+		f2 = $map([h, m, s], pad).join(":");
+
+		// create x hours x minutes string
+		// if no hours it will be x minutes
+		// if no hours or minutes will be x seconds
+		// plurality of units is handled
+		var hStr = h ? h + " hour" + (h>1 ? "s " : " ") : "",
+			mStr = (h || m) ? m + " minute" + (m>1 ? "s" : "") : "",
+			sStr = (!m && s) ? s + " second"  + (s>1 ? "s" : "") : "";
+
+		f3 = hStr + mStr + sStr;
+
+		return {h: h, m: m, s: s, ms: ms, "hh:mm": f1, "hh:mm:ss": f2, formatted: f3};
 	}
 
 	function $millisToTime(ms) {

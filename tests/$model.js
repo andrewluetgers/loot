@@ -143,11 +143,11 @@ test("$define, $schema, $model", function() {
 
 	x.set(falsy);
 	t = x.get();
-	same(t, falsy2, "set without a second argument sets to undefined");
+	same(t, falsy, "set without a second argument sets to undefined");
 
 	// testing model instance destruction
 	x.listen("drop", function(msg) {
-		same(this.get(), falsy2, "drop event fired providing last opportunity to deal with the model and its values");
+		same(this.get(), falsy, "drop event fired providing last opportunity to deal with the model and its values");
 	});
 
 	x.drop();
@@ -201,7 +201,7 @@ test("$define, $schema, $model", function() {
 	ok(dog1.get("info") === info, "computed values work as expected");
 	ok(dog1.get("color") === "brown", "default values work as expected");
 
-	console.log($schema("dog"));
+//	console.log($schema("dog"));
 
 	$schema("dog").listen("validatonFailed", function(msg) {
 		console.log(msg);
@@ -217,4 +217,40 @@ test("$define, $schema, $model", function() {
 		breed: "pointer"
 	});
 
+
+	// lets try to derive a new schema from a previous schema
+	$define("modelA", {
+		defaults: {
+			name: "loot",
+			type: "modelA",
+			computed: function() {
+				return [this, arguments];
+			}
+		},
+		someMethodA: function() {
+			var vals = this.get();
+			console.log(this, arguments, vals);
+		},
+		overwriteMethod: function() {
+			var vals = this.get();
+			console.log("A", this, arguments, vals);
+		}
+	});
+
+	var modelB = $make($models("modelA"), {
+		defaults: {
+			type: "modelB",
+			foo: "bar"
+		},
+		someMethodB: function() {
+			var vals = this.get();
+			console.log(this, arguments, vals);
+		},
+		overwriteMethod: function() {
+			var vals = this.get();
+			console.log("B", this, arguments, vals);
+		}
+	});
+
+//	console.log($models("modelA"), modelB, $models("modelA") === modelB);
 });

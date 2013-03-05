@@ -70,28 +70,65 @@
 		nativeSome 				= ArrayProto.some,
 		nativeIndexOf 			= ArrayProto.indexOf,
 		nativeIsArray 			= Array.isArray,
-		nativeKeys 				= Object.keys,
+//		nativeKeys 				= Object.keys,
 		nativeBind 				= FuncProto.bind;
 
 	// basic types -------------------------------------------------------
+	var typeStr = {lo: {}, ob: {}},
+		strUp = "", strLo = "", one = 1, three = 3, error = "Error",
+		typeStringsCap = ("Arguments Array Boolean Date Element Error Function "+
+			"Null Number Object RegExp String NaN Undefined").split(" ");
+
+	for (var i=0; i<typeStringsCap.length; i++) {
+		strUp = typeStringsCap[i];
+		strLo = strUp.toLowerCase();
+		typeStr.lo[strLo.substr(0, 3)] = strLo;
+		typeStr.ob[strLo.substr(0, 3)] = "[object " + strUp + "]";
+	}
+
+	// a garbage free typeof function derived from the one used in qunit
+	function $typeof(obj) {
+		var lo = typeStr.lo,
+			ob = typeStr.ob,
+			t = typeof obj;
+
+		if (t === lo.str) {return t;}
+		if (t === lo.und) {return t;}
+		if (obj === null) {return lo.nul;}
+		if (obj.nodeType === one) {return lo.ele;}
+
+		switch (toString.call(obj)) {
+			case ob.num:	return (obj === obj) ? lo.num : lo.nan;
+			case ob.boo:	return lo.boo;
+			case ob.arr:	return lo.arr;
+			case ob.dat:	return lo.dat;
+			case ob.reg:	return lo.reg;
+			case ob.fun:	return lo.fun;
+			case ob.arg:	return lo.arg;
+		}
+		return t;
+	}
+
+	var lo = typeStr.lo, ob = typeStr.ob;
+
 	// stolen wholesale from underscore
 	function $isNull		(obj) { 	return obj === null;}
 	function $isNaN			(obj) { 	return obj !== obj;}
-	function $isElement		(obj) { 	return !!(obj && obj.nodeType == 1);}
-	function $isTextNode	(obj) { 	return !!(obj && obj.nodeType == 3);}
+	function $isElement		(obj) { 	return (obj && obj.nodeType == one);}
+	function $isTextNode	(obj) { 	return (obj && obj.nodeType == three);}
 	function $isObject		(obj) { 	return obj === Object(obj); }
-	function $isBoolean		(obj) { 	return obj === true || obj === false || toString.call(obj) == "[object Boolean]";}
-	function $isUndefined	(obj) { 	return typeof obj === "undefined";}
-	function $isFunction	(obj) { 	return typeof obj === "function";}
-	function $isString		(obj) { 	return typeof obj === "string";}
-	function $isNumber		(obj) { 	return toString.call(obj) === "[object Number]";}
-	function $isDate		(obj) { 	return toString.call(obj) === "[object Date]";}
-	function $isRegExp		(obj) { 	return toString.call(obj) === "[object RegExp]";}
-	function $isError		(obj) { 	return toString.call(obj) === "Error";}
+	function $isBoolean		(obj) { 	return obj === true || obj === false || toString.call(obj) == ob.boo;}
+	function $isUndefined	(obj) { 	return typeof obj === lo.und;}
+	function $isFunction	(obj) { 	return typeof obj === lo.fun;}
+	function $isString		(obj) { 	return typeof obj === lo.str;}
+	function $isNumber		(obj) { 	return toString.call(obj) === ob.num;}
+	function $isDate		(obj) { 	return toString.call(obj) === ob.dat;}
+	function $isRegExp		(obj) { 	return toString.call(obj) === ob.reg;}
+	function $isError		(obj) { 	return toString.call(obj) === error;}
 
-	function $isArguments	(obj) { 	return toString.call(obj) === "[object Arguments]";}
+	function $isArguments	(obj) { 	return toString.call(obj) === ob.arg;}
 	if (!$isArguments(arguments)) {
-		$isArguments = function(obj) { 	return !!(obj && $has(obj, "callee"));};
+		$isArguments = function(obj) { 	return (obj && $has(obj, "callee"));};
 	}
 
 	function $isNodeList 	(obj) {
@@ -100,7 +137,7 @@
 	}
 
 	var $isArray = nativeIsArray ||
-			function(obj) { 			return toString.call(obj) == "[object Array]";};
+			function(obj) { 			return toString.call(obj) == ob.arr;};
 
 	// from jQuery
 	function $isPlainObject( obj ) {
@@ -136,33 +173,166 @@
 		return true;
 	}
 
-	function $typeof(obj) {
-		var type = typeof obj, str;
 
-		switch(type) {
-			case "object":
-				if (obj === null) { 											return "null";}
-				else if ($isArray(obj)) { 										return "array";}
-				else if ((str = toString.call(obj)) === "[object RegExp]") { 	return "regexp";}
-				else if ($isArguments(obj)) { 									return "arguments";}
-				else if (!!(obj && obj.nodeType == 1)) { 						return "element";}
-				else if (str === "Error") {										return "error";}
-				else if (str === "[object Date]") { 							return "date";}
-				else {															return "object";} // this should be last
-				break;
+	var $same = (function() {
+		var innerEquiv; // the real equiv function
+		var callers = []; // stack to decide between skip/abort functions
+		var parents = []; // stack to avoiding loops from circular referencing
 
-			case "number":
-				if (obj !== obj) {
-					return "NaN";
+		// Call the o related callback with the given arguments.
+		function bindCallbacks(o, callbacks, args) {
+			var prop = $typeof(o);
+			if (prop) {
+				if ($typeof(callbacks[prop]) === "function") {
+					return callbacks[prop].apply(callbacks, args);
 				} else {
-					return "number"
+					return callbacks[prop]; // or undefined
 				}
-				break;
-
-			default:
-				return type;
+			}
 		}
-	}
+
+		var callbacks = function () {
+			// for string, boolean, number and null
+			function useStrictEquality(b, a) {
+				if (b instanceof a.constructor || a instanceof b.constructor) {
+					// to catch short annotaion VS 'new' annotation of a declaration
+					// e.g. var i = 1;
+					//      var j = new Number(1);
+					return a == b;
+				} else {
+					return a === b;
+				}
+			}
+
+			return {
+				"string": useStrictEquality,
+				"boolean": useStrictEquality,
+				"number": useStrictEquality,
+				"null": useStrictEquality,
+				"undefined": useStrictEquality,
+
+				"nan": function (b) {
+					return isNaN(b);
+				},
+
+				"date": function (b, a) {
+					return $isDate(b) && a.valueOf() === b.valueOf();
+				},
+
+				"regexp": function (b, a) {
+					return $isRegExp(b) &&
+						a.source === b.source && // the regex itself
+						a.global === b.global && // and its modifers (gmi) ...
+						a.ignoreCase === b.ignoreCase &&
+						a.multiline === b.multiline;
+				},
+
+				// - skip when the property is a method of an instance (OOP)
+				// - abort otherwise,
+				//   initial === would have catch identical references anyway
+				"function": function () {
+					var caller = callers[callers.length - 1];
+					return caller !== Object &&
+						typeof caller !== "undefined";
+				},
+
+				"array": function (b, a) {
+					var i, j, loop;
+					var len;
+
+					// b could be an object literal here
+					if (!$isArray(b)) {
+						return false;
+					}
+
+					len = a.length;
+					if (len !== b.length) { // safe and faster
+						return false;
+					}
+
+					//track reference to avoid circular references
+					parents.push(a);
+					for (i = 0; i < len; i++) {
+						loop = false;
+						for(j=0;j<parents.length;j++){
+							if(parents[j] === a[i]){
+								loop = true;//dont rewalk array
+							}
+						}
+						if (!loop && ! innerEquiv(a[i], b[i])) {
+							parents.pop();
+							return false;
+						}
+					}
+					parents.pop();
+					return true;
+				},
+
+				"object": function (b, a) {
+					var i, j, loop;
+					var eq = true; // unless we can proove it
+					var aProperties = [], bProperties = []; // collection of strings
+
+					// comparing constructors is more strict than using instanceof
+					if ( a.constructor !== b.constructor) {
+						return false;
+					}
+
+					// stack constructor before traversing properties
+					callers.push(a.constructor);
+					//track reference to avoid circular references
+					parents.push(a);
+
+					for (i in a) { // be strict: don't ensures hasOwnProperty and go deep
+						loop = false;
+						for(j=0;j<parents.length;j++){
+							if(parents[j] === a[i])
+								loop = true; //don't go down the same path twice
+						}
+						aProperties.push(i); // collect a's properties
+
+						if (!loop && ! innerEquiv(a[i], b[i])) {
+							eq = false;
+							break;
+						}
+					}
+
+					callers.pop(); // unstack, we are done
+					parents.pop();
+
+					for (i in b) {
+						bProperties.push(i); // collect b's properties
+					}
+
+					// Ensures identical properties name
+					return eq && innerEquiv(aProperties.sort(), bProperties.sort());
+				}
+			};
+		}();
+
+		innerEquiv = function () { // can take multiple arguments
+			var args = $slice(arguments);
+			if (args.length < 2) {
+				return true; // end transition
+			}
+
+			return (function (a, b) {
+				if (a === b) {
+					return true; // catch the most you can
+				} else if (a === null || b === null || typeof a === "undefined" || typeof b === "undefined" || $typeof(a) !== $typeof(b)) {
+					return false; // don't lose time with error prone cases
+				} else {
+					return bindCallbacks(a, callbacks, [b, a]);
+				}
+
+				// apply transition with (1..n) arguments
+			})(args[0], args[1]) && arguments.callee.apply(this, args.splice(1, args.length -1));
+		};
+
+		return innerEquiv;
+
+	}());
+
 
 	// trim string -------------------------------------------------------
 	// type agnostic string trim, just returns the original val if its not a string
@@ -174,6 +344,19 @@
 			return str;
 		}
 	}
+
+	// http://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
+	function $hashCode(str) {
+		var hash = 0;
+		if (this.length == 0) return hash;
+		for (i = 0; i < this.length; i++) {
+			char = this.charCodeAt(i);
+			hash = ((hash<<5)-hash)+char;
+			hash = hash & hash; // Convert to 32bit integer
+		}
+		return hash;
+	}
+
 
 
 	// from underscore
@@ -216,7 +399,7 @@
 		var timeout;
 		return function() {
 			var context = this,
-				args = arguments,
+				args = $slice(arguments),
 				later = function() {
 					timeout = null;
 					if (!immediate) {
@@ -727,14 +910,14 @@
 		}
 	}
 
-	function $clear(obj) {
+	function $clear(obj, nullIt) {
 		if ($isArray(obj)) {
 			obj.length = 0;
 		}
 
 		for (var key in obj) {
 			if (obj.hasOwnProperty(key)) {
-				delete obj[key];
+				nullIt ? obj[key] = null : delete obj[key];
 			}
 		}
 	}
@@ -805,7 +988,7 @@
 		return newInstance;
 	}
 
-	/**
+	/*
 	 * @param obj (object) the object to read properties from
 	 * @param handler (function) function(value, key, obj) { return boolean; }
 	 * traverse an object calling a handler on each "owned" property
@@ -901,71 +1084,82 @@
 	 * 		return source.hasOwnProperty(key);
 	 * 	});
 	 */
-	function copy(source, target, filter) {
-		var key, sourceProp, targetProp;
+	function _copy(source, target, filter) {
 
-		if ($isString(source) || $isBoolean(source) || $isNumber(source)) {
-			throw new Error("copy source must be an object");
+		var objStr = typeStr.lo.obj,
+			sourceIsObj = typeof source === objStr;
+
+		if (!sourceIsObj) {
+			// source is a value so just return it
+			return source;
 		}
 
-		if (target && ($isString(source) || $isBoolean(source) || $isNumber(source))) {
-			throw new Error("optional copy target must be an object");
-		}
+		var targetIsObj = typeof target === objStr,
+			targetIsArray = targetIsObj && $isArray(target),
+			sourceIsArray = $isArray(source),
+			sVal, tVal;
 
-		// support (source, filter) signature
-		if (arguments.length === 2 && $isFunction(target)) {
-			filter = target;
+		if (!targetIsObj) {
+			// we are replacing target so use a new object or array as appropriate
+			target = sourceIsArray ? [] : {};
+		} else if (targetIsArray && !sourceIsArray) {
 			target = {};
-		} else {
-			filter = ($isFunction(filter)) ? filter : false;
-			target = target || {};
 		}
 
-		for (key in source) {
-
-			// todo check for cycles from arbitrary parents using an array of objects as a set and
-			// indexOf to test if an object has been visited yet
+		for (var key in source) {
+			sVal = source[key];
+			tVal = target[key];
+			// apply filter to source props
 			if (filter && !filter(key, source, target)) {
 				continue;
-			}
 
-			sourceProp = source[key];
-
-			// Prevent infinite loop
-			if (sourceProp === target) {
-				continue;
-			}
-
-			// todo make the more specific for various types
-			if (typeof sourceProp === "object" && !$isNull(sourceProp)) {
-				targetProp = $isArray(sourceProp) ? [] : {};
-				target[key] = copy(sourceProp, targetProp, filter);
+			} else if (typeof sVal !== objStr || !sVal || sVal === target) {
+				// direct copy if current value:
+				// not an object || falsy (covers null so must be after object test)
+				// || the target (no recursion on cyclic structures todo: should check all parents)
+				target[key] = sVal;
 
 			} else {
-				target[key] = sourceProp;
+				// recursive copy
+				target[key] = _copy(sVal, tVal, filter);
 			}
 		}
 
 		return target;
 	}
 
+
 	function $copy(source, filter) {
 		if (filter && !$isFunction(filter)) {
 			throw new Error("$copy: Optional second argument (filter) must be a function. Instead saw " + typeof filter);
 		}
-		return copy(source, filter);
+
+		var target = $isArray(source) ? [] : {};
+
+		return _copy(source, target, filter);
 	}
 
-	function $merge(target, source, filter) {
-		if (!target || !source) {
-			throw new Error("$merge: First two arguments (target, source) are required and must be enumerable. Instead saw (" + typeof target +", "+ typeof source +")");
+
+	function $merge(target) {
+		var len = arguments.length,
+			sources = $slice(arguments, 1),
+			filter;
+
+		if (len < 2) {
+			throw new Error("$merge: a target and source are required and must be enumerable. Instead saw (" + typeof target +", "+ typeof source +")");
 		}
 
-		if (filter && !$isFunction(filter)) {
-			throw new Error("$merge: Optional third argument (filter) must be a function. Instead saw " + typeof filter);
+		if ($isFunction(arguments[len-1])) {
+			filter = sources.pop();
 		}
-		return copy(source, target, filter);
+
+		$each(sources, function(source) {
+			_copy(source, target, filter);
+		});
+
+		return target;
 	}
+
 
 	/**
 	 * $extend augments the first object with shallow copies of
@@ -1013,12 +1207,11 @@
 
 			// accept objects or arrays of objects
 			$each(sources, function(source) {
-				var prop;
-				for (prop in source) {
-					// do a deep copy that excludes any inherited properties at any level
-					$merge(target, source, function(key, source) {
-						return source.hasOwnProperty(key);
-					});
+				for (var key in source) {
+					// do a deep copy that excludes any inherited properties at any level on the source
+					if (source.hasOwnProperty(key)) {
+						target[key] = source[key];
+					}
 				}
 			});
 		}
@@ -1083,12 +1276,16 @@
 			if (shares === true) {
 				myProto.listensTo(prototype);
 				myProto.listensTo(extender);
+
 			} else if (shares == "prototype") {
 				myProto.listensTo(prototype);
+
 			} else if (shares == "extender") {
 				myProto.listensTo(extender);
 			}
+
 			myProto.shareMessages = true;
+
 		} else if (myProto.dontShareMessages && myProto.shareMessages) {
 			// lets be consistent
 			myProto.shareMessages = false;
@@ -1104,7 +1301,6 @@
 
 		return myProto;
 	}
-
 
 
 	// messaging -------------------------------------------------------
@@ -1226,6 +1422,7 @@
 						}
 
 					} else {
+						console.log(arguments);
 						throw new Error("Invalid parameters, expected: (string, function) but saw (" + topicType + ", " +responderType +")");
 					}
 
@@ -1507,10 +1704,11 @@
 		$isArray: $isArray,
 		$isError: $isError,
 		$typeof: $typeof,
-
+		$same: $same,
 
 		// string
 		$trim: $trim,
+		$hashCode: $hashCode,
 
 		// functions
 		$bind: $bind,

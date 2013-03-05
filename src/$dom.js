@@ -308,11 +308,12 @@
 			loop: 1
 		};
 
+		var eStr = "", zero = 0;;
 		function setProperty(node, key, value) {
 			var directProp = directProperties[key];
-			var noValue = (!value && value !== 0);
+			var noValue = (!value && value !== zero);
 			if (directProp && !noValue) {
-				node[directProp] = (noValue ? '' : '' + value);
+				node[directProp] = (noValue ? eStr : eStr + value);
 			} else if (booleanProperties[key]) {
 				// set the attribute if true or do not add it at all
 				if (value) {
@@ -321,10 +322,11 @@
 			} else if (noValue) {
 				node.removeAttribute(key);
 			} else {
-				node.setAttribute(key, '' + value);
+				node.setAttribute(key, eStr + value);
 			}
 		}
 
+		var pop = "pop";
 		function appendChildren(node, children) {
 			if (!$isArray(children)) {
 				children = [children];
@@ -334,17 +336,18 @@
 			});
 		}
 
-
-
+		if (root.document) {
+			var d = document.createElement("div");
+		}
 		function appendChild(node, child) {
 			if (child || child === 0) {
-				if ($isArray(child)) {
+				if (child && child.pop) {
 					appendChildren(node, child);
 				} else {
-					if (!$isElement(child)) {
+					if (!(child && child.nodeType === 1)) {
 						// handle other node types here
-						var d = document.createElement("div");
-						d.innerHTML = child;
+						// this causes lots of garbage collections
+						d.innerHTML = child; // this causes lots of parse html events
 						$each(d.childNodes, function(val) {
 							node.appendChild(val);
 						});
@@ -381,7 +384,6 @@
 	//		}
 
 		var splitter = /(#|\.)/;
-
 		function create(selector, props, children) {
 
 			// this function is currently ugly and repeats code from elsewhere but
@@ -396,7 +398,7 @@
 
 			// support (selector, children) signature'
 			// support (tag, children) signature
-			if (typeof props === "string" || $isArray(props)) {
+			if (props && (props.charAt || props.pop)) {
 				children = props;
 				props = {};
 			}
@@ -477,7 +479,7 @@
 		// its not perfect but should get the job done
 		function $isSelector(string) {
 
-			if (typeof string !== "string") {
+			if (string && !string.charAt) {
 				return false;
 			}
 
@@ -575,7 +577,7 @@
 
 		function $dom(domInstructions, preProcessedSelector) {
 
-			if (!$isArray(domInstructions)) {
+			if (!domInstructions || !domInstructions.pop) {
 				domInstructions = $slice(arguments);
 				preProcessedSelector = null;
 			}
@@ -664,7 +666,7 @@
 						});
 
 						// oop! looks like we actually want to treat the object as children here
-						if ($isArray(_val) || $isSelector(_val)) {
+						if (_val && (_val.pop || $isSelector(_val))) {
 //							console.log("object as children", domInstructions);
 							// final possible step so start back on 1 for next arg
 							// this is where we do recursion, see also 2-array
@@ -939,6 +941,39 @@
 	}());
 
 
+
+	function touchToMouse(event) {
+		if (event.touches.length > 1) return; //allow default multi-touch gestures to work
+		var touch = event.changedTouches[0];
+		var type = "";
+
+		switch (event.type) {
+			case "touchstart":	type = "mousedown";	break;
+			case "touchmove":	type = "mousemove";	break;
+			case "touchend":	type = "mouseup";	break;
+			default:			return;
+		}
+
+		// https://developer.mozilla.org/en/DOM/event.initMouseEvent for API
+		var simulatedEvent = document.createEvent("MouseEvent");
+		simulatedEvent.initMouseEvent(type, true, true, window, 1,
+			touch.screenX, touch.screenY,
+			touch.clientX, touch.clientY, false,
+			false, false, false, 0, null);
+
+		touch.target.dispatchEvent(simulatedEvent);
+		event.preventDefault();
+	};
+
+	function $touchable(el) {
+		el.ontouchstart = touchToMouse;
+		el.ontouchmove = touchToMouse;
+		el.ontouchend = touchToMouse;
+	};
+
+
+
+
 	loot.extend({
 		$id: $id,
 		$tmpl: $tmpl,
@@ -953,7 +988,8 @@
 		$parts: $parts,
 		$render: $render,
 		$escapeHTML: $escapeHTML,
-		$bindEventSpec: $bindEventSpec
+		$bindEventSpec: $bindEventSpec,
+		$touchable: $touchable
 	});
 
 }());

@@ -7,6 +7,8 @@
 
 	var collectionAPI = {
 
+		items: true,
+
 		init: function() {
 			// make sure our values are unique across instances
 			this.items = [];
@@ -14,7 +16,15 @@
 		length: function() {
 			return this.items.length;
 		},
-		add: function(val, silent) {
+
+		isSortedBy: "",
+		isGroupedBy: "",
+		skip: 0,
+		limit: 10,
+		filter: null,
+		isReversed: false,
+
+		add: function(val, silent, skipOrder) {
 //			// console.log(val);
 			// supports batch add
 			var items = $isArray(val) ? val : [val];
@@ -46,10 +56,8 @@
 			});
 
 			//resort regroup
-			if (this.sortIterator) {	this.items = $sortBy(this.items, this.sortIterator);}
-			if (this.groupByIterator) {	this.items = $groupBy(this.items, this.groupByIterator);}
-			if (this.isReversed) {		this.items.reverse();}
-			if (!silent) {				this.tell("change:add", items);}
+			if (!skipOrder) {	this.order();}
+			if (!silent) {		this.tell("change:add", items);}
 
 			return this;
 		},
@@ -59,10 +67,22 @@
 			return this;
 		},
 
+		order: function() {
+			if (this.sortIterator) {
+				this.items = $sortBy(this.items, this.sortIterator);
+			} else if (this.isSortedBy) {
+				this.sortBy(this.isSortedBy);
+			}
+			if (this.groupByIterator) {		this.items = $groupBy(this.items, this.groupByIterator);}
+			if (this.isReversed) {			this.items.reverse();}
+			return this;
+		},
+
 		set: function(items) {
 			// todo drop views or models that are not in the new items collection?
 			this.items = [];
-			this.add(items, "silent");
+			this.add(items, "silent", true);
+			this.order();
 			this.tell("change:set", items);
 			return this;
 		},
@@ -124,14 +144,19 @@
 
 		sortBy: function(val) {
 			var iterator = $isFunction(val) ? val : this.getGroupSortIterator(val);
+			this.isSortedBy = val;
 			this.sortIterator = iterator;
 			this.items = $sortBy(this.items, iterator);
+			if (this.isReversed) {
+				this.items.reverse();
+			}
 			this.tell("change:sortBy");
 			return this;
 		},
 
 		groupBy: function(val) {
 			var iterator = $isFunction(val) ? val : this.getGroupSortIterator(val);
+			this.isGroupedBy = val;
 			this.groupByIterator = iterator;
 			this.items = $groupBy(this.items, iterator);
 			this.tell("change:groupBy");
@@ -175,15 +200,27 @@
 
 		draw: function() {
 			if ($isElement(this.node)) {
-				this.node.innerHTML = "";
-				$each(this.items, function(view) {
+				var nodes = [];
+				$each($slice(this.items, this.skip, this.skip+this.limit), function(view) {
 					if (view && $isElement(view.node)) {
-						this.node.appendChild(view.node);
+						nodes.push(view.node);
 					}
 				}, this);
+
+				// can't just use jquery html here because you will
+				// loose click handlers and jquery.data associated with the node
+				this.node.innerHTML = "";
+				$(this.node).append(nodes);
 			}
-//			console.log("DRAW!", this, this.items, this.node.id, this.view.getInstances());
+//			console.log("DRAW!", this, this.items);
 			return this;
+		},
+
+		destroy: function() {
+			this.ignore();
+			$(this.node).remove().unbind();
+			this.dropAll();
+			delete collectionBank[this.name];
 		}
 
 	};
@@ -211,13 +248,13 @@
 
 		// make sure we have a valid view constructor
 		if (view) {
-//			console.log(view, $views(view));
-			view = $isString(view) ? $views(view) : view;
+//			console.log(view, $view(view));
+			view = $isString(view) ? $view(view) : view;
 			if ($isViewConstructor(view)) {
 				collection.view = view;
 				collection.draw = spec.draw ? spec.draw : collection.draw;
 			} else {
-				console.log(collection, view);
+//				console.log(collection, view);
 				throw new Error("$collection: Invalid view type or constructor function");
 			}
 		} else if (schema) {
@@ -226,7 +263,7 @@
 			if ($isSchema(schema)) {
 				collection.schema = schema;
 			} else {
-				console.log(collection, schema);
+//				console.log(collection, schema);
 				throw new Error("$collection: Invalid schema type or constructor function ");
 			}
 		}
@@ -271,7 +308,7 @@
 	}
 
 	function $isCollection(obj) {
-		return !!(obj && obj.add && $isArray(obj.items) && obj.pop);
+		return !!(obj && obj.add && obj.items && obj.groupBy && obj.pop);
 	}
 
 	// expose methods

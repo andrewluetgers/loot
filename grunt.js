@@ -53,9 +53,10 @@ module.exports = function(grunt) {
 					"src/$dom.js",
 
 					// architectural legos
-					"src/$model.js", "src/$view.js", "src/$collection.js", "src/$route.js"
+					"src/$model.js", "src/$view.js", "src/$collection.js", "src/$route.js",
 
 					// experimental
+					"src/$listView.js"
 //					,"src/$components.js", "src/$reuse.js"
 				],
 

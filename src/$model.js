@@ -7,30 +7,33 @@
 
 	var schemaBank = {};
 
-	function modelApiGet(modelVals, _key) {
+	function modelApiGet(modelVals, keys) {
+		keys = keys || [];
 		var model = this, // this is set as the model via apply
-			len = arguments.length,
+			keyLen = keys.length,
+			first = keys[0],
+			singleKey = (keyLen == 1 && $isString(first)) ? true : false,
 			val;
 
-		if (len == 2 && $isString(_key)) {
-			val = modelVals[_key]	;
+		if (singleKey) {
+			val = modelVals[first];
 			// supports computed values
-			return $isFunction(val) ? modelVals[_key](model) : val;
+			return $isFunction(val) ? val.call(modelVals, model) : val;
 
-		} else if (len > 2 || $isArray(_key)) {
-			var results = {}, keys = $flat($slice(arguments, 1));
-			$each(keys, function(key) {
+		} else if (keyLen > 1 || $isArray(keys[0])) {
+			var results = {}, _keys = keyLen > 1 ? keys : keys[0];
+			$each(_keys, function(key) {
 				if (key in modelVals) {
 					val = modelVals[key];
 					// supports computed values
-					results[key] = $isFunction(val) ? modelVals[key](model) : val;
+					results[key] = $isFunction(val) ? val(model) : val;
 				}
 			});
 			return results;
 
 		} else {
-			return $map(modelVals, function(val, key) {
-				return $isFunction(val) ? modelVals[key](model) : val;
+			return $map(modelVals, function(v, k) {
+				return $isFunction(v) ? modelVals[k](model) : v;
 			});
 		}
 	}
@@ -69,7 +72,7 @@
 				}
 			});
 
-			return newVals;
+			return $mixin(newVals, vals);
 		}
 
 		return vals;
@@ -89,7 +92,7 @@
 		var val, key, obj,
 			changes = {},
 			validate = this.validate || {},
-			defaults = this.defaults,
+			defaults = this.defaults || {},
 			validators,
 			validationFailures,
 			failures = {},
@@ -148,7 +151,7 @@
 	}
 
 	// define a type of object or data model
-	function $schema(type, options, collection) {
+	function $schema(type, spec, collection) {
 		var existingSchema = schemaBank[type],
 			instances = [], ctorArgs = arguments;
 
@@ -162,12 +165,12 @@
 
 			// schema constructor
 		} else if (type && $isString(type) && !existingSchema) {
-			options = $copy(options || {});
-			options.defaults = options.defaults || {};
+			spec = $copy(spec || {});
+			spec.defaults = spec.defaults || {};
 
 			// type-check optional validators
-			if (options.validate) {
-				$each(options.validate, function(val) {
+			if (spec.validate) {
+				$each(spec.validate, function(val) {
 					if (!$isFunction(val)) {
 						throw new Error("validator must be a function");
 					}
@@ -176,6 +179,9 @@
 
 			var schemaApi = $speak({
 				type: type,
+				spec: function() {
+					return spec;
+				},
 				constructor: function(vals) {
 					return this.newInstance(vals);
 				},
@@ -183,7 +189,7 @@
 					this.dropInstances();
 					instances = existingSchema = null;
 					delete schemaBank[type];
-					$clear(this);
+					$clear(this, true);
 					$schema.tell("drop", {schema: type});
 				},
 
@@ -208,9 +214,9 @@
 
 				// instance api
 				newInstance: function(vals) {
-					var modelVals = $copy(options.defaults);
-					var modelProto = $speak($new(options));
-					var drop = options.drop;
+					var modelVals = $copy(spec.defaults);
+					var modelProto = $speak($new(spec));
+					var drop = spec.drop;
 
 					if (drop && !$isFunction(drop)) {
 						throw new Error("if drop is provided it must be a function");
@@ -224,14 +230,16 @@
 
 						// the following get and set facade allows us to have a unique closure for modelVals and modelProto
 						// without having copies of the larger modelApiSet and modelApiGet functions on each model instance hopefully saving some memory usage
-						get: function(key) {
-							return modelApiGet.apply(this, $flat(modelVals, $slice(arguments))); // todo can we do this in a better way
+						get: function() {
+							//return modelApiGet.apply(this, $flat(modelVals, $slice(arguments))); // todo can we do this in a better way
+
+							return modelApiGet.call(this, modelVals, $slice(arguments));
 						},
 						set: function(key, val) {
 							return modelApiSet.call(this, modelVals, key, val);
 						},
 						reset: function() {
-							return modelApiReset.call(this, modelVals, options.defaults);
+							return modelApiReset.call(this, modelVals, spec.defaults);
 						},
 						renew: function() {
 							return init();
@@ -241,7 +249,7 @@
 							this.tell("drop", this);
 							// remove this instance from the instances array
 							instances.splice(instances.indexOf(this), 1);
-							$clear(this);
+							$clear(this, true);
 						}
 					});
 
@@ -292,7 +300,7 @@
 			//throw new Error("$model: valid type string required");
 			return null;
 		} else if (vals && !$isPlainObject(vals)) {
-			throw new Error("$model: valid values object required for " + type);
+			//throw new Error("$model: valid values object required for " + type);
 		} else {
 			return schema.newInstance(vals);
 		}

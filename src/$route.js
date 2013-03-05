@@ -34,9 +34,9 @@
 		isReady = false;
 
 	function getRoute(routeName) {
+//		routeName = decodeURIComponent(routeName);
 		var route;
-
-		// finds the spcified route in the routeTable
+		// finds the specified route in the routeTable
 		for (var i= 0, len=routeTable.length; i<len; i++) {
 			route = routeTable[i];
 			if (route.name == routeName) {
@@ -194,13 +194,22 @@
 	}
 
 	function $loadRoute(routeName, values) {
+		var route;
 		if (!arguments.length) {
-			onHashChanged();
-			return;
+			route = getCurrentRoute();
+		} else {
+//			routeName = encodeURIComponent(routeName);
+			route = getRoute(routeName);
 		}
-		var route = getRoute(routeName);
-		var path = fillPath(route, values || route.values);
-		window.location.hash = path;
+
+		var path = "#" + fillPath(route, values || route.values);
+		if (window.location.hash !== path) {
+			console.log("set hash");
+			window.location.hash = path;
+		} else {
+			console.log("same hash");
+			onHashChanged();
+		}
 	}
 
 	var routerApi = $speak({

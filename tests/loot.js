@@ -479,6 +479,7 @@ test("$copy", function() {
 	same(bCopy, objB, "deep copy of a complex object works");
 
 	objB.testObj.array[2].object.name = "yo";
+	console.log(objB.testObj.array[2].object.name, bCopy.testObj.array[2].object.name);
 	ok(bCopy.testObj.array[2].object.name === "hey", "changes on complex object do not transfer to copy");
 
 	var b2Copy = $new(objB);
@@ -501,13 +502,22 @@ test("$copy", function() {
 
 test("$merge", function() {
 
-	expect(3);
+	expect(5);
 
-	var objA = {name: "objA"};
-	var objB = {name: "objB", custom: "owned", testObj: {array:[1, "string", {object:{name:"hey", age: 23} }, [0,2, 3, 5, [0, 0, 0]] ], func: function(){return this;}}};
+	var one = {name: "foo", age: 20, array: [1,2,3, {obj: "foo", bar: "baz"}], onlyOnOne: 1};
+	var two = {name: "bar", age: 80, array: [3,4,5, {obj: "bar", baz: "foo"}], onlyOnTwo: 2};
+	var tre = {name: "bar", age: 80, array: [3,4,5, {obj: "bar", bar: "baz", baz: "foo"}], onlyOnOne: 1, onlyOnTwo: 2};
+	$merge(one, two);
+	same(one, tre, "properly augments the provided target object"); // this test is sensitive to the order of items in tre
+
+	var func = function() {return this;};
+	var objA = 		{name: "objA", onlyOnA: "blarg"};
+	var objB = 		{name: "objB", 						custom: "owned", testObj: {array:[1, "string", {object:{name:"hey", age: 23} }, [0,2, 3, 5, [0, 0, 0]] ], func: func}};
+	var ABResult = 	{name: "objB", onlyOnA: "blarg", 	custom: "owned", testObj: {array:[1, "string", {object:{name:"hey", age: 23} }, [0,2, 3, 5, [0, 0, 0]] ], func: func}};
 
 	$merge(objA, objB);
-	same(objB, objA, "properly augments the provided target object");
+	console.log("test", objA, objB, ABResult, $same(objA, ABResult));
+	same(ABResult, objA, "properly augments the provided target object");
 
 	// test filter method that only allows owned properties
 	var b2Copy = $new(objB);
@@ -522,7 +532,12 @@ test("$merge", function() {
 		custom: "owned"
 	};
 
+	for (var key in b2Copy) {
+		console.log(b2Copy.hasOwnProperty(key), b2Copy, key, b2Copy[key]);
+	}
+
 	$merge(augment, b2Copy, function(key, source) {
+		console.log("testing with filter", source.hasOwnProperty(key));
 		return source.hasOwnProperty(key);
 	});
 
@@ -533,6 +548,94 @@ test("$merge", function() {
 
 	same(augment, b2Copy, "will copy over inherited properties by default");
 
+
+	var fileModelSpec = {
+		defaults: {
+			"size": 				"origSize",
+			"key":					"origKey",
+			"name":					"origName",
+			//type: 				"projectFile",
+			//parentType: 			"project",
+			blarg:					function() {return "blargBlarg";},
+			limitBytes: 			2047,
+			fileData:				false
+		},
+
+		func: function() {
+			return "original function";
+		}
+	};
+
+
+	var projectFile = $merge({}, fileModelSpec, {
+		defaults: {
+			type: "projectFile",
+			parentType: "project"
+		}
+	});
+
+
+	var sharedFile = $merge({}, fileModelSpec, {
+		defaults: {
+			type: "sharedFile",
+			parentType: "client"
+		}
+	});
+
+	same(sharedFile.defaults, {
+		"size": 				"origSize",
+		"key":					"origKey",
+		"name":					"origName",
+		blarg:					fileModelSpec.defaults.blarg,
+		limitBytes: 			2047,
+		fileData:				false,
+		type: 					"sharedFile",
+		parentType: 			"client"
+	}, "mixin performs a deep copy, overwriting shared properties that are not objects");
+
+
+
+});
+
+
+test("$mixin", function() {
+	var fileModelSpec = {
+		defaults: {
+			"size": 				"origSize",
+			"key":					"origKey",
+			"name":					"origName",
+			//type: 				"projectFile",
+			//parentType: 			"project",
+			blarg:					function() {return "blargBlarg";},
+			limitBytes: 			2047,
+			fileData:				false
+		},
+
+		func: function() {
+			return "original function";
+		}
+	};
+
+
+	var projectFile = $mixin({}, fileModelSpec, {
+		defaults: {
+			type: "projectFile",
+			parentType: "project"
+		}
+	});
+
+
+	var sharedFile = $mixin({}, fileModelSpec, {
+		defaults: {
+			type: "sharedFile",
+			parentType: "client"
+		}
+	});
+
+	same(sharedFile.defaults, {
+		type: "sharedFile",
+		parentType: "client"
+	}, "mixin performs a shallow copy, overwriting objects");
 });
 
 
