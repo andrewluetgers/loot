@@ -4,6 +4,7 @@
 	"version": 				"0.3.2",
 	"author": 				"Andrew Luetgers",
 	"description": 			"a bunch of js functions i like to use as globals starting with $",
+	"main":					"./lib/index.js",
 	"home": 				"https://github.com/andrewluetgers/loot",
 	"repository": {
 		"type": 				"git",

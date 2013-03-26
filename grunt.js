@@ -19,11 +19,11 @@ module.exports = function(grunt) {
 		},
 
 		rm: {
-			dist: 'dist/**'
+			lib: 'lib/**'
 		},
 
 		replace: {
-			dist: {
+			lib: {
 				options: {
 					prefix: '@@',
 					variables: {
@@ -31,13 +31,13 @@ module.exports = function(grunt) {
 					}
 				},
 				files: {
-					'dist/': ['dist/**.js']
+					'lib/': ['lib/**.js']
 				}
 			}
 		},
 
 		concat: {
-			dist: {
+			lib: {
 				src: [
 					"<banner>",
 					// core functionality
@@ -58,21 +58,21 @@ module.exports = function(grunt) {
 //					,"src/$components.js", "src/$reuse.js"
 				],
 
-				dest: "dist/<%= pkg.name %>-<%= pkg.version %>.js"
+				dest: "lib/<%= pkg.name %>.js"
 			},
 
 			dev: {
-				src: ["<config:concat.dist.src>", "src/dev.js"],
-				dest: "dist/<%= pkg.name %>-<%= pkg.version %>-dev.js"
+				src: ["<config:concat.lib.src>", "src/dev.js"],
+				dest: "lib/<%= pkg.name %>-<%= pkg.version %>-dev.js"
 
 			}
 
 		},
 
 		min: {
-			dist: {
-				src: ["<banner>", "<config:concat.dist.dest>"],
-				dest: "dist/<%= pkg.name %>-<%= pkg.version %>-min.js"
+			lib: {
+				src: ["<banner>", "<config:concat.lib.dest>"],
+				dest: "lib/<%= pkg.name %>-<%= pkg.version %>-min.js"
 			}
 		},
 
