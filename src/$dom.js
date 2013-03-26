@@ -483,6 +483,10 @@
 				return false;
 			}
 
+			if (string.safe) {
+				return false;
+			}
+
 			// spaces are not valid in selectors, must be content, this should cover 90% of content
 			// a common case for content is innerHTML with tags so test for that if no space
 			if ((string.indexOf(" ") > -1) || (string.indexOf("<") > -1)) {
@@ -620,7 +624,7 @@
 
 						} else {
 							returnNodes.push(arg);
-	//							console.log("++++++++++++++++++++++", arg);
+	//						console.log("++++++++++++++++++++++", arg);
 							// stay on step 1 for next arg
 						}
 						break;
@@ -654,7 +658,7 @@
 //						console.log("expand object", domInstructions);
 //						i--;
 //						// stay on step one for next arg
-////						break;
+//						break;
 
 					// add/merge attributes ------------------------------------------------------------------------
 					case "2-object":
@@ -865,10 +869,10 @@
 		// the escape function
 		return function(string) {
 			if (typeof string == "string") {
-				return string.replace(amp, ampStr).replace(lt, ltStr).replace(gt, gtStr).replace(quot, quotStr).replace(squot, squotStr); //.replace(fslash, fslashStr);
-			} else {
-				return string;
+				string = new String(string.replace(amp, ampStr).replace(lt, ltStr).replace(gt, gtStr).replace(quot, quotStr).replace(squot, squotStr)); //.replace(fslash, fslashStr);
+				string.safe = true;
 			}
+			return string;
 		};
 	}());
 

@@ -38,8 +38,6 @@ test("$view", function() {
 		render: renderFn
 	});
 
-	console.log([testView]);
-
 	var aTestView = testView(mData);
 
 	console.log("aTestView", aTestView);

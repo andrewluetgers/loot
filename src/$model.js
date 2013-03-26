@@ -159,11 +159,11 @@
 		if (arguments.length === 0) {
 			return schemaBank;
 
-			// schema getter
+		// schema getter
 		} else if (type && arguments.length === 1 && existingSchema) {
 			return existingSchema;
 
-			// schema constructor
+		// schema constructor
 		} else if (type && $isString(type) && !existingSchema) {
 			spec = $copy(spec || {});
 			spec.defaults = spec.defaults || {};

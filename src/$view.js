@@ -41,18 +41,14 @@
 
 		// return a view constructor
 		} else if ($isString(type) && !existing) {
-			var constructor = function(modelData) {
-				var renderer, update, drop, viewNode, viewModel;
+			var constructor = function(modelData, controller) {
+				var renderer, update, drop, viewNode, viewModel, modelCollection;
 				var view = $speak({
 					drop: function() {
 						this.model && this.unbindModel() // unsubscribe our model from events from this view
-
 						drop && $isFunction(drop) && drop(); 	// call the custom drop method if it exists
-
-						// todo do we really want to do this here, maybe this belongs in the user defined drop callback
 						$(view.node).remove(); 					// this will unbind event handlers
 						view.parentNode && view.parentNode.removeChild(view.node);
-
 						view.tell("drop");						// emit our drop event
 						$clear(this, true);						// final house cleaning
 					},
@@ -116,7 +112,7 @@
 								update(model, type, this);
 							};
 							this.unbindModel = function() {
-								view.model.ignore(callback);
+								model.ignore && model.ignore(callback);
 								this.model = null;
 							};
 
@@ -124,7 +120,7 @@
 
 						} else if (view.model) {
 							this.unbindModel = function() {
-								view.model.ignore(update);
+								model.ignore && model.ignore(update);
 								this.model = null;
 							};
 							// the arguments passed to update will be
@@ -211,7 +207,7 @@
 
 				view.setModel(modelCollection || viewModel, true); // 2nd arg prevents update, we do that below and we need this here before init
 
-				view.init && $isFunction(view.init) && view.init();
+				view.init && $isFunction(view.init) && view.init(controller);
 
 				events && $bindEventSpec(view);
 

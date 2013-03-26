@@ -106,7 +106,7 @@
 			case ob.fun:	return lo.fun;
 			case ob.arg:	return lo.arg;
 		}
-		return t;
+		return $isString(obj) ? lo.str : t;
 	}
 
 	var lo = typeStr.lo, ob = typeStr.ob;
@@ -116,11 +116,11 @@
 	function $isNaN			(obj) { 	return obj !== obj;}
 	function $isElement		(obj) { 	return (obj && obj.nodeType == one);}
 	function $isTextNode	(obj) { 	return (obj && obj.nodeType == three);}
-	function $isObject		(obj) { 	return obj === Object(obj); }
+	function $isObject		(obj) { 	return obj === Object(obj) && obj.constructor !== String; }
 	function $isBoolean		(obj) { 	return obj === true || obj === false || toString.call(obj) == ob.boo;}
 	function $isUndefined	(obj) { 	return typeof obj === lo.und;}
 	function $isFunction	(obj) { 	return typeof obj === lo.fun;}
-	function $isString		(obj) { 	return typeof obj === lo.str;}
+	function $isString		(obj) { 	return obj && obj.constructor === String;}
 	function $isNumber		(obj) { 	return toString.call(obj) === ob.num;}
 	function $isDate		(obj) { 	return toString.call(obj) === ob.dat;}
 	function $isRegExp		(obj) { 	return toString.call(obj) === ob.reg;}
@@ -348,9 +348,9 @@
 	// http://werxltd.com/wp/2010/05/13/javascript-implementation-of-javas-string-hashcode-method/
 	function $hashCode(str) {
 		var hash = 0;
-		if (this.length == 0) return hash;
-		for (i = 0; i < this.length; i++) {
-			char = this.charCodeAt(i);
+		if (str.length == 0) return hash;
+		for (i = 0; i < str.length; i++) {
+			char = str.charCodeAt(i);
 			hash = ((hash<<5)-hash)+char;
 			hash = hash & hash; // Convert to 32bit integer
 		}
@@ -960,6 +960,29 @@
 	// use the same constructor every time to save on memory usage per
 	// http://oranlooney.com/functional-javascript/
 	function F() {}
+
+	function _create(proto, newMemberVals) {
+		F.prototype = proto;
+		var newInstance = new F();
+		return $mixin(newInstance, newMemberVals);
+	}
+
+	//
+	// accepts any number of arguments to easily chain prototypes,
+	// owned members of resulting object are defined by the last object provided
+	// each argument defines a prototype for which a new instance is created
+	// if there is an init function it will be called at this time
+	// the resulting object will be mutated with the members of the next object provided
+	// this process repeats until all objects are processed
+	function $create() {
+		var args = $slice(arguments);
+		var extended = args.unshift();
+		$each(args, function(ext) {
+			extended = _create(extended, ext);
+			$isFunction(ext.init) && extended.init();
+		});
+		return extended;
+	}
 
 	function $new(prototype, ignoreInit) {
 
@@ -1760,6 +1783,7 @@
 		$values: $vals,
 		$vals: $vals,
 		$new: $new,
+		$create: $create,
 		$walk: $walk,
 		$copy: $copy,
 		$merge: $merge,

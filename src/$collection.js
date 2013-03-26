@@ -9,10 +9,6 @@
 
 		items: true,
 
-		init: function() {
-			// make sure our values are unique across instances
-			this.items = [];
-		},
 		length: function() {
 			return this.items.length;
 		},
@@ -37,13 +33,13 @@
 					if ($isModel(item)) {
 //						// console.log("adding view with model", item);
 						// support overriding view model on view construction
-						item = that.view(item);
+						item = that.view(item, that);
 //						console.log("makin a view", item);
 					} else {
 //						console.log("adding view", item);
-						item = $isView(item) ? item : that.view(item);
+						item = $isView(item) ? item : that.view(item, that);
 					}
-				} else if  (that.schema) {
+				} else if (that.schema) {
 					// make sure we insert a model instance not a config obj
 					item = $isModel(item) ? item : that.schema.newInstance(item);
 				}
@@ -132,6 +128,9 @@
 
 		getGroupSortIterator: function(val) {
 			return function(obj) {
+				if (!obj) {
+					return false;
+				}
 				if ($isModel(obj.model)) {
 					return obj.model.get()[val];
 				} else if ($isFunction(obj.get)) {
@@ -245,6 +244,7 @@
 		}
 
 		var collection = $speak($extend($new(collectionAPI), spec));
+		collection.items = [];
 
 		// make sure we have a valid view constructor
 		if (view) {
