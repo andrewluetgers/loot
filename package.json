@@ -1,7 +1,7 @@
 {
 	"name": 				"loot",
 	"fullName": 			"loot.js",
-	"version": 				"0.3.3",
+	"version": 				"0.3.4",
 	"author": 				"Andrew Luetgers",
 	"description": 			"a bunch of js functions i like to use as globals starting with $",
 	"main":					"./lib/index.js",
