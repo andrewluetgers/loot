@@ -801,7 +801,7 @@
 			} else if ($isFunction(arg)) {
 				return parts[name] = arg;			// update
 
-			} else if ($isObject(arg)) {
+			} else {
 				return function(data) {				// get instance with predefined default data object (great for nesting partials)
 					return parts[name](data || arg);
 				}

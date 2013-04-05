@@ -157,10 +157,6 @@
 
 				if ($isString(modelCollection)) { modelCollection = $collections(modelCollection);}
 
-				if (!$isElement(viewNode)) {
-					throw new Error("$view: node must be a DOM node");
-				}
-
 				if ( (viewModel && !$isModel(viewModel)) || (modelCollection && !$isCollection(modelCollection)) ) {
 					throw new Error("$view: model argument must be a product of $model");
 				}
@@ -208,6 +204,10 @@
 				view.setModel(modelCollection || viewModel, true); // 2nd arg prevents update, we do that below and we need this here before init
 
 				view.init && $isFunction(view.init) && view.init(controller);
+
+				if (!$isElement(view.node)) {
+					throw new Error("$view: node must be a DOM node");
+				}
 
 				events && $bindEventSpec(view);
 

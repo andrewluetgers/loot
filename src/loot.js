@@ -173,25 +173,152 @@
 		return true;
 	}
 
+	// also aliased as $indexOf
+	function $keyOf(obj, val, key) {
+		var key = $isArray(obj) ? -1 : "";
+		$each(obj, function(v, k) {
+			if (val === v) { key = k; return $each.break; }
+		});
+		return key;
+	}
 
+	// expressions of a type class, used with $typeofx
+	var $typex = {
+		"String": {
+			$typex: "String",
+			test: function(b) {return $isString(b);}
+		},
+
+		"Function": {
+			$typex: "Function",
+			test: function(b) {return $isFunction(b);}
+		},
+
+		"Array": {
+			$typex: "Array",
+			test: function(b) {return $isArray(b);}
+		},
+
+		"Number": {
+			$typex: "Number",
+			test: function(b) {return $isNumber(b);}
+		},
+
+		"Object": {
+			$typex: "Object",
+			test: function(b) {return $isObject(b);}
+		},
+
+		"Boolean": {
+			$typex: "Boolean",
+			test: function(b) {return $isBoolean(b);}
+		},
+
+		"has": function(x) {
+			return {
+				$typex: "has",
+				args: $slice(arguments),
+				test: function(b) {return $has(b, x);}
+			}
+		}
+	};
+
+	var baseConstructors = {
+		"Array": Array,
+		"Object": Object,
+		"String": String,
+		"Function": Function,
+		"Boolean": Boolean,
+		"Number": Number
+	};
+
+	var comparators = {
+		">": function(a, b) { return a > b;},
+		"<": function(a, b) { return a < b;},
+		">=": function(a, b) { return a >= b;},
+		"<=": function(a, b) { return a <= b;},
+		"==": function(a, b) { return a == b;},
+		"===": function(a, b) { return a === b;},
+		"!=": function(a, b) { return a != b;},
+		"!==": function(a, b) { return a !== b;},
+		"&&": function(a, b) { return a && b;},
+		"||": function(a, b) { return a || b;}
+	};
+
+	function $x(expr, comp) {
+		// fix me
+		// handle constructor functions for types like Array
+		if ($isFunction(expr)) {
+			expr = $keyOf(baseConstructors, expr);
+		}
+
+		console.log(expr);
+
+		if (expr in $typex) {
+			if (comp) {
+				console.log("comp", comp);
+				var ret = $mixin({}, $typex[expr], {
+					test: function(b) {
+						console.log("TEST", $typex[expr], $typex[expr].test(b), b);
+						if ($typex[expr].test(b)) {
+							if ($isFunction(comp)) {
+								console.log("call comp(b)");
+								return comp(b);
+
+							} else if ($isString(comp)) {
+								var parts = comp.split(" "),
+									operator = parts[0],
+									rVal = parts[1],
+									compare = comparators[operator];
+
+								console.log("test", expr, expr === "Number", parts, compare);
+
+								if (expr === "Number") {rVal = rVal*1; b = b*1}
+								if (expr === "Boolean") {rVal = (rVal === "false") ? false : true;}
+								if (compare) {return compare(b, rVal);}
+							}
+						}
+					}
+				});
+				console.log("ret", ret, expr, $typex[expr], $typex[expr].test);
+				window.c1 = ret;
+				window.c2 = $typex[expr];
+				return ret;
+			} else {
+				return $typex[expr];
+			}
+		}  else {
+			throw new Error("no such $typex " + expr);
+		}
+	}
+
+	// typeof that supports expressions of type classes
+	// eg
+	function $typeofx(x) {
+		var t = $typeof(x);
+		if (t === "object") {
+			return x.$typex || t;
+		} else {
+			return t;
+		}
+	}
+
+
+	// from qunit
 	var $same = (function() {
-		var innerEquiv; // the real equiv function
+		var innerEquiv;   // the real equiv function
 		var callers = []; // stack to decide between skip/abort functions
 		var parents = []; // stack to avoiding loops from circular referencing
 
 		// Call the o related callback with the given arguments.
 		function bindCallbacks(o, callbacks, args) {
-			var prop = $typeof(o);
-			if (prop) {
-				if ($typeof(callbacks[prop]) === "function") {
-					return callbacks[prop].apply(callbacks, args);
-				} else {
-					return callbacks[prop]; // or undefined
-				}
+			var prop = $typeofx(o);
+			if (prop && callbacks[prop]) {
+				return callbacks[prop].apply(callbacks, args);
 			}
 		}
 
-		var callbacks = function () {
+		var callbacks = (function () {
 			// for string, boolean, number and null
 			function useStrictEquality(b, a) {
 				if (b instanceof a.constructor || a instanceof b.constructor) {
@@ -250,16 +377,16 @@
 						return false;
 					}
 
-					//track reference to avoid circular references
+					// track reference to avoid circular references
 					parents.push(a);
 					for (i = 0; i < len; i++) {
 						loop = false;
 						for(j=0;j<parents.length;j++){
 							if(parents[j] === a[i]){
-								loop = true;//dont rewalk array
+								loop = true; // don't re-walk array
 							}
 						}
-						if (!loop && ! innerEquiv(a[i], b[i])) {
+						if (!loop && ! innerEquiv(b[i], a[i])) {
 							parents.pop();
 							return false;
 						}
@@ -280,18 +407,19 @@
 
 					// stack constructor before traversing properties
 					callers.push(a.constructor);
-					//track reference to avoid circular references
+					// track reference to avoid circular references
 					parents.push(a);
 
 					for (i in a) { // be strict: don't ensures hasOwnProperty and go deep
 						loop = false;
 						for(j=0;j<parents.length;j++){
-							if(parents[j] === a[i])
+							if(parents[j] === a[i]) {
 								loop = true; //don't go down the same path twice
+							}
 						}
 						aProperties.push(i); // collect a's properties
 
-						if (!loop && ! innerEquiv(a[i], b[i])) {
+						if (!loop && ! innerEquiv(b[i], a[i])) {
 							eq = false;
 							break;
 						}
@@ -305,10 +433,18 @@
 					}
 
 					// Ensures identical properties name
-					return eq && innerEquiv(aProperties.sort(), bProperties.sort());
+					return eq && innerEquiv(bProperties.sort(), aProperties.sort());
+				},
+
+				"String": $typex.String.test,
+				"Number": $typex.Number.test,
+				"Array": $typex.Array.test,
+				"Function": $typex.Function.test,
+				"has": function(b, a) {
+					return a.test(b);
 				}
 			};
-		}();
+		}());
 
 		innerEquiv = function () { // can take multiple arguments
 			var args = $slice(arguments);
@@ -316,10 +452,10 @@
 				return true; // end transition
 			}
 
-			return (function (a, b) {
+			return (function (b, a) {
 				if (a === b) {
 					return true; // catch the most you can
-				} else if (a === null || b === null || typeof a === "undefined" || typeof b === "undefined" || $typeof(a) !== $typeof(b)) {
+				} else if (a === null || b === null || typeof a === "undefined" || typeof b === "undefined") {
 					return false; // don't lose time with error prone cases
 				} else {
 					return bindCallbacks(a, callbacks, [b, a]);
@@ -332,6 +468,14 @@
 		return innerEquiv;
 
 	}());
+
+	function $matchObj(obj, expr) {
+		var _obj = {obj: obj}, matches = [];
+		$walk(_obj, function (val) {
+			if ($same(val, expr)) {matches.push(val);}
+		});
+		return matches;
+	}
 
 
 	// trim string -------------------------------------------------------
@@ -549,9 +693,7 @@
 	function $value(val) {return val}
 
 	function $maybe(val) {
-		return $reject(val, function(v) {
-			return v;
-		});
+		return $reject(val, function(v) {return v;});
 	}
 
  	// **Reduce** builds up a single result from a list of values, aka `inject`,
@@ -683,7 +825,6 @@
 		return found;
 	}
 
-
 	// Invoke a method (with arguments) on every item in a collection.
 	function $invoke(obj, method) {
 		var args = $slice(arguments, 2);
@@ -696,6 +837,18 @@
 	function $pluck(obj, key) {
 		return $map(obj, function(v){ return v[key]; });
 	}
+
+
+	function _itemAt(obj, offset, fromEnd) {
+		offset = offset || 0;
+		if (!$isArray(obj)) {obj = $vals(obj);}
+		return obj[fromEnd ? obj.length-1 + offset : offset];
+	}
+
+	// also aliased as $head and $tail
+	function $first(obj, offset) {return _itemAt(obj, offset);}
+	function $last(obj, offset) {return _itemAt(obj, offset, true);}
+
 
 	// Return the maximum element or (element-based computation).
 	function $max(obj, iterator, context) {
@@ -869,23 +1022,6 @@
 	}
 
 
-	function $head(obj, n) {
-		n = n > 0 && $isNumber(n) ? n : 1;
-		return $map(obj, function(val) {return (n-- > 0) ? val : "break"});
-	}
-
-	function $tail(obj, n) {
-		n = n > 0 && $isNumber(n) ? n : 1;
-		var i = 0,
-			len = $length(obj),
-			start = len < n ? 0 : len - n;
-
-		return $map(obj, function(val) {
-			return (i++ < start) ? "continue" : val;
-		});
-	}
-
-
 	// Trim out all falsey non-zero values from an array or object.
 	function $compact(obj) {
 		return $filter(obj, function(val){ return !!val || $isNumber(val)});
@@ -979,7 +1115,6 @@
 		var extended = args.unshift();
 		$each(args, function(ext) {
 			extended = _create(extended, ext);
-			$isFunction(ext.init) && extended.init();
 		});
 		return extended;
 	}
@@ -999,12 +1134,12 @@
 				var inits = $filter($flat(newInstance.init), $isFunction);
 
 				// support single init functions or arrays of them
-				newInstance.init = (inits.length > 1) ? inits : inits[0];
-
-				// call the init methods using the new object for "this"
-				$each(inits, function(fn) {
-					fn.call(newInstance);
-				});
+				newInstance.init = function() {
+					// call the init methods using the new object for "this"
+					$each(inits, function(fn) {
+						fn.call(newInstance);
+					});
+				}
 			}
 		}
 
@@ -1013,12 +1148,12 @@
 
 	/*
 	 * @param obj (object) the object to read properties from
-	 * @param handler (function) function(value, key, obj) { return boolean; }
-	 * traverse an object calling a handler on each "owned" property
-	 * do so with depth first top down order by default
-	 * optionally can choose breadthFirst and or reversing the order of execution
+	 * @param handler (function) function(value, key, depth, obj) { return boolean; }
+	 * traverse an object calling a handler on each property
+	 * do so with depth first top down order on owned objects by default
+	 * optionally can choose depth first, reversing the order of execution, not limiting to owned objects
 	 */
-	function $walk(obj, handler, isBreadthFirst, isReverseOrder) {
+	function $walk(obj, handler, isDepthFirst, isReverseOrder, allProps) {
 		if (typeof obj !== "object" || $isNull(obj)) {
 			throw new Error("traverse source must be an object");
 		}
@@ -1027,36 +1162,44 @@
 			throw new Error("traverse handler must be a function");
 		}
 
+		allProps = !!allProps;
+
 		var exec,
 			res = {
 				breadthFirst: [],
 				depthFirst: [],
-				siblings: []
+				siblings: [],
+				allProps: allProps,
+				res: null
 			};
 
-		_walk(obj, handler, -1, isBreadthFirst, isReverseOrder, res);
+		_walk(obj, handler, -1, isDepthFirst, isReverseOrder, res, allProps, [], []);
 
 		// finalize the bread-first list
 		res.siblings = res.breadthFirst;
 		res.breadthFirst = $flat(res.breadthFirst);
 
-		if (isBreadthFirst) {
-			exec = res.breadthFirst;
-		} else {
+		if (isDepthFirst) {
 			exec = res.depthFirst;
+		} else {
+			exec = res.breadthFirst;
 		}
 
 		if (isReverseOrder) {exec = exec.reverse();}
 
-		$each(exec, function(obj) {obj.fn();});
+		var _res = $map(exec, function(obj) {return obj.fn();});
+		res.res = $filter(_res, function(val) { return val !== undefined;});
 
 		return res;
 	}
 
 	// does the actual work for $walk
-	function _walk(obj, handler, depth, isBreadthFirst, isReverseOrder, res) {
+	function _walk(obj, handler, depth, isBreadthFirst, isReverseOrder, res, allProps, parents, path) {
 		depth++;
-		var key, val,
+
+		var _parents,
+			_path,
+			key, val,
 			depthFirst = res.depthFirst,
 			breadthFirst = res.breadthFirst,
 			siblings = [],
@@ -1070,22 +1213,24 @@
 		}
 
 		for (key in obj) {
-			if (obj.hasOwnProperty(key)) {
+			if (allProps || obj.hasOwnProperty(key)) {
 				val = obj[key];
+				_parents = [].concat(parents, obj);
+				_path = [].concat(path, key);
 
 				// capture closure values in a new context for later access
-				(function(v, k, d) {
+				(function(v, k, d, parents, path) {
 					// a function we can call later that would be tha same as calling it now
-					var fn = function() {handler(v, k, d);};
-					var theObj = {val: v, key: k, depth: d, fn: fn};
+					var fn = function() {return handler(v, k, d, parents, siblings, path);};
+					var theObj = {val: v, key: k, depth: d, fn: fn, parents: parents, siblings: siblings, path: path};
 					depthFirst.push(theObj);
 					siblings.push(theObj);
-				} (val, key, depth));
+				} (val, key, depth, _parents, _path));
 
 				// recursive call
 				if (typeof val === "object" && !$isNull(val)) {
 					// todo check for cycles!
-					_walk(val, handler, depth, isBreadthFirst, isReverseOrder, res);
+					_walk(val, handler, depth, isBreadthFirst, isReverseOrder, res, allProps, _parents, _path);
 				}
 			}
 		}
@@ -1093,6 +1238,78 @@
 		levels.push(siblings);
 
 		depth--;
+	}
+
+	// cache regexes and strings to save some garbage
+	var grabReQuo = /"|'/g,
+		grabReOpBr = /\[/g,
+		grabReClBr = /\]/g,
+		emptyStr = "",
+		period = ".";
+
+	// handle blah.foo["stuff"][0].value or blah.foo.stuff.0.value
+	// does not support property names containing periods or quotes or [ or ]
+	function _grabStr(obj, path, alt, verbose) {
+		path = path.replace(grabReQuo, emptyStr).replace(grabReOpBr, period).replace(grabReClBr, emptyStr).split(period);
+		// results in ["blah", "foo", "stuff", 0, "value"]
+		var val = obj, altVal;
+		$each(path, function(pathStr, idx) {
+			val = val[pathStr];
+			if ((idx < path.length && !val) || val === undefined) {
+				altVal = $isFunction(alt) ? alt(obj, pathStr, path) : alt;
+				val = altVal;
+				return $each.break;
+			}
+		});
+		return verbose ? {val: val, altVal: altVal} : val;
+	}
+
+	/* handle multi selection on one object syntax
+		 $grab({blah: {foo: {test: ["hi"]}}}, {
+			 foo: "blah.foo",
+			 test: "blah.foo.test",
+			 missing: ["blah[0].test", "a default value"]
+		 });
+	 */
+	function _grabObj(obj, path) {
+		return $map(path, function(val) {
+			if ($isArray(val)) {
+				return $grab(obj, val[0], val[1]); // handle default values as in missing above
+			} else {
+				return $grab(obj, val);
+			}
+		});
+	}
+
+	// handle an array of paths to try
+	function _grabArr(obj, path, alt) {
+		var val = {};
+		$each(path, function(_path) {
+			val = $grab(obj, _path, alt, true);
+			if (val.val !== val.altVal) {
+				return $each.break;
+			}
+		});
+		return val.val;
+	}
+
+
+	function $grab(obj, path, alt, verbose) {
+
+		// handle blah.foo["stuff"][0].value or blah.foo.stuff.0
+		if (typeof path === "string") {
+			return _grabStr(obj, path, alt, verbose);
+
+		// handle an array of paths to try
+		} else if ($isArray(path)) {
+			return _grabArr(obj, path, alt);
+
+		// handle multi selection on one object syntax
+		} else if ($isObject(path)) {
+			return _grabObj(obj, path);
+		}
+
+		return alt;
 	}
 
 	/**
@@ -1727,7 +1944,14 @@
 		$isArray: $isArray,
 		$isError: $isError,
 		$typeof: $typeof,
+
+		$typex: $typex,
+		$x: $x,
+		$typeofx: $typeofx,
 		$same: $same,
+		$matchObj: $matchObj,
+		$grab: $grab,
+
 
 		// string
 		$trim: $trim,
@@ -1752,10 +1976,16 @@
 		$maybe: $maybe,
 		$includes: $includes,
 		$contains: $includes,
+		$keyOf: $keyOf,
+		$indexOf: $keyOf,
 		$invoke: $invoke,
 		$ex: $ex,
 		$pluck: $pluck,
 		$value: $value,
+		$first: $first,
+		$last: $last,
+		$head: $first,
+		$tail: $last,
 		$max: $max,
 		$min: $min,
 		$shuffle: $shuffle,
@@ -1766,8 +1996,6 @@
 		$sortedIndex: $sortedIndex,
 		$size: $length,
 		$length: $length,
-		$head: $head,
-		$tail: $tail,
 		$compact: $compact,
 		$flat: $flat,
 		$slice: $slice,
@@ -1798,6 +2026,7 @@
 
 		// misc
 		$uniqueId: $uniqueId
+
 	};
 
 	loot.addExport = function(name, obj) {
