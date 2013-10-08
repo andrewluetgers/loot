@@ -318,11 +318,12 @@
 		if (!len) {
 			return models;
 		} else if (type in models) {
-			var instances = models[type].getInstances(), ret;
+			var instances = models[type].getInstances(),
+				ret = [];
 			if (len > 1) {
 				$each(instances, function(inst) {
 					if (inst.get(key) == val) {
-						ret = inst;
+						ret.push(inst);
 					}
 				});
 				return ret;
